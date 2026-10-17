@@ -12,6 +12,7 @@ namespace Cardboard
         CardboardRunner controller;
         void Start()
         {
+            yaw=transform.eulerAngles.y;pitch=Mathf.DeltaAngle(0,transform.eulerAngles.x);
             if (player) controller=player.GetComponent<CardboardRunner>();
             var lens=GetComponent<Camera>(); lens.orthographic=false; lens.fieldOfView=72; lens.nearClipPlane=.05f;
             Cursor.lockState=CursorLockMode.None; Cursor.visible=true;

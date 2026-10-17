@@ -146,7 +146,7 @@ namespace Cardboard.Editor
                 var mesh=runner.puppet.GetComponentInChildren<MeshFilter>(true);
                 var material=mesh.GetComponent<MeshRenderer>().sharedMaterial;
                 int variant=runner.personality%2;
-                check(mesh.name==Names[variant],"Imported character assigned to "+runner.name);
+                check(mesh.sharedMesh==AssetDatabase.LoadAssetAtPath<Mesh>(Root+"/"+Names[variant]+".asset") && Quaternion.Angle(mesh.transform.localRotation,Quaternion.Euler(0,180,0))<.1f,"Imported character and forward orientation assigned to "+runner.name);
                 check(material.GetTexture("_BaseMap")==AssetDatabase.LoadAssetAtPath<Texture2D>(SourceRoot+Textures[variant]) && material.color==Color.white && material.GetFloat("_Smoothness")==0 && material.GetFloat("_Metallic")==0,"Original base color and maximum roughness: "+mesh.name);
                 check(material.GetFloat("_Cull")==0 && material.doubleSidedGI,"Both polygon sides are visible: "+mesh.name);
             }

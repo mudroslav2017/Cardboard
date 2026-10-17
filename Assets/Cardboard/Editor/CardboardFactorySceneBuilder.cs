@@ -26,7 +26,7 @@ namespace Cardboard.Editor
             if(stageAtBench && EditorApplication.isPlaying && CardboardRunner.Player && CardboardFactoryGame.Instance)
             {
                 var player=CardboardRunner.Player;var body=player.GetComponent<CharacterController>();
-                body.enabled=false;player.transform.position=new Vector3(-6,0,3.45f);body.enabled=true;
+                body.enabled=false;player.transform.position=CardboardFactoryGame.Instance.station.transform.TransformPoint(new Vector3(0,0,-2.7f));body.enabled=true;
                 Camera.main.transform.position=player.transform.position+Vector3.up*1.62f;stageAtBench=false;
             }
             const string request="Library/FactoryEditorCommand.txt";
@@ -47,9 +47,17 @@ namespace Cardboard.Editor
             else if(command=="bench-preview")
             {
                 var cam=Camera.main;var position=cam.transform.position;var rotation=cam.transform.rotation;
-                cam.transform.position=new Vector3(-6,2.9f,7.2f);
-                cam.transform.rotation=Quaternion.LookRotation(new Vector3(-6.3f,1.4f,.5f)-cam.transform.position);
+                var station=UnityEngine.Object.FindFirstObjectByType<CardboardFactoryGame>().station;
+                cam.transform.position=station.transform.TransformPoint(new Vector3(0,2.9f,-6.7f));
+                cam.transform.rotation=Quaternion.LookRotation(station.transform.TransformPoint(new Vector3(.4f,1.4f,0))-cam.transform.position);
                 Capture("WorkbenchPreview");cam.transform.SetPositionAndRotation(position,rotation);
+            }
+            else if(command=="layout-preview")
+            {
+                var cam=Camera.main;var position=cam.transform.position;var rotation=cam.transform.rotation;
+                bool ortho=cam.orthographic;float size=cam.orthographicSize;
+                cam.transform.SetPositionAndRotation(new Vector3(0,65,-5),Quaternion.Euler(90,0,0));cam.orthographic=true;cam.orthographicSize=29;
+                Capture("FactoryLayout");cam.orthographic=ortho;cam.orthographicSize=size;cam.transform.SetPositionAndRotation(position,rotation);
             }
         }
         [MenuItem("Cardboard/Create factory shift")]
@@ -60,10 +68,11 @@ namespace Cardboard.Editor
             const string legacyScene="Assets/Scenes/LegacyFactoryShift.unity";
             if(previousScene.path==ScenePath && !File.Exists(legacyScene))
                 EditorSceneManager.SaveScene(previousScene,legacyScene,true);
-            else if(previousScene.isDirty && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            else if(previousScene.isDirty && !string.IsNullOrEmpty(previousScene.path)) EditorSceneManager.SaveScene(previousScene);
             try
             {
                 ImportedCharacterInstaller.Prepare();
+                FactoryGearImporter.Prepare();
                 Directory.CreateDirectory("Assets/Cardboard/Generated");Directory.CreateDirectory("Assets/Scenes");
                 var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
                 var root=new GameObject("НЕ СВОЙ • cardboard factory shift");
@@ -76,7 +85,7 @@ namespace Cardboard.Editor
                 AssetDatabase.SaveAssets();EditorSceneManager.SaveScene(scene,ScenePath);
                 EditorBuildSettings.scenes=new[] {new EditorBuildSettingsScene(ScenePath,true),new EditorBuildSettingsScene("Assets/Scenes/CardboardPlayground.unity",false)};
                 Selection.activeGameObject=root;
-                if(SceneView.lastActiveSceneView) SceneView.lastActiveSceneView.LookAt(new Vector3(0,1,-1),Quaternion.Euler(35,205,0),24);
+                if(SceneView.lastActiveSceneView) SceneView.lastActiveSceneView.LookAt(new Vector3(0,1,-5),Quaternion.Euler(55,0,0),44);
                 File.WriteAllText("Library/FactoryBuildReport.txt","SUCCESS: imported workstation models, animated guard, conveyor, numbered types, jump pump, wheel cutting, 3 finishing baths, punchcard orders; HUD, wall text and disguise locker removed.\n");
                 Capture("FactoryPreview");
             }

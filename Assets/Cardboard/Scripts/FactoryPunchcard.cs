@@ -9,7 +9,7 @@ namespace Cardboard
         {
             var card = Group("Punched work order " + number, parent, Vector3.zero);
             Box("Card", card, Vector3.zero, new Vector3(.42f, .60f, .018f), Cream);
-            FactoryGeometry.WorldLabel(number.ToString(), card, new Vector3(0, .10f, .012f), .25f, .32f);
+            FactoryGeometry.WorldLabel(number.ToString(), card, new Vector3(0, .10f, .012f), .075f, .32f);
             for (int row = 0; row < 3; row++)
             for (int column = 0; column < 6; column++)
                 if ((column + row * 2 + number) % 3 != 0)

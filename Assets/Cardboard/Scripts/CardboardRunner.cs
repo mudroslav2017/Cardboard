@@ -88,7 +88,7 @@ namespace Cardboard
             if(!isPlayer && Time.time<paintHoldUntil && !chasing) velocity=Vector3.zero;
             velocity=Vector3.Lerp(velocity,wish,1-Mathf.Exp(-9*dt)); speed=velocity.magnitude;
             Vector3 position=transform.position+velocity*dt;
-            if(factory) { position.x=Mathf.Clamp(position.x,-11.7f,11.7f);position.z=Mathf.Clamp(position.z,-8.9f,8.9f); }
+            if(factory) { position.x=Mathf.Clamp(position.x,-27.6f,27.6f);position.z=Mathf.Clamp(position.z,-26.6f,13.6f); }
             else
             {
                 float boundary=position.x*position.x/(10.7f*10.7f)+position.z*position.z/(7.2f*7.2f);

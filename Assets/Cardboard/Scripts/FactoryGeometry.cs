@@ -50,6 +50,7 @@ namespace Cardboard
         }
         public static void GearVisual(Transform parent,FactoryRecipe recipe,Mesh[] gears,Mesh[] hubs,Material paper,Material edge,Material ink)
         {
+            if(ImportedFactoryGears.Create(parent,recipe.Type)) return;
             int teeth=Mathf.Clamp((recipe.teeth-8)/2,0,gears.Length-1);
             for(int i=0;i<recipe.layers;i++) MeshPart("Laminated gear layer "+i,parent,Vector3.back*i*.07f,gears[teeth],paper,edge);
             MeshPart("Printed hub socket",parent,new Vector3(0,0,.062f),hubs[(int)recipe.hub],ink,edge);
