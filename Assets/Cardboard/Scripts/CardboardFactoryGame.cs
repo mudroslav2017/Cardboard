@@ -37,10 +37,10 @@ namespace Cardboard
         public bool CameraOverride => State==FactoryState.Captured || State==FactoryState.Dead;
         public Vector3 CameraPosition {get;private set;}
         public Quaternion CameraRotation {get;private set;}
-        public bool ReadyToLeave => Repairs>=6 && WorkingGears==gears.Length;
+        public bool ReadyToLeave => gears.Length>0 && WorkingGears==gears.Length;
         public int WorkingGears {get { int count=0;foreach(var gear in gears) if(!gear.broken) count++;return count; } }
-        float breakAt,inspectionAt,capturedAt,lastAlarm,jumpWatch;
-        int breakCursor,inspectionWorker=1;
+        float inspectionAt,capturedAt,lastAlarm,jumpWatch;
+        int inspectionWorker=1;
         GameObject carried;
         FactorySound sound;
         Vector3 pressHome,gateHome;
@@ -57,7 +57,7 @@ namespace Cardboard
             State=FactoryState.Working;Suspicion=0;Disguise=100;Repairs=Mistakes=0;ShiftRemaining=240;
             HasPart=false;Inspection=false;Pretending=false;Memorized=null;
             if(workbench) workbench.ResetMachine();
-            breakAt=Time.time+22;inspectionAt=Time.time+35;breakCursor=0;jumpWatch=0;
+            inspectionAt=Time.time+35;jumpWatch=0;
             if(carried) Destroy(carried);
             foreach(var gear in gears) gear.SetBroken(true);
             victim.gameObject.SetActive(false);buttons.gameObject.SetActive(false);pins.gameObject.SetActive(false);
@@ -82,6 +82,7 @@ namespace Cardboard
                 if(keyboard.eKey.wasPressedThisFrame && !PlayerBlocked && !CardboardMarker.DrawingMode) Interact();
                 if(keyboard.qKey.wasPressedThisFrame && HasPart && !PlayerBlocked) DropPart();
             }
+            if(ReadyToLeave) exitGate.localPosition=Vector3.Lerp(exitGate.localPosition,gateHome+Vector3.right*2.5f,dt*2);
             if(State==FactoryState.Chased)
             {
                 if(Time.time>lastAlarm+2) { lastAlarm=Time.time;if(sound) sound.Play("alarm"); }
@@ -102,7 +103,6 @@ namespace Cardboard
             if(watched && Disguise<30) AddSuspicion(dt*5);
             if(Pretending && CardboardRunner.Player.speed<1.8f && !Inspection) Suspicion=Mathf.Max(0,Suspicion-dt*.8f);
             if(!watched && !Inspection) Suspicion=Mathf.Max(0,Suspicion-dt*.35f);
-            if(Time.time>=breakAt && !ReadyToLeave) { BreakNextGear();breakAt=Time.time+24; }
             if(!Inspection && Time.time>=inspectionAt && watched) StartInspection();
             if(Inspection)
             {
@@ -118,7 +118,6 @@ namespace Cardboard
                 { Inspection=false;inspectionAt=Time.time+30;AddSuspicion(32);Disguise=Mathf.Max(0,Disguise-12);Toast("Проверяющий вам не поверил."); }
             }
             if(ShiftRemaining<=0 && !ReadyToLeave) { Toast("Смена провалена. Аварийная проверка: ЧУЖОЙ В ЦЕХУ!",6);AddSuspicion(100); }
-            if(ReadyToLeave) exitGate.localPosition=Vector3.Lerp(exitGate.localPosition,gateHome+Vector3.right*2.5f,dt*2);
         }
         public bool IsWatched()
         {
@@ -179,7 +178,7 @@ namespace Cardboard
                 if(!Focus) return "";
                 if(Focus.action==FactoryAction.Bench) return "";
                 if(Focus.action==FactoryAction.Gear) return Focus.gear.broken && HasPart?"E — установить деталь":"E — прочитать инструкцию под шестерёнкой";
-                if(Focus.action==FactoryAction.Exit) return ReadyToLeave?"E — закончить смену и уйти":"Выход после 6 ремонтов и запуска всех шестерёнок";
+                if(Focus.action==FactoryAction.Exit) return ReadyToLeave?"E — закончить смену и уйти":"Выход после починки всех 3 шестерёнок";
                 return Focus.prompt;
             }
         }
@@ -201,7 +200,7 @@ namespace Cardboard
         }
         public bool TryExit()
         {
-            if(!ReadyToLeave || Ended) { Toast("Сначала закончите наряд: 6 ремонтов и все 3 шестерёнки в работе.");return false; }
+            if(!ReadyToLeave || Ended) { Toast("Сначала почините все 3 шестерёнки главного механизма.");return false; }
             State=FactoryState.Escaped;Cursor.lockState=CursorLockMode.None;Cursor.visible=true;
             if(sound) sound.Play("good");return true;
         }
@@ -229,18 +228,8 @@ namespace Cardboard
             }
             gear.SetBroken(false);HasPart=false;if(carried) Destroy(carried);
             Repairs++;Suspicion=Mathf.Max(0,Suspicion-9);Disguise=Mathf.Min(100,Disguise+3);
-            Toast(ReadyToLeave?"Наряд выполнен. Все механизмы работают. Идите к выходу!":"Узел "+(char)('A'+gear.index)+" запущен. Ремонтов: "+Repairs+" / 6.",6);
+            Toast(ReadyToLeave?"Наряд выполнен. Все механизмы работают. Идите к выходу!":"Узел "+(char)('A'+gear.index)+" запущен. Ремонтов: "+Repairs+" / "+gears.Length+".",6);
             if(sound) sound.Play("good");return true;
-        }
-        public bool BreakNextGear()
-        {
-            for(int n=0;n<gears.Length;n++)
-            {
-                var gear=gears[(breakCursor+n)%gears.Length];if(gear.broken) continue;
-                gear.SetBroken(true);breakCursor=(gear.index+1)%gears.Length;
-                Toast("ХРУСТ. В огромном механизме сломалась шестерёнка "+(char)('A'+gear.index)+".",6);if(sound) sound.Play("wrong");return true;
-            }
-            return false;
         }
         public void DropPart() { HasPart=false;if(carried) Destroy(carried);Toast("Неподходящая деталь отправлена в обрезки."); }
         public void Toast(string message,float seconds=4) { Message=message;MessageUntil=Time.time+seconds; }

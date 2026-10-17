@@ -134,7 +134,7 @@ namespace Cardboard
             manual.localRotation=Quaternion.Euler(0,25,-4);
             // Put the manual beside the panel, so it must be read by moving to the side.
             manual.localPosition=new Vector3(-3.08f,1.90f,.50f);
-            LabelPlate("ЛКМ: ДЕРЖАТЬ И ДВИГАТЬ ДЕТАЛЬ\nСЕЛЕКТОРЫ / МАХОВИК: ВРАЩАТЬ ПО КРУГУ\nРЫЧАГИ / КОЖУХ: ВВЕРХ-ВНИЗ. РЕЗАК: ВНИЗ\nE — РЫВОК / ESC — ОТПУСТИТЬ",root,new Vector3(0,.17f,1.0f),new Vector2(4.0f,.53f),.035f);
+            LabelPlate("ЛКМ: КЛИК ИЛИ ТЯНИТЕ РЫЧАГ\nСЕЛЕКТОРЫ / МАХОВИК: ВРАЩАТЬ ПО КРУГУ\nПОДАЧА: ВВЕРХ И ОБРАТНО ЗА ОДИН ЗАХВАТ\nE — РЫВОК / ESC — ОТМЕНА ЗАХВАТА",root,new Vector3(0,.17f,1.0f),new Vector2(4.0f,.53f),.035f);
             machine.scraps=new Transform[3];
             for(int i=0;i<3;i++) machine.scraps[i]=Box("Ejected cardboard scrap "+i,root,Vector3.zero,new Vector3(.55f,.035f,.28f),Kraft);
             machine.gripHand=Group("Right hand physically gripping the machine",root,Vector3.zero);

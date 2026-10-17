@@ -18,8 +18,9 @@ namespace Cardboard.Editor
         static InputSettings.BackgroundBehavior oldInputBackground;
         static Keyboard keyboard;
         static CardboardFactoryGame game;
-        static int stage,repairPass,death;
+        static int stage,death;
         static float started;
+        static Vector3 closedGate;
         static FactoryGear assembling;
         static Ray ControlRay(FactoryWorkbench bench,WorkbenchPart part)
         {
@@ -45,7 +46,7 @@ namespace Cardboard.Editor
         {
             Vector2 start=new Vector2(Screen.width*.5f,Screen.height*.75f);
             Check(bench.TryGrip(ControlRay(bench,WorkbenchPart.Cutter),start),"First-person ray grips the cutting lever");
-            bench.DragTo(start-Vector2.up*(Screen.height*.26f*travel));bench.EndGrip();
+            bench.DragTo(start-Vector2.up*(FactoryWorkbench.CutterStrokePixels*travel));bench.EndGrip();
         }
         static void MachineSafety(FactoryWorkbench bench)
         {
@@ -61,7 +62,7 @@ namespace Cardboard.Editor
         {
             Vector2 start=new Vector2(Screen.width*.5f,Screen.height*.5f);
             Check(bench.TryGrip(ControlRay(bench,part),start),"Mouse grabs physical "+part+" without an E shortcut");
-            bench.DragTo(start+Vector2.up*Screen.height*.16f*direction*travel);bench.EndGrip();
+            bench.DragTo(start+Vector2.up*FactoryWorkbench.LeverStrokePixels*direction*travel);bench.EndGrip();
         }
         static void Dial(FactoryWorkbench bench,WorkbenchPart part,float degrees)
         {
@@ -73,12 +74,40 @@ namespace Cardboard.Editor
             { float a=-degrees*i/count*Mathf.Deg2Rad;bench.DragTo(center+new Vector2(Mathf.Cos(a),Mathf.Sin(a))*radius); }
             bench.EndGrip();
         }
+        static void Click(FactoryWorkbench bench,WorkbenchPart part)
+        {
+            var pointer=new Vector2(Screen.width*.5f,Screen.height*.5f);
+            Check(bench.TryGrip(ControlRay(bench,part),pointer),"Click reaches "+part);
+            bench.DragTo(pointer+Vector2.one);bench.EndGrip();
+        }
+        static void ComfortableControls(FactoryWorkbench bench)
+        {
+            var pointer=new Vector2(Screen.width*.5f,Screen.height-2);
+            Check(bench.TryGrip(ControlRay(bench,WorkbenchPart.Feed),pointer),"Feed can be grabbed near the screen edge");
+            bench.DragTo(pointer+Vector2.up*FactoryWorkbench.LeverStrokePixels);
+            Check(bench.FeedRaised && bench.Manipulating,"Relative drag completes the stroke beyond the screen edge");
+            bench.DragTo(pointer);bench.DragTo(pointer);bench.EndGrip();
+            Check(bench.Layers==1 && !bench.FeedRaised,"One continuous up-down grip feeds exactly one sheet");
+            Check(bench.TryGrip(ControlRay(bench,WorkbenchPart.Reject),pointer),"Scrap handle can be grabbed");
+            bench.EndGrip(false);Check(bench.Layers==1,"Cancelling a click leaves the packet untouched");
+            Click(bench,WorkbenchPart.Reject);Check(bench.Layers==0,"Short click ejects the free packet");
+            Click(bench,WorkbenchPart.Feed);Check(bench.FeedRaised && bench.Layers==0,"Short click raises the feed despite minor pointer jitter");
+            Click(bench,WorkbenchPart.Feed);Check(!bench.FeedRaised && bench.Layers==1,"Second click feeds exactly one sheet");
+            Click(bench,WorkbenchPart.Clamp);Check(bench.Clamped,"Short click closes the loaded clamp");
+            Click(bench,WorkbenchPart.Guard);Check(bench.GuardClosed,"Short click closes the safety guard");
+            Click(bench,WorkbenchPart.Feed);Check(!bench.FeedRaised && bench.Layers==1,"Click respects the feed interlock");
+            Click(bench,WorkbenchPart.Cutter);Check(!bench.Finished,"Click cannot cut without winding the spring");
+            Crank(bench,1110);Click(bench,WorkbenchPart.Cutter);Check(bench.Finished,"Short click cuts when the machine is armed");
+            Click(bench,WorkbenchPart.Output);Check(!game.HasPart && bench.Finished,"Click cannot remove a clamped part");
+            Click(bench,WorkbenchPart.Guard);Click(bench,WorkbenchPart.Clamp);Click(bench,WorkbenchPart.Output);
+            Check(game.HasPart && !bench.Finished,"Click removes the released finished part");game.DropPart();
+        }
         static void MouseMachine(FactoryWorkbench bench)
         {
             Quaternion leverHome=bench.feedLever.localRotation;
             Vector2 start=new Vector2(Screen.width*.5f,Screen.height*.5f);
             Check(bench.TryGrip(ControlRay(bench,WorkbenchPart.Feed),start),"Free cursor can grab the feed control directly");
-            bench.DragTo(start+Vector2.up*Screen.height*.08f);
+            bench.DragTo(start+Vector2.up*FactoryWorkbench.LeverStrokePixels*.5f);
             Check(!bench.FeedRaised && bench.Layers==0 && Quaternion.Angle(leverHome,bench.feedLever.localRotation)>20,"Partial hand stroke moves lever continuously without feeding");
             Check(bench.gripHand.gameObject.activeSelf && game.PlayerBlocked,"Visible hand grips machine and camera movement is blocked");
             bench.EndGrip(false);
@@ -120,7 +149,7 @@ namespace Cardboard.Editor
             if(EditorApplication.isPlayingOrWillChangePlaymode) return;
             if(SceneManager.GetActiveScene().path!=CardboardFactorySceneBuilder.ScenePath)
                 EditorSceneManager.OpenScene(CardboardFactorySceneBuilder.ScenePath);
-            report.Clear();stage=0;repairPass=0;death=0;running=true;
+            report.Clear();stage=0;death=0;running=true;
             oldBackground=Application.runInBackground;oldInputBackground=InputSystem.settings.backgroundBehavior;
             Application.runInBackground=true;InputSystem.settings.backgroundBehavior=InputSettings.BackgroundBehavior.IgnoreFocus;
             EditorApplication.ExecuteMenuItem("Window/General/Game");EditorApplication.isPlaying=true;
@@ -164,6 +193,7 @@ namespace Cardboard.Editor
                     game=CardboardFactoryGame.Instance;
                     if(!game || !CardboardRunner.Player || game.ShiftRemaining<=0) return;
                     Check(game.gears.Length==3 && game.WorkingGears==0,"Giant mechanism starts with 3 broken gear sockets");
+                    closedGate=game.exitGate.localPosition;
                     int blueprints=0;
                     Physics.SyncTransforms();
                     foreach(var item in UnityEngine.Object.FindObjectsByType<FactoryInteractable>(FindObjectsSortMode.None))
@@ -192,6 +222,7 @@ namespace Cardboard.Editor
                         Check(hit && hit.GetComponent<WorkbenchControl>()==control,"Independent interaction ray reaches machine "+control.part);
                     }
                     MachineSafety(game.workbench);game.ResetShift();
+                    ComfortableControls(game.workbench);game.ResetShift();
                     MouseMachine(game.workbench);game.ResetShift();
                     view.SetPositionAndRotation(savedPosition,savedRotation);
                     keyboard=InputSystem.AddDevice<Keyboard>();keyboard.MakeCurrent();
@@ -201,6 +232,12 @@ namespace Cardboard.Editor
                 {
                     Check(game.HasPart && game.HeldRecipe.Equals(assembling.recipe),"Manual machine produces the selected layered gear");
                     Check(game.TryInstall(assembling) && game.Repairs==1 && !assembling.broken,"Matching gear repairs and starts a mechanism");
+                    started=Time.time;stage=8;
+                }
+                else if(stage==8 && Time.time-started>25)
+                {
+                    Check(!game.gears[0].broken && game.WorkingGears==1 && game.Repairs==1,"Installed gear stays operational beyond the former breakdown timer");
+                    Check(!game.ReadyToLeave && !game.TryExit() && game.exitGate.localPosition==closedGate,"One repaired gear keeps the victory door closed and exit locked");
                     Craft(game.gears[1],true);stage=2;
                 }
                 else if(stage==2 && Time.time-started>1.6f)
@@ -213,30 +250,23 @@ namespace Cardboard.Editor
                 else if(stage==3 && Time.time-started>1.6f)
                 {
                     Check(game.TryInstall(assembling),"Second recipe installs successfully");
+                    Check(!game.ReadyToLeave && !game.TryExit() && game.exitGate.localPosition==closedGate,"Two repaired gears keep the victory door closed and exit locked");
                     Craft(game.gears[2]);stage=4;
                 }
                 else if(stage==4 && Time.time-started>1.6f)
                 {
                     Check(game.TryInstall(assembling) && game.WorkingGears==3,"All three gear recipes start the giant machine");
-                    Check(game.BreakNextGear(),"A running machine can break another gear");
-                    foreach(var gear in game.gears) if(gear.broken) { Craft(gear);break; }
-                    stage=5;
+                    Check(game.Repairs==3 && game.ReadyToLeave,"Three repairs finish the work order and unlock the victory door");
+                    started=Time.time;stage=5;
                 }
                 else if(stage==5 && Time.time-started>1.6f)
                 {
-                    Check(game.TryInstall(assembling),"Replacement repairs a newly broken gear");repairPass++;
-                    if(repairPass<3)
-                    {
-                        Check(game.BreakNextGear(),"Mechanical wear creates another repair job");
-                        foreach(var gear in game.gears) if(gear.broken) { Craft(gear);break; }
-                    }
-                    else
-                    {
-                        Check(game.Repairs==6 && game.ReadyToLeave,"Six repairs and three healthy gears finish the work order");
-                        Check(game.TryExit() && game.State==FactoryState.Escaped,"Completed shift can end with a successful escape");
-                        game.ResetShift();game.AddSuspicion(20);game.StartInspection();
-                        InputSystem.QueueStateEvent(keyboard,new KeyboardState(Key.C));started=Time.time;stage=6;
-                    }
+                    Check(Vector3.Distance(game.exitGate.localPosition,closedGate+Vector3.right*2.5f)<.15f,"Victory door physically slides open after the third repair");
+                    Check(game.WorkingGears==3 && game.Repairs==3 && game.TryExit() && game.State==FactoryState.Escaped,"All three repaired gears allow a successful escape");
+                    game.ResetShift();
+                    Check(game.WorkingGears==0 && game.Repairs==0 && !game.ReadyToLeave && game.exitGate.localPosition==closedGate,"New shift resets all three gears and closes the victory door");
+                    game.AddSuspicion(20);game.StartInspection();
+                    InputSystem.QueueStateEvent(keyboard,new KeyboardState(Key.C));started=Time.time;stage=6;
                 }
                 else if(stage==6 && Time.time-started>2.3f)
                 {
@@ -277,6 +307,7 @@ namespace Cardboard.Editor
             File.WriteAllLines("Library/FactoryVerification.txt",report);running=false;
             InputSystem.settings.backgroundBehavior=oldInputBackground;Application.runInBackground=oldBackground;
             EditorApplication.isPlaying=false;
+            if(Application.isBatchMode) EditorApplication.Exit(report.Exists(line=>line.StartsWith("FAIL "))?1:0);
         }
     }
 }

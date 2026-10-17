@@ -13,6 +13,8 @@ namespace Cardboard
         public TextMesh status;
         public Renderer readyLamp;
         public Material lampOff,lampOn;
+        public static float LeverStrokePixels => Mathf.Clamp(Screen.height*.08f,40,85);
+        public static float CutterStrokePixels => Mathf.Clamp(Screen.height*.12f,60,125);
         public int Teeth {get;private set;}=8;
         public FactoryHub Hub {get;private set;}
         public int Layers {get;private set;}
@@ -35,6 +37,8 @@ namespace Cardboard
         readonly float[] fedAt={-10,-10,-10};
         int releasedFrame=-1;
         bool hasAngle,strokeCommitted,returnToLook;
+        Vector2 gripPointer,gripStart;
+        float pointerTravel;
         public Vector3 guardHome;
         GameObject product;
 
@@ -55,7 +59,7 @@ namespace Cardboard
             {
                 if(keyboard!=null && keyboard.escapeKey.wasPressedThisFrame) { EndGrip(false);return; }
                 if(mouse==null || !mouse.leftButton.isPressed) { EndGrip();return; }
-                DragTo(mouse.position.ReadValue());return;
+                gripPointer+=mouse.delta.ReadValue();DragTo(gripPointer);return;
             }
             if(mouse!=null && mouse.leftButton.wasPressedThisFrame && !CardboardMarker.DrawingMode)
             {
@@ -70,16 +74,22 @@ namespace Cardboard
             var control=hit?hit.GetComponent<WorkbenchControl>():null;
             if(!control || control.machine!=this) return false;
             GrippedPart=control.part;Manipulating=true;hasAngle=false;startY=pointer.y;
+            gripPointer=gripStart=pointer;pointerTravel=0;
             GripTravel=selectorDrag=0;strokeCommitted=false;returnToLook=Cursor.lockState==CursorLockMode.Locked;
             bool state=GrippedPart==WorkbenchPart.Feed?FeedRaised:GrippedPart==WorkbenchPart.Clamp?Clamped:GuardClosed;
             gripFromState=state?1:0;
             strokeDirection=GrippedPart==WorkbenchPart.Feed || GrippedPart==WorkbenchPart.Guard?(state?-1:1):GrippedPart==WorkbenchPart.Clamp?(state?1:-1):-1;
-            Cursor.lockState=CursorLockMode.None;Cursor.visible=true;
+            Cursor.lockState=CursorLockMode.Locked;Cursor.visible=false;
+            if(GrippedPart==WorkbenchPart.Feed || GrippedPart==WorkbenchPart.Clamp || GrippedPart==WorkbenchPart.Guard)
+                Status("КЛИК — ПЕРЕКЛЮЧИТЬ / ТЯНИТЕ "+(strokeDirection>0?"ВВЕРХ":"ВНИЗ"));
+            else if(GrippedPart==WorkbenchPart.Cutter || GrippedPart==WorkbenchPart.Reject || GrippedPart==WorkbenchPart.Output)
+                Status("КЛИК — ВЫПОЛНИТЬ / ТЯНИТЕ ВНИЗ");
             DragTo(pointer);return true;
         }
         public void DragTo(Vector2 pointer)
         {
             if(!Manipulating) return;
+            pointerTravel=Mathf.Max(pointerTravel,Vector2.Distance(pointer,gripStart));
             bool selector=GrippedPart==WorkbenchPart.Teeth || GrippedPart==WorkbenchPart.Hub;
             if(GrippedPart==WorkbenchPart.Crank || selector)
             {
@@ -112,10 +122,17 @@ namespace Cardboard
                 }
                 lastAngle=angle;hasAngle=true;
             }
-            else if(GrippedPart==WorkbenchPart.Cutter) PullCutter(Mathf.Clamp01((startY-pointer.y)/(Screen.height*.26f)));
+            else if(GrippedPart==WorkbenchPart.Cutter) PullCutter(Mathf.Clamp01((startY-pointer.y)/CutterStrokePixels));
+            else if(strokeCommitted && GrippedPart==WorkbenchPart.Feed && (pointer.y-startY)*strokeDirection<LeverStrokePixels-6)
+            {
+                // Keep the feed in the same hand for the return stroke.
+                strokeCommitted=false;gripFromState=FeedRaised?1:0;
+                startY+=strokeDirection*LeverStrokePixels;strokeDirection=-strokeDirection;
+                DragTo(pointer);
+            }
             else if(!strokeCommitted)
             {
-                GripTravel=Mathf.Clamp01((pointer.y-startY)*strokeDirection/(Screen.height*.16f));
+                GripTravel=Mathf.Clamp01((pointer.y-startY)*strokeDirection/LeverStrokePixels);
                 if(!CanStroke(GrippedPart))
                 {
                     if(GripTravel>.08f) { Status("МЕХАНИЧЕСКИЙ СТОПОР / ХОД ЗАПЕРТ");Tick(true); }
@@ -158,11 +175,15 @@ namespace Cardboard
         public void EndGrip(bool capture=true)
         {
             bool held=Manipulating;Manipulating=false;hasAngle=false;
+            if(held && capture && pointerTravel<=6 && !strokeCommitted && GrippedPart!=WorkbenchPart.Teeth && GrippedPart!=WorkbenchPart.Hub && GrippedPart!=WorkbenchPart.Crank)
+                Operate(GrippedPart);
             CutTravel=GripTravel=selectorDrag=0;
             if(held)
             {
                 releasedFrame=Time.frameCount;Refresh();bool lockLook=capture && returnToLook;
                 Cursor.lockState=lockLook?CursorLockMode.Locked:CursorLockMode.None;Cursor.visible=!lockLook;
+                if(!lockLook && Mouse.current!=null)
+                    Mouse.current.WarpCursorPosition(new Vector2(Mathf.Clamp(gripStart.x,0,Screen.width-1),Mathf.Clamp(gripStart.y,0,Screen.height-1)));
             }
         }
         bool SelectorsLocked => Clamped || GuardClosed || Finished || Jammed;
@@ -229,6 +250,8 @@ namespace Cardboard
                     if(Game.HasPart) { Status("ЛЕВАЯ РУКА ЗАНЯТА");break; }
                     Game.ReceiveWorkbenchPart(FinishedRecipe);if(product) Destroy(product);
                     Layers=0;Finished=FeedRaised=false;Status("ДЕТАЛЬ СНЯТА");done=true;break;
+                case WorkbenchPart.Cutter:
+                    PullCutter(1);done=Finished;break;
                 default: Status("РУКОЯТЬ: ЗАЖАТЬ И ТЯНУТЬ");break;
             }
             Tick(!done);Refresh();return done;
