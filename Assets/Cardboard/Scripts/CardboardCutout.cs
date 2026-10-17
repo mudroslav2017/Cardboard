@@ -22,6 +22,9 @@ namespace Cardboard
         };
 
         public static Transform Create(Transform parent,int variant)
+        { return ImportedCardboardCharacters.Create(parent,variant); }
+
+        public static Transform CreateLegacy(Transform parent,int variant)
         {
             if(meshes.TryGetValue(variant,out Mesh existing) && existing)
             {

@@ -1,0 +1,253 @@
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+namespace Cardboard
+{
+    public enum StationStage { Empty, Dropping, Conveying, Loaded, Cutting, Cut, Dipping }
+
+    [DefaultExecutionOrder(-40)]
+    public class FactoryWorkstation : MonoBehaviour
+    {
+        public Transform feedLever, pressLever, selector, wheel, press, guardModel;
+        public AnimationClip guardClip;
+        public BoxCollider guardHit;
+        public Transform sheet, cutPart, pumpPlate, pressureNeedle, progressFill;
+        public Transform[] baths;
+        public Renderer[] pressureLamps;
+        public Material lampOff, lampOn;
+        public TextMesh selectorNumber;
+        public Vector3 dropPosition = new Vector3(-2.67f, 1.8f, 0);
+        public Vector3 conveyorPosition = new Vector3(-2.67f, 1.17f, 0);
+        public Vector3 cuttingPosition = new Vector3(-.08f, 1.03f, .12f);
+        public Vector3 progressOrigin = new Vector3(2.049f,1.68f,-.485f);
+        public StationStage Stage { get; private set; }
+        public int SelectedType { get; private set; } = 1;
+        public int CutType { get; private set; }
+        public float Pressure { get; private set; }
+        public float CutProgress { get; private set; }
+        public bool PressClosed { get; private set; }
+        public bool GuardClosed { get; private set; }
+        public float GuardBlend { get; private set; }
+        public bool Manipulating { get; private set; }
+        public bool ConsumesMouse => Manipulating || Time.frameCount == releasedFrame;
+        public bool Nearby => Camera.main && Vector3.Distance(Camera.main.transform.position, transform.TransformPoint(new Vector3(0, 1.2f, -.8f))) < 6;
+        public bool PressureReady => Pressure >= .999f;
+        public bool CanCut => (Stage == StationStage.Loaded || Stage == StationStage.Cutting) && PressClosed && GuardClosed && GuardBlend >= .99f && PressureReady;
+        public bool CanPump => (Stage == StationStage.Loaded || Stage == StationStage.Cutting) && PressClosed && GuardClosed && GuardBlend >= .99f;
+        CardboardFactoryGame Game => CardboardFactoryGame.Instance;
+        Vector3 pressHome, pumpHome, progressHome, fillScale;
+        Quaternion feedHome, pressLeverHome, selectorHome;
+        float elapsed, pressBlend, feedMotion, clampMotion, landingPulse, wheelAngle, lastAngle;
+        int dippingBath, releasedFrame = -1;
+        bool initialized, hasAngle, returnToLook;
+        Vector2 pointer;
+        GameObject dippingVisual;
+        FactoryWorkbenchSound sound;
+
+        void Awake() { Initialize(); }
+        void Start() { ResetMachine(); }
+        void Initialize()
+        {
+            if (initialized || !press) return;
+            initialized = true; pressHome = press.localPosition; pumpHome = pumpPlate.localPosition;
+            feedHome = feedLever.localRotation; pressLeverHome = pressLever.localRotation; selectorHome = selector.localRotation;
+            progressHome = progressOrigin; fillScale = new Vector3(1.1f,.05f,.025f);
+            sound = GetComponent<FactoryWorkbenchSound>();
+        }
+        public void ResetMachine()
+        {
+            Initialize(); EndGrip(false);
+            Stage = StationStage.Empty; SelectedType = 1; CutType = 0; Pressure = CutProgress = GuardBlend = pressBlend = elapsed = 0;
+            PressClosed = GuardClosed = false; feedMotion = clampMotion = landingPulse = wheelAngle = 0;
+            if (dippingVisual) Destroy(dippingVisual);
+            if (initialized) Refresh();
+        }
+        bool Available => Game && !Game.Ended && !Game.Inspection && Game.State != FactoryState.Chased;
+        void Update()
+        {
+            if (!Available || !Application.isFocused) { if (Manipulating) EndGrip(false); return; }
+            var keyboard = Keyboard.current; var mouse = Mouse.current;
+            if (Manipulating)
+            {
+                if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) EndGrip(false);
+                else if (mouse == null || !mouse.leftButton.isPressed) EndGrip();
+                else { pointer += mouse.delta.ReadValue(); DragWheel(pointer); }
+            }
+            else if (mouse != null && mouse.leftButton.wasPressedThisFrame && !CardboardMarker.DrawingMode)
+            {
+                var camera = Camera.main;
+                Ray ray = Cursor.lockState == CursorLockMode.Locked ? camera.ViewportPointToRay(new Vector3(.5f, .5f)) : camera.ScreenPointToRay(mouse.position.ReadValue());
+                var target = Game.TargetForRay(ray);
+                var control = target ? target.GetComponent<FactoryStationControl>() : null;
+                if (control && control.station == this)
+                {
+                    if (control.part == StationPart.Wheel) BeginWheel(mouse.position.ReadValue());
+                    else control.Use();
+                }
+            }
+            Tick(Time.deltaTime);
+        }
+        // Time-dependent machinery is shared by the normal loop and editor integration checks.
+        public void Tick(float dt)
+        {
+            if (!Available) return;
+            elapsed += dt;
+            GuardBlend = Mathf.MoveTowards(GuardBlend, GuardClosed ? 1 : 0, dt / .65f);
+            pressBlend = Mathf.MoveTowards(pressBlend, PressClosed ? 1 : 0, dt / .55f);
+            feedMotion = Mathf.MoveTowards(feedMotion, 0, dt * 2); clampMotion = Mathf.MoveTowards(clampMotion, 0, dt * 2);
+            landingPulse = Mathf.MoveTowards(landingPulse, 0, dt * 3);
+            if (Stage == StationStage.Dropping)
+            {
+                sheet.localPosition = Vector3.Lerp(dropPosition, conveyorPosition, Mathf.Clamp01(elapsed / .6f) * Mathf.Clamp01(elapsed / .6f));
+                if (elapsed >= .6f) { Stage = StationStage.Conveying; elapsed = 0; }
+            }
+            else if (Stage == StationStage.Conveying)
+            {
+                sheet.localPosition = Vector3.Lerp(conveyorPosition, cuttingPosition, Mathf.SmoothStep(0, 1, elapsed / 2.2f));
+                if (elapsed >= 2.2f) { Stage = StationStage.Loaded; sheet.localPosition = cuttingPosition; Clunk(false); }
+            }
+            else if (Stage == StationStage.Dipping)
+            {
+                if (dippingVisual)
+                {
+                    float t = Mathf.Clamp01(elapsed / 1.1f);
+                    dippingVisual.transform.position = baths[dippingBath - 1].position + Vector3.up * Mathf.Lerp(1.05f, .35f, Mathf.Sin(t * Mathf.PI));
+                }
+                if (elapsed >= 1.1f)
+                {
+                    Game.FinishDip(dippingBath); if (dippingVisual) Destroy(dippingVisual);
+                    Stage = StationStage.Empty; elapsed = 0; Clunk(false);
+                }
+            }
+            Refresh();
+        }
+        public bool Operate(StationPart part, int number = 0)
+        {
+            if (!Available || Manipulating || Stage == StationStage.Dipping) return false;
+            bool accepted = false;
+            switch (part)
+            {
+                case StationPart.Feed:
+                    if (Stage == StationStage.Empty && !Game.HasPart && !PressClosed && !GuardClosed)
+                    { Stage = StationStage.Dropping; elapsed = 0; feedMotion = 1; sheet.localPosition = dropPosition; accepted = true; }
+                    break;
+                case StationPart.Selector:
+                    if (!PressClosed && !GuardClosed && Stage != StationStage.Cut)
+                    { SelectedType = SelectedType % 3 + 1; accepted = true; }
+                    break;
+                case StationPart.Press:
+                    if (!GuardClosed && GuardBlend <= .01f && (Stage == StationStage.Loaded || Stage == StationStage.Cutting || Stage == StationStage.Cut))
+                    {
+                        PressClosed = !PressClosed; clampMotion = 1; accepted = true;
+                        if (!PressClosed) { Pressure = 0; if (Stage != StationStage.Cut) { CutProgress = 0; Stage = StationStage.Loaded; } }
+                    }
+                    break;
+                case StationPart.Guard:
+                    if (GuardClosed || (PressClosed && (Stage == StationStage.Loaded || Stage == StationStage.Cutting || Stage == StationStage.Cut)))
+                    { GuardClosed = !GuardClosed; if (!GuardClosed) Pressure = 0; accepted = true; }
+                    break;
+                case StationPart.Wheel: accepted = TurnWheel(60); break;
+                case StationPart.Output:
+                    if (Stage == StationStage.Cut && !PressClosed && !GuardClosed && GuardBlend <= .01f && !Game.HasPart)
+                    {
+                        Game.ReceiveWorkbenchPart(FactoryRecipe.ForType(CutType, false));
+                        Stage = StationStage.Empty; CutProgress = Pressure = 0; accepted = true;
+                    }
+                    break;
+                case StationPart.Bath:
+                    if (number >= 1 && number <= 3 && Stage == StationStage.Empty && Game.BeginDip())
+                    {
+                        dippingBath = number; elapsed = 0; Stage = StationStage.Dipping;
+                        dippingVisual = new GameObject("Gear immersed in bath " + number);
+                        dippingVisual.transform.localScale = Vector3.one * .28f;
+                        dippingVisual.transform.rotation = Quaternion.Euler(0, 0, 15);
+                        FactoryGeometry.GearVisual(dippingVisual.transform, Game.HeldRecipe, Game.gearMeshes, Game.hubMeshes, Game.gearPaper, Game.gearEdge, Game.gearInk);
+                        accepted = true;
+                    }
+                    break;
+            }
+            Clunk(!accepted); Refresh(); return accepted;
+        }
+        public bool IsOnPump(Vector3 worldPosition)
+        {
+            Vector3 local = transform.InverseTransformPoint(worldPosition) - pumpHome;
+            return Mathf.Abs(local.x) <= .8f && Mathf.Abs(local.z) <= .6f;
+        }
+        public bool IsPumpingPlayer => Available && CanPump && CardboardRunner.Player && IsOnPump(CardboardRunner.Player.transform.position);
+        public bool TryPump(Vector3 landingPosition)
+        {
+            if (!Available || !CanPump || !IsOnPump(landingPosition) || PressureReady) return false;
+            Pressure = Mathf.Min(1, Pressure + .25f); landingPulse = 1; Clunk(true); Refresh(); return true;
+        }
+        public bool TurnWheel(float degrees)
+        {
+            if (!Available) return false;
+            wheelAngle += degrees;
+            if (!CanCut) { Refresh(); return false; }
+            CutProgress = Mathf.Clamp01(CutProgress + degrees / 1080);
+            Stage = CutProgress >= 1 ? StationStage.Cut : StationStage.Cutting;
+            if (Stage == StationStage.Cut) { CutType = SelectedType; BuildCutPart(); Clunk(true); }
+            Refresh(); return true;
+        }
+        public bool BeginWheel(Vector2 screenPointer)
+        {
+            if (!Available || Manipulating) return false;
+            Manipulating = true; hasAngle = false; pointer = screenPointer;
+            returnToLook = Cursor.lockState == CursorLockMode.Locked;
+            Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false;
+            DragWheel(pointer); return true;
+        }
+        public void DragWheel(Vector2 screenPointer)
+        {
+            if (!Manipulating || !Camera.main) return;
+            Vector2 center = Camera.main.WorldToScreenPoint(wheel.position);
+            Vector2 offset = screenPointer - center;
+            if (offset.sqrMagnitude < 100) { hasAngle = false; return; }
+            float angle = Mathf.Atan2(offset.y, offset.x) * Mathf.Rad2Deg;
+            float degrees = -Mathf.DeltaAngle(lastAngle, angle);
+            if (hasAngle && Mathf.Abs(degrees) <= 65) TurnWheel(degrees);
+            lastAngle = angle; hasAngle = true;
+        }
+        public void EndGrip(bool capture = true)
+        {
+            if (!Manipulating) return;
+            Manipulating = false; hasAngle = false; releasedFrame = Time.frameCount;
+            bool lockLook = capture && returnToLook;
+            Cursor.lockState = lockLook ? CursorLockMode.Locked : CursorLockMode.None; Cursor.visible = !lockLook;
+        }
+        void BuildCutPart()
+        {
+            foreach (Transform child in cutPart) Destroy(child.gameObject);
+            FactoryGeometry.GearVisual(cutPart, FactoryRecipe.ForType(CutType, false), Game.gearMeshes, Game.hubMeshes, Game.gearPaper, Game.gearEdge, Game.gearInk);
+        }
+        void Clunk(bool heavy) { if (sound) sound.Clunk(heavy); }
+        public void Refresh()
+        {
+            if (!initialized) return;
+            sheet.gameObject.SetActive(Stage == StationStage.Dropping || Stage == StationStage.Conveying || Stage == StationStage.Loaded || Stage == StationStage.Cutting);
+            cutPart.gameObject.SetActive(Stage == StationStage.Cut);
+            if (Stage == StationStage.Loaded || Stage == StationStage.Cutting) sheet.localPosition = cuttingPosition;
+            sheet.localRotation = Quaternion.Euler(0, -wheelAngle, 0);
+            cutPart.localRotation = Quaternion.Euler(90, 0, wheelAngle);
+            press.localPosition = pressHome + Vector3.down * (pressBlend * .65f);
+            if (guardClip && guardModel) guardClip.SampleAnimation(guardModel.gameObject, GuardBlend * guardClip.length);
+            if (guardHit)
+            {
+                guardHit.transform.localPosition = Vector3.Lerp(new Vector3(-.05f,.45f,-.05f),new Vector3(-.05f,1.18f,-.48f),GuardBlend);
+                guardHit.size = Vector3.Lerp(new Vector3(.9f,.15f,.95f),new Vector3(.83f,1.1f,.25f),GuardBlend);
+            }
+            feedLever.localRotation = feedHome * Quaternion.Euler(-32 * feedMotion, 0, 0);
+            pressLever.localRotation = pressLeverHome * Quaternion.Euler(-32 * clampMotion, 0, 0);
+            selector.localRotation = selectorHome * Quaternion.Euler(0, 0, (SelectedType - 1) * 120);
+            wheel.localRotation = Quaternion.Euler(0, 0, -wheelAngle);
+            selectorNumber.text = SelectedType.ToString();
+            pumpPlate.localPosition = pumpHome + Vector3.down * landingPulse * .045f;
+            pressureNeedle.localRotation = Quaternion.Euler(0, 0, 65 - Pressure * 130);
+            for (int i = 0; i < pressureLamps.Length; i++) pressureLamps[i].sharedMaterial = Pressure >= (i + 1) * .25f ? lampOn : lampOff;
+            progressFill.localScale = new Vector3(Mathf.Max(.001f, fillScale.x * CutProgress), fillScale.y, fillScale.z);
+            progressFill.localPosition = progressHome + Vector3.right * (fillScale.x * (CutProgress - 1) * .5f);
+        }
+        void OnApplicationFocus(bool focused) { if (!focused) EndGrip(false); }
+        void OnDisable() { EndGrip(false); }
+    }
+}

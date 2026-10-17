@@ -15,6 +15,9 @@ namespace Cardboard
         public Transform victim,buttons,pins,pressHead,exitGate;
         public Vector3[] patrol;
         public FactoryWorkbench workbench;
+        public FactoryWorkstation station;
+        public Material[] finishMaterials;
+        public bool DippingPart {get;private set;}
         public FactoryState State {get;private set;}
         public FactoryDeath Death {get;private set;}
         public float Suspicion {get;private set;}
@@ -33,7 +36,7 @@ namespace Cardboard
         public float InspectionProgress {get;private set;}
         public bool Pretending {get;private set;}
         public bool Ended => State==FactoryState.Captured || State==FactoryState.Dead || State==FactoryState.Escaped;
-        public bool PlayerBlocked => Ended || (workbench && workbench.ConsumesMouse);
+        public bool PlayerBlocked => Ended || DippingPart || (workbench && workbench.ConsumesMouse) || (station && station.ConsumesMouse);
         public bool CameraOverride => State==FactoryState.Captured || State==FactoryState.Dead;
         public Vector3 CameraPosition {get;private set;}
         public Quaternion CameraRotation {get;private set;}
@@ -42,6 +45,7 @@ namespace Cardboard
         float inspectionAt,capturedAt,lastAlarm,jumpWatch;
         int inspectionWorker=1;
         GameObject carried;
+        Transform orderCard;
         FactorySound sound;
         Vector3 pressHome,gateHome;
 
@@ -56,7 +60,10 @@ namespace Cardboard
         {
             State=FactoryState.Working;Suspicion=0;Disguise=100;Repairs=Mistakes=0;ShiftRemaining=240;
             HasPart=false;Inspection=false;Pretending=false;Memorized=null;
+            DippingPart=false;
+            if(orderCard) Destroy(orderCard.gameObject);
             if(workbench) workbench.ResetMachine();
+            if(station) station.ResetMachine();
             inspectionAt=Time.time+35;jumpWatch=0;
             if(carried) Destroy(carried);
             foreach(var gear in gears) gear.SetBroken(true);
@@ -98,7 +105,7 @@ namespace Cardboard
             if(watched && CardboardRunner.Player.speed>4.1f)
             { Disguise=Mathf.Max(0,Disguise-dt*5);AddSuspicion(dt*2.3f); }
             float jump=CardboardRunner.Player.JumpHeight;
-            if(watched && jump>.3f && jumpWatch<=.3f) { Disguise=Mathf.Max(0,Disguise-4);AddSuspicion(5);Toast("Рабочие заметили слишком живой прыжок."); }
+            if(watched && jump>.3f && jumpWatch<=.3f && !(station && station.IsPumpingPlayer)) { Disguise=Mathf.Max(0,Disguise-4);AddSuspicion(5);Toast("Рабочие заметили слишком живой прыжок."); }
             jumpWatch=jump;
             if(watched && Disguise<30) AddSuspicion(dt*5);
             if(Pretending && CardboardRunner.Player.speed<1.8f && !Inspection) Suspicion=Mathf.Max(0,Suspicion-dt*.8f);
@@ -132,7 +139,8 @@ namespace Cardboard
         }
         public void StartInspection()
         {
-            Inspection=true;InspectionRemaining=7;InspectionProgress=0;if(workbench) workbench.EndGrip();
+            if(DippingPart) { inspectionAt=Time.time+2;return; }
+            Inspection=true;InspectionRemaining=7;InspectionProgress=0;if(workbench) workbench.EndGrip();if(station) station.EndGrip();
             if(CardboardMarker.Instance) CardboardMarker.Instance.SetDrawingMode(false);
             Toast("Проверка! Зажмите C и замрите на 2 секунды. Не показывайте, что вы человек.",7);
             if(sound) sound.Play("alarm");
@@ -154,6 +162,8 @@ namespace Cardboard
             if(Suspicion>=100 && State!=FactoryState.Chased)
             {
                 State=FactoryState.Chased;Inspection=false;if(workbench) workbench.EndGrip();
+                if(station) station.EndGrip();
+                CancelDip();
                 if(CardboardMarker.Instance) CardboardMarker.Instance.SetDrawingMode(false);
                 Toast("ВАС РАСКРЫЛИ. Картонные рабочие идут за вами!",8);
                 if(sound) sound.Play("alarm");
@@ -177,7 +187,7 @@ namespace Cardboard
             {
                 if(!Focus) return "";
                 if(Focus.action==FactoryAction.Bench) return "";
-                if(Focus.action==FactoryAction.Gear) return Focus.gear.broken && HasPart?"E — установить деталь":"E — прочитать инструкцию под шестерёнкой";
+                if(Focus.action==FactoryAction.Gear) return Focus.gear.broken && HasPart?"E — установить деталь":"E — получить перфокарту";
                 if(Focus.action==FactoryAction.Exit) return ReadyToLeave?"E — закончить смену и уйти":"Выход после починки всех 3 шестерёнок";
                 return Focus.prompt;
             }
@@ -192,8 +202,8 @@ namespace Cardboard
                 case FactoryAction.Blueprint: ReadBlueprint(Focus.gear);break;
                 case FactoryAction.Bench:
                     var control=Focus.GetComponent<WorkbenchControl>();if(control) control.Use();break;
-                case FactoryAction.Disguise:
-                    Disguise=100;Suspicion=Mathf.Max(0,Suspicion-12);Toast("Новая картонная маска. Пропуск рабочего № 017 поправлен.");if(sound) sound.Play("good");break;
+                case FactoryAction.Station:
+                    var stationControl=Focus.GetComponent<FactoryStationControl>();if(stationControl) stationControl.Use();break;
                 case FactoryAction.Exit:
                     TryExit();break;
             }
@@ -205,7 +215,14 @@ namespace Cardboard
             if(sound) sound.Play("good");return true;
         }
         public void ReadBlueprint(FactoryGear gear)
-        { Memorized=gear;Toast("Наряд "+(char)('A'+gear.index)+": "+gear.recipe+". Соберите деталь на верстаке.",8); }
+        {
+            if(!gear || !gear.broken || Ended) return;
+            Memorized=gear;gear.PrintCard();
+            if(orderCard) Destroy(orderCard.gameObject);
+            orderCard=Instantiate(gear.punchcard,Camera.main.transform,false);orderCard.gameObject.SetActive(true);
+            orderCard.localPosition=new Vector3(.30f,-.23f,.65f);orderCard.localRotation=Quaternion.Euler(8,168,-8);orderCard.localScale=Vector3.one*.42f;
+            if(sound) sound.Play("good");
+        }
         public void ReceiveWorkbenchPart(FactoryRecipe recipe)
         {
             HeldRecipe=recipe;HasPart=true;
@@ -217,6 +234,28 @@ namespace Cardboard
             FactoryGeometry.GearVisual(carried.transform,HeldRecipe,gearMeshes,hubMeshes,gearPaper,gearEdge,gearInk);
             Toast("Деталь снята со станка: "+HeldRecipe+". Найдите подходящий узел.",6);if(sound) sound.Play("good");
         }
+        public bool BeginDip()
+        {
+            if(!HasPart || HeldRecipe.finish!=0 || DippingPart || Ended) return false;
+            DippingPart=true;if(carried) carried.SetActive(false);return true;
+        }
+        public void FinishDip(int bath)
+        {
+            if(!DippingPart || !HasPart || Ended) return;
+            var recipe=HeldRecipe;recipe.finish=bath;HeldRecipe=recipe;DippingPart=false;
+            if(carried)
+            {
+                carried.SetActive(true);
+                foreach(var renderer in carried.GetComponentsInChildren<Renderer>())
+                {
+                    var materials=renderer.sharedMaterials;
+                    for(int i=0;i<materials.Length;i++) if(materials[i]==gearPaper) materials[i]=finishMaterials[bath-1];
+                    renderer.sharedMaterials=materials;
+                }
+            }
+            if(sound) sound.Play("good");
+        }
+        void CancelDip() { DippingPart=false;if(carried) carried.SetActive(true); }
         public bool TryInstall(FactoryGear gear)
         {
             if(!HasPart || !gear || !gear.broken || Ended) return false;
@@ -228,6 +267,7 @@ namespace Cardboard
             }
             gear.SetBroken(false);HasPart=false;if(carried) Destroy(carried);
             Repairs++;Suspicion=Mathf.Max(0,Suspicion-9);Disguise=Mathf.Min(100,Disguise+3);
+            if(Memorized==gear) {Memorized=null;if(orderCard) Destroy(orderCard.gameObject);}
             Toast(ReadyToLeave?"Наряд выполнен. Все механизмы работают. Идите к выходу!":"Узел "+(char)('A'+gear.index)+" запущен. Ремонтов: "+Repairs+" / "+gears.Length+".",6);
             if(sound) sound.Play("good");return true;
         }
@@ -237,6 +277,7 @@ namespace Cardboard
         {
             if(Ended) return;
             State=FactoryState.Captured;Death=death;capturedAt=Time.time;Inspection=false;if(workbench) workbench.EndGrip(false);
+            if(station) station.EndGrip(false);CancelDip();if(orderCard) orderCard.gameObject.SetActive(false);
             if(CardboardMarker.Instance) CardboardMarker.Instance.SetDrawingMode(false,false);
             if(carried) carried.SetActive(false);
             victim.gameObject.SetActive(true);buttons.gameObject.SetActive(death==FactoryDeath.Buttons);pins.gameObject.SetActive(death==FactoryDeath.Pins);

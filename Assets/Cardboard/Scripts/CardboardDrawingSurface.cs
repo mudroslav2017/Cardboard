@@ -7,20 +7,46 @@ namespace Cardboard
     {
         public CardboardRunner Runner => GetComponentInParent<CardboardRunner>();
         public Texture2D DrawingTexture => textures[0];
-        public Texture2D BackDrawingTexture => textures[1];
+        public Texture2D BackDrawingTexture => textures[TextureSlot(1)];
         readonly Material[] instances=new Material[2];
         readonly Texture2D[] textures=new Texture2D[2];
         readonly Color32[][] pixels=new Color32[2][];
         Material[] originals;
         MeshRenderer display;
 
+        int TextureSlot(int side)
+        {
+            if(!display) display=GetComponent<MeshRenderer>();
+            // Imported people use one UV atlas for both faces and the corrugated edge.
+            return display.sharedMaterials.Length==1?0:Mathf.Clamp(side,0,1);
+        }
+
         public static int SideOf(RaycastHit hit)
-        { return hit.collider.transform.InverseTransformDirection(hit.normal).z<0?1:0; }
+        {
+            var collider=hit.collider as MeshCollider;
+            if(collider && collider.sharedMesh)
+                return collider.transform.InverseTransformPoint(hit.point).z<collider.sharedMesh.bounds.center.z?1:0;
+            return hit.collider.transform.InverseTransformDirection(hit.normal).z<0?1:0;
+        }
+
+        public static bool RaycastForDrawing(Ray ray,float distance,out RaycastHit hit)
+        {
+            // Cull Off makes inward-facing polygons visible. Include them in this
+            // query too, so the nearest face supplies its own UVs instead of the far face.
+            bool previous=Physics.queriesHitBackfaces;
+            try
+            {
+                Physics.queriesHitBackfaces=true;
+                return Physics.Raycast(ray,out hit,distance,~(1<<9),QueryTriggerInteraction.Ignore);
+            }
+            finally { Physics.queriesHitBackfaces=previous; }
+        }
 
         void EnsureTexture(int side)
         {
             if(textures[side]) return;
-            if(!display) { display=GetComponent<MeshRenderer>();originals=display.sharedMaterials; }
+            if(!display) display=GetComponent<MeshRenderer>();
+            if(originals==null || originals.Length==0) originals=display.sharedMaterials;
             textures[side]=Instantiate((Texture2D)originals[side].mainTexture);
             textures[side].name=name+(side==0?" front":" back")+" • individual marker drawing";
             instances[side]=new Material(originals[side]) {name=name+" • marker ink "+side};
@@ -32,7 +58,7 @@ namespace Cardboard
         // The two faces have independent ink; radius is measured on the physical sheet.
         public void PaintStroke(Vector2 from,Vector2 to,Color color,float radius,int side=0)
         {
-            side=Mathf.Clamp(side,0,1);EnsureTexture(side);
+            side=TextureSlot(side);EnsureTexture(side);
             var texture=textures[side];var inkPixels=pixels[side];
             int width=texture.width,height=texture.height;
             Vector2 a=new Vector2(from.x*(width-1),from.y*(height-1));

@@ -104,11 +104,14 @@ namespace Cardboard
                 if (facing.sqrMagnitude>.01f)
                     transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.LookRotation(facing),1-Mathf.Exp(-7*dt));
             }
+            float previousJump=jumpHeight;
             if (jumpHeight>0 || jumpVelocity>0)
             {
                 jumpVelocity-=17*dt; jumpHeight=Mathf.Max(0,jumpHeight+jumpVelocity*dt);
                 if (jumpHeight==0 && jumpVelocity<0) jumpVelocity=0;
             }
+            if(isPlayer && factory && factory.station && previousJump>0 && jumpHeight==0)
+                factory.station.TryPump(transform.position);
             float oldCycle=cycle;
             cycle+=dt*speed*3;
             if (isPlayer && speed>.2f && Mathf.FloorToInt(oldCycle/Mathf.PI)!=Mathf.FloorToInt(cycle/Mathf.PI)) Steps++;

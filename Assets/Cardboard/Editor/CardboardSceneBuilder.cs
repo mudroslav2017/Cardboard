@@ -29,6 +29,7 @@ namespace Cardboard.Editor
                 !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
             try
             {
+                ImportedCharacterInstaller.Prepare();
                 Directory.CreateDirectory("Assets/Cardboard/Generated");
                 Directory.CreateDirectory("Assets/Scenes");
                 var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);

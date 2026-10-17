@@ -903,7 +903,7 @@ GameObject:
   - component: {fileID: 23141955}
   - component: {fileID: 23141954}
   m_Layer: 0
-  m_Name: One solid cardboard silhouette
+  m_Name: HumanNastya
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -917,7 +917,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 23141952}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -957,7 +957,7 @@ MeshCollider:
   serializedVersion: 5
   m_Convex: 0
   m_CookingOptions: 30
-  m_Mesh: {fileID: 7641272030743447281, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: c3db3918899709445878cf67a28b0cd5, type: 2}
 --- !u!23 &23141956
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -983,9 +983,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 8401537085151950170, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: 4644285995462494240, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: -3886379996351415844, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  - {fileID: 2100000, guid: 0b6db88440db26f4284f41a596c32e1a, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1016,7 +1014,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 23141952}
-  m_Mesh: {fileID: 7641272030743447281, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: c3db3918899709445878cf67a28b0cd5, type: 2}
 --- !u!1 &28977094
 GameObject:
   m_ObjectHideFlags: 0
@@ -1392,7 +1390,7 @@ GameObject:
   - component: {fileID: 45523321}
   - component: {fileID: 45523320}
   m_Layer: 0
-  m_Name: One solid cardboard silhouette
+  m_Name: HumanLera
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1406,7 +1404,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 45523318}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -1446,7 +1444,7 @@ MeshCollider:
   serializedVersion: 5
   m_Convex: 0
   m_CookingOptions: 30
-  m_Mesh: {fileID: -5135589371956518015, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: 2139ce94c6d05b94c8ef20d9f5d17b5f, type: 2}
 --- !u!23 &45523322
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1472,9 +1470,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -7980627397475140534, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: -3113592254193363545, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: -3886379996351415844, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  - {fileID: 2100000, guid: f322c9539aabb2a448651228d0e98d32, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1505,7 +1501,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 45523318}
-  m_Mesh: {fileID: -5135589371956518015, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: 2139ce94c6d05b94c8ef20d9f5d17b5f, type: 2}
 --- !u!1 &48256963
 GameObject:
   m_ObjectHideFlags: 0
@@ -7370,7 +7366,7 @@ GameObject:
   - component: {fileID: 307706734}
   - component: {fileID: 307706733}
   m_Layer: 0
-  m_Name: One solid cardboard silhouette
+  m_Name: HumanLera
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -7384,7 +7380,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 307706731}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -7424,7 +7420,7 @@ MeshCollider:
   serializedVersion: 5
   m_Convex: 0
   m_CookingOptions: 30
-  m_Mesh: {fileID: 7763507857408232124, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: 2139ce94c6d05b94c8ef20d9f5d17b5f, type: 2}
 --- !u!23 &307706735
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -7450,9 +7446,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 4024764681663776346, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: 2662411615332068420, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: -3886379996351415844, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  - {fileID: 2100000, guid: f322c9539aabb2a448651228d0e98d32, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -7483,7 +7477,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 307706731}
-  m_Mesh: {fileID: 7763507857408232124, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: 2139ce94c6d05b94c8ef20d9f5d17b5f, type: 2}
 --- !u!1 &312079518
 GameObject:
   m_ObjectHideFlags: 0
@@ -21607,7 +21601,7 @@ GameObject:
   - component: {fileID: 822179758}
   - component: {fileID: 822179757}
   m_Layer: 0
-  m_Name: One solid cardboard silhouette
+  m_Name: HumanNastya
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -21621,7 +21615,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 822179755}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -21661,7 +21655,7 @@ MeshCollider:
   serializedVersion: 5
   m_Convex: 0
   m_CookingOptions: 30
-  m_Mesh: {fileID: -6247070445663264764, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: c3db3918899709445878cf67a28b0cd5, type: 2}
 --- !u!23 &822179759
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -21687,9 +21681,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 8146880653895916539, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: 2721698969174636961, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: -3886379996351415844, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  - {fileID: 2100000, guid: 0b6db88440db26f4284f41a596c32e1a, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -21720,7 +21712,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 822179755}
-  m_Mesh: {fileID: -6247070445663264764, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: c3db3918899709445878cf67a28b0cd5, type: 2}
 --- !u!1 &822592689
 GameObject:
   m_ObjectHideFlags: 0
@@ -32576,7 +32568,7 @@ GameObject:
   - component: {fileID: 1292399410}
   - component: {fileID: 1292399409}
   m_Layer: 0
-  m_Name: One solid cardboard silhouette
+  m_Name: HumanNastya
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -32590,7 +32582,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1292399407}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -32630,7 +32622,7 @@ MeshCollider:
   serializedVersion: 5
   m_Convex: 0
   m_CookingOptions: 30
-  m_Mesh: {fileID: 7641272030743447281, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: c3db3918899709445878cf67a28b0cd5, type: 2}
 --- !u!23 &1292399411
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -32656,9 +32648,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 8401537085151950170, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: 4644285995462494240, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: -3886379996351415844, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  - {fileID: 2100000, guid: 0b6db88440db26f4284f41a596c32e1a, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -32689,7 +32679,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1292399407}
-  m_Mesh: {fileID: 7641272030743447281, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: c3db3918899709445878cf67a28b0cd5, type: 2}
 --- !u!1 &1293097112
 GameObject:
   m_ObjectHideFlags: 0
@@ -33226,7 +33216,7 @@ GameObject:
   - component: {fileID: 1315645801}
   - component: {fileID: 1315645800}
   m_Layer: 0
-  m_Name: One solid cardboard silhouette
+  m_Name: HumanNastya
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -33240,7 +33230,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1315645798}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -33280,7 +33270,7 @@ MeshCollider:
   serializedVersion: 5
   m_Convex: 0
   m_CookingOptions: 30
-  m_Mesh: {fileID: -1193692022038561153, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: c3db3918899709445878cf67a28b0cd5, type: 2}
 --- !u!23 &1315645802
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -33306,9 +33296,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -4295485643774411338, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: 5719058005472289711, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: -3886379996351415844, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  - {fileID: 2100000, guid: 0b6db88440db26f4284f41a596c32e1a, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -33339,7 +33327,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1315645798}
-  m_Mesh: {fileID: -1193692022038561153, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: c3db3918899709445878cf67a28b0cd5, type: 2}
 --- !u!1 &1321539112
 GameObject:
   m_ObjectHideFlags: 0
@@ -36384,7 +36372,7 @@ GameObject:
   - component: {fileID: 1455656011}
   - component: {fileID: 1455656010}
   m_Layer: 0
-  m_Name: One solid cardboard silhouette
+  m_Name: HumanNastya
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -36398,7 +36386,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1455656008}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -36438,7 +36426,7 @@ MeshCollider:
   serializedVersion: 5
   m_Convex: 0
   m_CookingOptions: 30
-  m_Mesh: {fileID: -1193692022038561153, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: c3db3918899709445878cf67a28b0cd5, type: 2}
 --- !u!23 &1455656012
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -36464,9 +36452,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -4295485643774411338, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: 5719058005472289711, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: -3886379996351415844, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  - {fileID: 2100000, guid: 0b6db88440db26f4284f41a596c32e1a, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -36497,7 +36483,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1455656008}
-  m_Mesh: {fileID: -1193692022038561153, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: c3db3918899709445878cf67a28b0cd5, type: 2}
 --- !u!1 &1457440708
 GameObject:
   m_ObjectHideFlags: 0
@@ -37319,7 +37305,7 @@ GameObject:
   - component: {fileID: 1495593621}
   - component: {fileID: 1495593620}
   m_Layer: 0
-  m_Name: One solid cardboard silhouette
+  m_Name: HumanLera
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -37333,7 +37319,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1495593618}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -37373,7 +37359,7 @@ MeshCollider:
   serializedVersion: 5
   m_Convex: 0
   m_CookingOptions: 30
-  m_Mesh: {fileID: 7763507857408232124, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: 2139ce94c6d05b94c8ef20d9f5d17b5f, type: 2}
 --- !u!23 &1495593622
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -37399,9 +37385,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 4024764681663776346, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: 2662411615332068420, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: -3886379996351415844, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  - {fileID: 2100000, guid: f322c9539aabb2a448651228d0e98d32, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -37432,7 +37416,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1495593618}
-  m_Mesh: {fileID: 7763507857408232124, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: 2139ce94c6d05b94c8ef20d9f5d17b5f, type: 2}
 --- !u!1 &1496434370
 GameObject:
   m_ObjectHideFlags: 0
@@ -44173,7 +44157,7 @@ GameObject:
   - component: {fileID: 1829121123}
   - component: {fileID: 1829121122}
   m_Layer: 0
-  m_Name: One solid cardboard silhouette
+  m_Name: HumanNastya
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -44187,7 +44171,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1829121120}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -44227,7 +44211,7 @@ MeshCollider:
   serializedVersion: 5
   m_Convex: 0
   m_CookingOptions: 30
-  m_Mesh: {fileID: -6247070445663264764, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: c3db3918899709445878cf67a28b0cd5, type: 2}
 --- !u!23 &1829121124
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -44253,9 +44237,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 8146880653895916539, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: 2721698969174636961, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: -3886379996351415844, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  - {fileID: 2100000, guid: 0b6db88440db26f4284f41a596c32e1a, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -44286,7 +44268,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1829121120}
-  m_Mesh: {fileID: -6247070445663264764, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: c3db3918899709445878cf67a28b0cd5, type: 2}
 --- !u!1 &1829826159
 GameObject:
   m_ObjectHideFlags: 0
@@ -47595,7 +47577,7 @@ GameObject:
   - component: {fileID: 1964440849}
   - component: {fileID: 1964440848}
   m_Layer: 0
-  m_Name: One solid cardboard silhouette
+  m_Name: HumanLera
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -47609,7 +47591,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1964440846}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -47649,7 +47631,7 @@ MeshCollider:
   serializedVersion: 5
   m_Convex: 0
   m_CookingOptions: 30
-  m_Mesh: {fileID: -5135589371956518015, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: 2139ce94c6d05b94c8ef20d9f5d17b5f, type: 2}
 --- !u!23 &1964440850
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -47675,9 +47657,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -7980627397475140534, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: -3113592254193363545, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: -3886379996351415844, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  - {fileID: 2100000, guid: f322c9539aabb2a448651228d0e98d32, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -47708,7 +47688,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1964440846}
-  m_Mesh: {fileID: -5135589371956518015, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: 2139ce94c6d05b94c8ef20d9f5d17b5f, type: 2}
 --- !u!1 &1964693942
 GameObject:
   m_ObjectHideFlags: 0
@@ -48808,7 +48788,7 @@ GameObject:
   - component: {fileID: 1995651708}
   - component: {fileID: 1995651707}
   m_Layer: 0
-  m_Name: One solid cardboard silhouette
+  m_Name: HumanLera
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -48822,7 +48802,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1995651705}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -48862,7 +48842,7 @@ MeshCollider:
   serializedVersion: 5
   m_Convex: 0
   m_CookingOptions: 30
-  m_Mesh: {fileID: 4570084252053599659, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: 2139ce94c6d05b94c8ef20d9f5d17b5f, type: 2}
 --- !u!23 &1995651709
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -48888,9 +48868,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -2248203769236565448, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: -5543547113105070633, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: -3886379996351415844, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  - {fileID: 2100000, guid: f322c9539aabb2a448651228d0e98d32, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -48921,7 +48899,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1995651705}
-  m_Mesh: {fileID: 4570084252053599659, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: 2139ce94c6d05b94c8ef20d9f5d17b5f, type: 2}
 --- !u!1 &2005112630
 GameObject:
   m_ObjectHideFlags: 0
@@ -50097,7 +50075,7 @@ GameObject:
   - component: {fileID: 2059639411}
   - component: {fileID: 2059639410}
   m_Layer: 0
-  m_Name: One solid cardboard silhouette
+  m_Name: HumanLera
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -50111,7 +50089,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2059639408}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -50143,9 +50121,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -2248203769236565448, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: -5543547113105070633, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
-  - {fileID: -3886379996351415844, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  - {fileID: 2100000, guid: f322c9539aabb2a448651228d0e98d32, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -50176,7 +50152,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2059639408}
-  m_Mesh: {fileID: 4570084252053599659, guid: 82b81cda6ef8a3a4ebd85399ed8f337e, type: 2}
+  m_Mesh: {fileID: 4300000, guid: 2139ce94c6d05b94c8ef20d9f5d17b5f, type: 2}
 --- !u!1 &2068354411
 GameObject:
   m_ObjectHideFlags: 0

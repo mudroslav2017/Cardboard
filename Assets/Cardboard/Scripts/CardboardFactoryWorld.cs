@@ -47,8 +47,7 @@ namespace Cardboard
             for(int z=-8;z<=8;z++)
                 Box("Painted walkway dash",transform,new Vector3(side*5.3f,-.12f,z),new Vector3(.10f,.015f,.55f),Gold);
             Machine(game);
-            game.workbench=FactoryWorkbenchBuilder.Build(transform,game);
-            DisguiseLocker();
+            game.station=FactoryWorkstationBuilder.Build(transform,game);
             Exit(game);
             ExecutionTools(game);
             Props();
@@ -75,14 +74,13 @@ namespace Cardboard
             var cam=cameraObject.AddComponent<Camera>();cam.nearClipPlane=.05f;cam.farClipPlane=80;cam.fieldOfView=72;
             cam.clearFlags=CameraClearFlags.SolidColor;cam.backgroundColor=Hex("3E4E45");cam.transform.rotation=Quaternion.Euler(0,180,0);
             cameraObject.AddComponent<AudioListener>();cameraObject.AddComponent<CardboardCamera>().player=crowd.runners[0].transform;
-            cameraObject.AddComponent<CardboardMarker>();gameObject.AddComponent<FactoryHUD>();
+            cameraObject.AddComponent<CardboardMarker>();
         }
         void Machine(CardboardFactoryGame game)
         {
             var machine=Group("THE GREAT MECHANISM • giant cardboard press drive",transform,new Vector3(0,0,-7.7f));
             Solid("Machine chassis",machine,new Vector3(0,2.35f,0),new Vector3(10.5f,4.8f,.7f),Teal);
             Solid("Machine foundation",machine,new Vector3(0,.22f,.1f),new Vector3(11.5f,.7f,1.5f),Ink);
-            WorldLabel("ГЛАВНЫЙ МЕХАНИЗМ  /  ЛИНИЯ 017",machine,new Vector3(0,4.35f,.4f),.13f,9.8f,true);
             for(int i=0;i<18;i++)
             {
                 var stripe=Box("Warning stripe",machine,new Vector3(-5.2f+i*.62f,.6f,.88f),new Vector3(.35f,.28f,.025f),i%2==0?Gold:Ink);
@@ -97,7 +95,7 @@ namespace Cardboard
             for(int i=0;i<3;i++)
             {
                 var root=Group("Gear socket "+(char)('A'+i),machine,new Vector3((i-1)*2.45f,2.7f,.55f));
-                var gear=root.gameObject.AddComponent<FactoryGear>();gear.index=i;gear.recipe=new FactoryRecipe(8+i*2,(FactoryHub)i,new[] {2,3,1}[i]);
+                var gear=root.gameObject.AddComponent<FactoryGear>();gear.index=i;gear.recipe=FactoryRecipe.ForType(i+1);
                 gear.healthy=Group("Operational gear",root,Vector3.zero);
                 GearVisual(gear.healthy,gear.recipe,game.gearMeshes,game.hubMeshes,Gold,Edge,Ink);
                 gear.damaged=Group("Broken teeth",root,Vector3.zero);
@@ -107,21 +105,16 @@ namespace Cardboard
                 var hit=Group("Gear interaction",root,Vector3.zero);
                 var hitbox=hit.gameObject.AddComponent<BoxCollider>();hitbox.size=new Vector3(2.2f,2.2f,.5f);
                 Interaction(hit,FactoryAction.Gear,"E — обслужить узел",gear);
-                var paper=Box("Instruction beneath gear "+(char)('A'+i),machine,new Vector3((i-1)*2.45f,1.03f,.48f),new Vector3(2.18f,.96f,.07f),Cream);
-                WorldLabel("НАРЯД "+(char)('A'+i)+"\n"+gear.recipe.teeth+" ЗУБЬЕВ  /  "+FactoryRecipe.HubName(gear.recipe.hub).ToUpper()+"\nСЛОЁВ КАРТОНА: "+gear.recipe.layers,machine,new Vector3((i-1)*2.45f,1.03f,.54f),.058f,2.05f);
-                Interaction(paper,FactoryAction.Blueprint,"E — запомнить инструкцию",gear);
+                var printer=Group("Punchcard printer "+(i+1),root,new Vector3(0,-1.13f,.15f));
+                Box("Card printer body",printer,Vector3.zero,new Vector3(.70f,.30f,.20f),Edge);
+                var slot=Box("Card slot",printer,new Vector3(0,-.06f,.12f),new Vector3(.47f,.055f,.025f),Ink);
+                Interaction(slot,FactoryAction.Blueprint,"",gear);
+                gear.punchcard=FactoryPunchcard.Create(printer,i+1);gear.punchcard.localPosition=new Vector3(0,.20f,.14f);
+                gear.punchcard.gameObject.SetActive(false);
                 gear.indicator=Group("Fault indicator",root,new Vector3(0,1.2f,.1f)).gameObject.AddComponent<Light>();
                 gear.indicator.type=LightType.Point;gear.indicator.range=2;gear.indicator.intensity=1.4f;
                 gear.SetBroken(true);game.gears[i]=gear;
             }
-        }
-        void DisguiseLocker()
-        {
-            var locker=Solid("Spare cardboard disguise locker",transform,new Vector3(-10.8f,1.25f,6.8f),new Vector3(1.9f,2.8f,.6f),Coral);
-            var interact=Box("Disguise locker door",locker,new Vector3(0,0,.55f),new Vector3(.92f,.92f,.08f),Kraft);
-            // Labels live in world units rather than inheriting the cabinet's nonuniform scale.
-            WorldLabel("МАСКИРОВКА\nЗАПАСНЫЕ МАСКИ",transform,new Vector3(-10.8f,2.2f,7.18f),.075f,1.75f);
-            Interaction(interact,FactoryAction.Disguise,"E — поправить картонную маскировку");
         }
         void Exit(CardboardFactoryGame game)
         {
@@ -129,13 +122,10 @@ namespace Cardboard
             game.exitGate=Solid("Sliding exit gate",gate,new Vector3(0,1.45f,0),new Vector3(2.6f,3.2f,.35f),Teal);
             var inside=Box("Exit control",gate,new Vector3(0,1.4f,-.25f),new Vector3(1.4f,.8f,.08f),Cream);
             Interaction(inside,FactoryAction.Exit,"E — закончить смену");
-            var sign=Group("Exit sign facing into factory",gate,new Vector3(0,3.3f,-.24f));sign.localRotation=Quaternion.Euler(0,180,0);
-            WorldLabel("ВЫХОД / ПОСЛЕ СМЕНЫ",sign,Vector3.zero,.09f,3f,true);
         }
         void ExecutionTools(CardboardFactoryGame game)
         {
             var board=Solid("Employee correction board",transform,new Vector3(9,1.35f,3),new Vector3(2.8f,3.1f,.28f),Kraft);
-            WorldLabel("НЕПРАВИЛЬНЫХ — ПРИКОЛОТЬ",transform,new Vector3(9,3.15f,3.2f),.073f,2.7f,true);
             game.victim=Group("Caught worker cardboard victim",transform,new Vector3(9,.15f,3.3f));
             CardboardCutout.Create(game.victim,0);game.victim.gameObject.SetActive(false);
             game.pins=Group("Pin capture animation",transform,new Vector3(9,.15f,3.3f));
@@ -158,7 +148,6 @@ namespace Cardboard
             Box("Press lintel",press,new Vector3(0,4.2f,0),new Vector3(3.4f,.5f,3),Teal);
             Rod("Piston",press,new Vector3(0,2.3f,0),new Vector3(0,4.2f,0),.2f,Cream);
             game.pressHead=Box("Descending press plate",press,new Vector3(0,3.3f,0),new Vector3(2.9f,.3f,2.9f),Coral);
-            WorldLabel("ПРЕСС / ПОСТОРОННИМ НЕ ЛЕЗТЬ",press,new Vector3(0,4.65f,1.6f),.075f,3.1f,true);
         }
         void Props()
         {
@@ -172,8 +161,6 @@ namespace Cardboard
                 var window=Box("High factory window",transform,new Vector3(-9+i*6,4.3f,-9.66f),new Vector3(3,1.4f,.04f),Cream);
                 Box("Window mullion",window,Vector3.zero,new Vector3(.025f,1.05f,2),Edge);
             }
-            WorldLabel("БУДЬ КАК ВСЕ.\nНЕ ДЕЛАЙ ОШИБОК.",transform,new Vector3(-8,3.2f,-9.3f),.13f,4.5f,true);
-            WorldLabel("ЗАВОД КАРТОННЫХ ЛЮДЕЙ\nСМЕНА 017",transform,new Vector3(8,3.2f,-9.3f),.11f,4.5f,true);
         }
     }
 }

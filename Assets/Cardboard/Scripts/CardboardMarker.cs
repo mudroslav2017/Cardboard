@@ -60,12 +60,13 @@ namespace Cardboard
             { BreakStroke();return; }
             Physics.SyncTransforms();
             Ray ray=lens.ScreenPointToRay(pointer);
-            if(Physics.Raycast(ray,out RaycastHit hit,reach,~(1<<9),QueryTriggerInteraction.Ignore))
+            if(CardboardDrawingSurface.RaycastForDrawing(ray,reach,out RaycastHit hit))
             {
                 var surface=hit.collider.GetComponent<CardboardDrawingSurface>();
                 if(surface && Mathf.Abs(surface.transform.InverseTransformDirection(hit.normal).z)>.9f)
                 {
-                    Target=surface;ContactPoint=hit.point;ContactNormal=hit.normal;
+                    Target=surface;ContactPoint=hit.point;
+                    ContactNormal=Vector3.Dot(hit.normal,ray.direction)>0?-hit.normal:hit.normal;
                     if(surface.Runner) surface.Runner.HoldForDrawing();
                     if(pressed)
                     {

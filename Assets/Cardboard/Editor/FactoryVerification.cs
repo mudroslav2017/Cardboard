@@ -143,7 +143,7 @@ namespace Cardboard.Editor
             game.DropPart();
         }
         static FactoryVerification() { EditorApplication.update+=Tick; }
-        [MenuItem("Cardboard/Verify factory gameplay")]
+        [MenuItem("Cardboard/Verify legacy factory gameplay")]
         public static void Verify()
         {
             if(EditorApplication.isPlayingOrWillChangePlaymode) return;
@@ -200,7 +200,7 @@ namespace Cardboard.Editor
                     {
                         if(item.action==FactoryAction.Blueprint)
                         { blueprints++;Check(item.gear && item.transform.position.y<item.gear.transform.position.y,"Instruction physically lies beneath its gear"); }
-                        if(item.action==FactoryAction.Blueprint || item.action==FactoryAction.Disguise || item.action==FactoryAction.Exit)
+                        if(item.action==FactoryAction.Blueprint || item.action==FactoryAction.Exit)
                         {
                             Vector3 direction=item.action==FactoryAction.Exit?Vector3.forward:Vector3.back;
                             var target=game.TargetForRay(new Ray(item.transform.position-direction*2,direction));

@@ -11,7 +11,7 @@ namespace Cardboard.Editor
     public static class CardboardFactorySceneBuilder
     {
         public const string ScenePath="Assets/Scenes/FactoryShift.unity";
-        const string ArtPath="Assets/Cardboard/Generated/FactoryArt.asset";
+        const string ArtPath="Assets/Cardboard/Generated/FactoryWorkstationArt.asset";
         static bool stageAtBench;
         static CardboardFactorySceneBuilder()
         {
@@ -26,7 +26,7 @@ namespace Cardboard.Editor
             if(stageAtBench && EditorApplication.isPlaying && CardboardRunner.Player && CardboardFactoryGame.Instance)
             {
                 var player=CardboardRunner.Player;var body=player.GetComponent<CharacterController>();
-                body.enabled=false;player.transform.position=new Vector3(-8,0,3.45f);body.enabled=true;
+                body.enabled=false;player.transform.position=new Vector3(-6,0,3.45f);body.enabled=true;
                 Camera.main.transform.position=player.transform.position+Vector3.up*1.62f;stageAtBench=false;
             }
             const string request="Library/FactoryEditorCommand.txt";
@@ -35,7 +35,11 @@ namespace Cardboard.Editor
             try { command=File.ReadAllText(request).Trim();File.Delete(request); }
             catch(IOException) { return; }
             if(command=="build") Build();
-            else if(command=="verify") FactoryVerification.Verify();
+            else if(command=="audit") WorkstationModelAudit.Write();
+            else if(command=="audit-marker") WorkstationModelAudit.AuditMarkerFaces();
+            else if(command=="refresh") AssetDatabase.Refresh();
+            else if(command=="import-people") ImportedCharacterInstaller.Install();
+            else if(command=="verify") FactoryWorkstationVerification.Verify();
             else if(command=="play") { EditorApplication.ExecuteMenuItem("Window/General/Game");EditorApplication.isPlaying=true; }
             else if(command=="bench-play") { stageAtBench=true;EditorApplication.ExecuteMenuItem("Window/General/Game");EditorApplication.isPlaying=true; }
             else if(command=="stop") EditorApplication.isPlaying=false;
@@ -43,8 +47,8 @@ namespace Cardboard.Editor
             else if(command=="bench-preview")
             {
                 var cam=Camera.main;var position=cam.transform.position;var rotation=cam.transform.rotation;
-                cam.transform.position=new Vector3(-8.35f,1.95f,4.5f);
-                cam.transform.rotation=Quaternion.LookRotation(new Vector3(-8.35f,1.63f,1)-cam.transform.position);
+                cam.transform.position=new Vector3(-6,2.9f,7.2f);
+                cam.transform.rotation=Quaternion.LookRotation(new Vector3(-6.3f,1.4f,.5f)-cam.transform.position);
                 Capture("WorkbenchPreview");cam.transform.SetPositionAndRotation(position,rotation);
             }
         }
@@ -52,9 +56,14 @@ namespace Cardboard.Editor
         public static void Build()
         {
             if(EditorApplication.isPlayingOrWillChangePlaymode) return;
-            if(SceneManager.GetActiveScene().isDirty && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            var previousScene=SceneManager.GetActiveScene();
+            const string legacyScene="Assets/Scenes/LegacyFactoryShift.unity";
+            if(previousScene.path==ScenePath && !File.Exists(legacyScene))
+                EditorSceneManager.SaveScene(previousScene,legacyScene,true);
+            else if(previousScene.isDirty && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
             try
             {
+                ImportedCharacterInstaller.Prepare();
                 Directory.CreateDirectory("Assets/Cardboard/Generated");Directory.CreateDirectory("Assets/Scenes");
                 var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
                 var root=new GameObject("НЕ СВОЙ • cardboard factory shift");
@@ -68,7 +77,7 @@ namespace Cardboard.Editor
                 EditorBuildSettings.scenes=new[] {new EditorBuildSettingsScene(ScenePath,true),new EditorBuildSettingsScene("Assets/Scenes/CardboardPlayground.unity",false)};
                 Selection.activeGameObject=root;
                 if(SceneView.lastActiveSceneView) SceneView.lastActiveSceneView.LookAt(new Vector3(0,1,-1),Quaternion.Euler(35,205,0),24);
-                File.WriteAllText("Library/FactoryBuildReport.txt","SUCCESS: FactoryShift scene, giant mechanism, 3 gear blueprints, assembly bench, disguise, suspicion, inspection, chase, 3 capture endings and shift completion.\n");
+                File.WriteAllText("Library/FactoryBuildReport.txt","SUCCESS: imported workstation models, animated guard, conveyor, numbered types, jump pump, wheel cutting, 3 finishing baths, punchcard orders; HUD, wall text and disguise locker removed.\n");
                 Capture("FactoryPreview");
             }
             catch(Exception error) { File.WriteAllText("Library/FactoryBuildReport.txt",error.ToString());Debug.LogException(error); }
