@@ -8,9 +8,11 @@ namespace Cardboard
     {
         public static readonly List<Object> Generated = new List<Object>();
         public static Material Kraft, Edge, Ink, Cream, Tape, Grass, Path, Coral, Teal, Gold, Leaf, DarkLeaf;
+        static Material worldText;
         public static void Initialize()
         {
             Generated.Clear();
+            worldText=null;
             CardboardCutout.Reset();
             Kraft = Paper("Natural kraft", "C69458"); Edge = Paper("Corrugated edges", "775035");
             Ink = Paper("Charcoal ink", "353D39"); Cream = Paper("Warm paper", "FFF0CF");
@@ -138,12 +140,21 @@ namespace Cardboard
             t.localRotation = Quaternion.FromToRotation(Vector3.up, (b - a).normalized);
         }
 
-        public static void Label(string text, Transform parent, Vector3 position, float size, Material unused = null)
+        public static Transform Label(string text, Transform parent, Vector3 position, float size, Material unused = null)
         {
             var t = Group(text, parent, position); t.localRotation = Quaternion.Euler(0, 180, 0);
-            var mesh = t.gameObject.AddComponent<TextMesh>(); mesh.text = text; mesh.fontSize = 64;
+            var mesh = t.gameObject.AddComponent<TextMesh>(); mesh.font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            mesh.text = text; mesh.fontSize = 32;
             mesh.characterSize = size; mesh.anchor = TextAnchor.MiddleCenter; mesh.alignment = TextAlignment.Center;
             mesh.color = Ink.color;
+            var shader=Shader.Find("Cardboard/WorldInk");
+            if(shader)
+            {
+                if(!worldText) { worldText=new Material(shader) {name="Depth-tested world lettering"};Generated.Add(worldText); }
+                mesh.font.RequestCharactersInTexture(text,mesh.fontSize,FontStyle.Normal);
+                var label=t.gameObject.AddComponent<CardboardWorldLabel>();label.ink=worldText;label.Refresh();
+            }
+            return t;
         }
     }
 }

@@ -29,6 +29,8 @@ namespace Cardboard
 
         void Update()
         {
+            if(CardboardFactoryGame.Instance && CardboardFactoryGame.Instance.PlayerBlocked)
+            { if(drawing) SetDrawingMode(false,false);return; }
             var keyboard=Keyboard.current;var mouse=Mouse.current;
             if(keyboard==null) return;
             if(keyboard.fKey.wasPressedThisFrame) SetDrawingMode(!drawing);
@@ -58,7 +60,7 @@ namespace Cardboard
             { BreakStroke();return; }
             Physics.SyncTransforms();
             Ray ray=lens.ScreenPointToRay(pointer);
-            if(Physics.Raycast(ray,out RaycastHit hit,reach))
+            if(Physics.Raycast(ray,out RaycastHit hit,reach,~(1<<9),QueryTriggerInteraction.Ignore))
             {
                 var surface=hit.collider.GetComponent<CardboardDrawingSurface>();
                 if(surface && Mathf.Abs(surface.transform.InverseTransformDirection(hit.normal).z)>.9f)

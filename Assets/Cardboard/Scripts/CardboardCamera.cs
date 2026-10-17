@@ -18,6 +18,10 @@ namespace Cardboard
         }
         void Update()
         {
+            var factory=CardboardFactoryGame.Instance;
+            if(factory && factory.CameraOverride)
+            { transform.SetPositionAndRotation(factory.CameraPosition,factory.CameraRotation);return; }
+            if(factory && factory.PlayerBlocked) return;
             var mouse=Mouse.current; var keyboard=Keyboard.current;
             if(CardboardMarker.DrawingMode) return;
             if (keyboard!=null && keyboard.escapeKey.wasPressedThisFrame) Release();
@@ -32,6 +36,9 @@ namespace Cardboard
         }
         void LateUpdate()
         {
+            var factory=CardboardFactoryGame.Instance;
+            if(factory && factory.CameraOverride)
+            { transform.SetPositionAndRotation(factory.CameraPosition,factory.CameraRotation);return; }
             if (player) transform.position=player.position+Vector3.up*(1.62f+(controller?controller.JumpHeight:0));
         }
         void OnDisable() { Release(); }

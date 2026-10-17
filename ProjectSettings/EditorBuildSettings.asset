@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Scenes/FactoryShift.unity
+    guid: 077b2679636159f419902b713f1a8911
+  - enabled: 0
     path: Assets/Scenes/CardboardPlayground.unity
     guid: 43f1d278532a5b0449ae78c23e22ff63
   m_configObjects:
