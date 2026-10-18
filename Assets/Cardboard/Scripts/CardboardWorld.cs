@@ -107,7 +107,7 @@ namespace Cardboard
             }
             var cameraObject = Group("Main Camera",transform,new Vector3(0,1.62f,5.4f)).gameObject;
             cameraObject.tag = "MainCamera";
-            var camera = cameraObject.AddComponent<Camera>(); camera.orthographic = false; camera.fieldOfView = 72;
+            var camera = cameraObject.AddComponent<Camera>(); camera.orthographic = false; camera.fieldOfView = CardboardCamera.GameplayFov;
             camera.nearClipPlane = .05f; camera.farClipPlane = 150;
             camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = Hex("AFC6B5");
             camera.transform.rotation = Quaternion.Euler(0,180,0); cameraObject.AddComponent<AudioListener>();

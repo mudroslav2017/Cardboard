@@ -91,7 +91,7 @@ namespace Cardboard
                 crowd.runners.Add(runner);runner.Pose(i*1.79f,i==0?0:.6f);
             }
             var cameraObject=Group("Main Camera",transform,new Vector3(game.station.transform.localPosition.x,1.62f,8.5f)).gameObject;cameraObject.tag="MainCamera";
-            var cam=cameraObject.AddComponent<Camera>();cam.nearClipPlane=.05f;cam.farClipPlane=120;cam.fieldOfView=72;
+            var cam=cameraObject.AddComponent<Camera>();cam.nearClipPlane=.05f;cam.farClipPlane=120;cam.fieldOfView=CardboardCamera.GameplayFov;
             cam.clearFlags=CameraClearFlags.SolidColor;cam.backgroundColor=Hex("3E4E45");cam.transform.rotation=Quaternion.identity;
             cameraObject.AddComponent<AudioListener>();cameraObject.AddComponent<CardboardCamera>().player=crowd.runners[0].transform;
             cameraObject.AddComponent<CardboardMarker>();

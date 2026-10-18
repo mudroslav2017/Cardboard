@@ -33,15 +33,19 @@ namespace Cardboard
         public Quaternion CameraRotation => viewRotation*Quaternion.Euler(0,Mathf.Sin(Time.unscaledTime*.11f)*.35f,0);
         FactoryMenuAction pending;
         bool sliderDragging;
+        Vector2 settingsAim;
 
         void Awake()
         {
+            foreach(var renderer in lens.GetComponentsInChildren<MeshRenderer>(true))
+                if(renderer.gameObject.layer==10 || renderer.gameObject.layer==FactoryInventorySlot.Layer)CardboardSurface.Configure(renderer);
             SetVolume(PlayerPrefs.GetFloat(VolumeKey,.65f),false);
             if(SkipNextMenu){SkipNextMenu=false;Close();}else Show();
         }
         public void Show()
         {
             Change(FactoryMenuPhase.Opening);QuitRequested=false;sliderDragging=false;
+            settingsAim=Vector2.zero;settingsPanel.localRotation=Quaternion.identity;
             visuals.gameObject.SetActive(true);settingsPanel.gameObject.SetActive(false);
             foreach(var button in buttons)button.ResetMotion();back.ResetMotion();
             if(shiftHud)shiftHud.alpha=0;
@@ -62,8 +66,9 @@ namespace Cardboard
             FactoryHangingButton hover=null;
             if(Physics.Raycast(ray,out var hit,15,1<<10,QueryTriggerInteraction.Collide))
                 hover=hit.collider.GetComponentInParent<FactoryHangingButton>();
-            float depth=5;
+            float depth=5-lens.transform.InverseTransformPoint(ray.origin).z;
             Vector3 pointer=lens.transform.InverseTransformPoint(ray.origin+ray.direction*(depth/Mathf.Max(.001f,Vector3.Dot(ray.direction,lens.transform.forward))));
+            SetSettingsPointer(new Vector2(pointer.x,pointer.y+.05f));
             foreach(var button in buttons)button.Hover(Phase==FactoryMenuPhase.Main && hover==button,pointer);
             back.Hover(Phase==FactoryMenuPhase.Settings && hover==back,settingsPanel.InverseTransformPoint(lens.transform.TransformPoint(pointer)));
             if(mouse.leftButton.wasPressedThisFrame)
@@ -105,6 +110,8 @@ namespace Cardboard
                 float travel=Phase==FactoryMenuPhase.ToSettings?7*(1-OutBack(Mathf.Clamp01((PhaseTime-.25f)/.8f))):
                     Phase==FactoryMenuPhase.ToMain?7*InBack(Mathf.Clamp01(PhaseTime/.65f)):0;
                 settingsPanel.localPosition=new Vector3(0,-.05f+travel,5);
+                var aim=Phase==FactoryMenuPhase.Settings?settingsAim:Vector2.zero;
+                settingsPanel.localRotation=Quaternion.Slerp(settingsPanel.localRotation,Quaternion.Euler(-aim.y*9,aim.x*11,0),1-Mathf.Exp(-9*Mathf.Max(0,dt)));
                 back.Pose(dt,0,Phase==FactoryMenuPhase.Settings?1:0);
             }
             if(Phase==FactoryMenuPhase.Opening && PhaseTime>=.85f)Change(FactoryMenuPhase.Main);
@@ -140,7 +147,7 @@ namespace Cardboard
                 visuals.gameObject.SetActive(false);settingsPanel.gameObject.SetActive(false);
                 game.ResetShift();lens.GetComponent<CardboardCamera>().ResetView(0);
                 lens.transform.position=CardboardRunner.Player.transform.position+Vector3.up*1.62f;
-                lens.fieldOfView=72;if(shiftHud)shiftHud.alpha=1;
+                lens.fieldOfView=CardboardCamera.GameplayFov;if(shiftHud)shiftHud.alpha=1;
                 Change(FactoryMenuPhase.Revealing);
             }
             else if(Phase==FactoryMenuPhase.Revealing)
@@ -148,6 +155,11 @@ namespace Cardboard
                 SetFade(1-Mathf.SmoothStep(0,1,PhaseTime/.55f));
                 if(PhaseTime>=.55f)Close();
             }
+        }
+        public void SetSettingsPointer(Vector2 point)
+        {
+            settingsAim=Mathf.Abs(point.x)<=2.65f && Mathf.Abs(point.y)<=1.55f?
+                new Vector2(Mathf.Clamp(point.x/1.8f,-1,1),Mathf.Clamp(point.y/1.4f,-1,1)):Vector2.zero;
         }
         void Layout()
         {
@@ -175,7 +187,7 @@ namespace Cardboard
         void Close()
         {
             Change(FactoryMenuPhase.Closed);visuals.gameObject.SetActive(false);settingsPanel.gameObject.SetActive(false);
-            SetFade(0);lens.fieldOfView=72;if(uiCamera)uiCamera.enabled=false;if(shiftHud)shiftHud.alpha=1;
+            SetFade(0);lens.fieldOfView=CardboardCamera.GameplayFov;if(uiCamera)uiCamera.enabled=false;if(shiftHud)shiftHud.alpha=1;
         }
         static float OutBack(float t){float u=t-1;return 1+2.70158f*u*u*u+1.70158f*u*u;}
         static float InBack(float t)=>2.70158f*t*t*t-1.70158f*t*t;

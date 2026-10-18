@@ -127,8 +127,9 @@ namespace Cardboard
             {
                 CameraPosition=BedPosition;
                 Vector3 grip=game.station.pressGrip.position;
-                Quaternion look=Quaternion.LookRotation(grip+Vector3.up*.1f-BedPosition,Vector3.up);
-                float glance=Mathf.Sin(Mathf.Clamp01(PhaseTime/1.65f)*Mathf.PI)*.8f;
+                Vector3 operatorFace=game.station.transform.TransformPoint(new Vector3(.72f,1.9f,-1.35f));
+                Quaternion look=Quaternion.LookRotation(Vector3.Lerp(grip+Vector3.up*.1f,operatorFace,.65f)-BedPosition,Vector3.up);
+                float glance=Mathf.Sin(Mathf.Clamp01(PhaseTime/1.65f)*Mathf.PI)*.7f;
                 CameraRotation=Quaternion.Slerp(CeilingRotation(game.station.transform.forward),look,glance);
                 float pull=Mathf.SmoothStep(0,1,(PhaseTime-.55f)/.65f);
                 game.station.SetExecutionPose(pull,0);
@@ -185,9 +186,11 @@ namespace Cardboard
                 {
                     int side=i==CarrierLeft?-1:1;
                     Vector3 spot=carryPoint+right*side*.68f+carryForward*.85f;
+                    if(Phase>=CapturePhase.Placing)
+                        spot=game.station.transform.TransformPoint(new Vector3(side*.65f,0,-.18f));
                     MoveWorker(i,spot,dt,Phase==CapturePhase.Lifting?5:9,false);
-                    // Keep their original faces in view while carrying the reclining player.
-                    workers[i].transform.rotation=Quaternion.LookRotation(carryPoint-spot);
+                    // Look at the reclining player's head, rather than the old carrying point.
+                    FacePlayer(workers[i],Phase>=CapturePhase.Placing?BedPosition:carryPoint,Phase>=CapturePhase.Lever?1:dt);
                 }
                 else
                 {
@@ -197,14 +200,21 @@ namespace Cardboard
                         game.station.transform.TransformPoint(new Vector3(Mathf.Cos(angle)*2.6f,0,-2.4f-Mathf.Abs(Mathf.Sin(angle))*1.4f));
                     if(i==LeverWorker && Phase>=CapturePhase.Placing) spot=game.station.transform.TransformPoint(new Vector3(.72f,0,-1.35f));
                     MoveWorker(i,spot,dt,5.5f,true);
+                    if(Phase>=CapturePhase.Placing)FacePlayer(workers[i],BedPosition,Phase>=CapturePhase.Lever?1:dt);
                 }
             }
+        }
+        static void FacePlayer(CardboardRunner worker,Vector3 target,float dt)
+        {
+            Vector3 direction=target-worker.transform.position;direction.y=0;
+            if(direction.sqrMagnitude>.0001f)
+                worker.transform.rotation=Quaternion.Slerp(worker.transform.rotation,Quaternion.LookRotation(direction),1-Mathf.Exp(-14*dt));
         }
         void PoseLeverWorker()
         {
             var worker=workers[LeverWorker];var station=game.station;
             Vector3 spot=station.transform.TransformPoint(new Vector3(.72f,0,-1.35f));
-            worker.transform.position=spot;worker.transform.rotation=station.transform.rotation;worker.Pose(gait*5,0);
+            worker.transform.position=spot;FacePlayer(worker,BedPosition,1);worker.Pose(gait*5,0);
         }
         void MoveWorker(int index,Vector3 target,float dt,float speed,bool navigate)
         {

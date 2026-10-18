@@ -26,9 +26,18 @@ namespace Cardboard
         }
         public static void Configure(Renderer renderer)
         {
-            bool world=renderer.gameObject.layer!=10 && !renderer.GetComponent<TextMesh>();
+            bool world=renderer.gameObject.layer!=10 && renderer.gameObject.layer!=FactoryInventorySlot.Layer && renderer.gameObject.layer!=FactoryDeathPresentation.Layer && !renderer.GetComponent<TextMesh>();
             renderer.shadowCastingMode=world?ShadowCastingMode.TwoSided:ShadowCastingMode.Off;
             renderer.receiveShadows=world;
+            if(!world && renderer is MeshRenderer)
+            {
+                // Keep camera-attached UI transforms in sync instead of caching them with world instances.
+                var properties=new MaterialPropertyBlock();renderer.GetPropertyBlock(properties);
+                if(renderer.sharedMaterial && renderer.sharedMaterial.HasProperty("_BaseColor"))
+                    properties.SetColor("_BaseColor",renderer.sharedMaterial.GetColor("_BaseColor"));
+                else properties.SetFloat("_Cull",0);
+                renderer.SetPropertyBlock(properties);
+            }
         }
     }
 }

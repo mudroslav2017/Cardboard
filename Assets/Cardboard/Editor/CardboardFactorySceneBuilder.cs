@@ -61,6 +61,12 @@ namespace Cardboard.Editor
             else if(command=="environment-update") FactoryEnvironmentInstaller.ApplyCurrent();
             else if(command=="environment-preview") FactoryEnvironmentInstaller.Preview();
             else if(command=="environment-verify") FactoryEnvironmentVerification.Run();
+            else if(command=="feel-verify") FactoryFeelVerification.Run();
+            else if(command=="feel-update") FactoryFeelInstaller.ApplyCurrent();
+            else if(command=="inventory-style") FactoryInventoryInstaller.StyleCurrent();
+            else if(command=="inventory-update") FactoryInventoryInstaller.ApplyCurrent();
+            else if(command=="inventory-verify") FactoryInventoryVerification.Run();
+            else if(command=="inventory-preview") FactoryInventoryInstaller.Preview();
             else if(command=="atmosphere-update") FactoryAtmosphereInstaller.ApplyCurrent();
             else if(command=="atmosphere-preview") FactoryAtmosphereInstaller.Preview();
             else if(command=="atmosphere-verify") FactoryAtmosphereVerification.Run();
@@ -117,6 +123,8 @@ namespace Cardboard.Editor
                 FactoryWallsBoxInstaller.Apply(root.transform);
                 FactoryEnvironmentInstaller.Ground(root.transform);
                 FactoryAtmosphereInstaller.Apply(root.transform);
+                FactoryInventoryInstaller.Apply(root.transform);
+                FactoryFeelInstaller.Apply(root.transform);
                 var container=AssetDatabase.LoadAssetAtPath<CardboardGeneratedAssets>(ArtPath);
                 if(!container) { container=ScriptableObject.CreateInstance<CardboardGeneratedAssets>();AssetDatabase.CreateAsset(container,ArtPath); }
                 else foreach(var old in AssetDatabase.LoadAllAssetsAtPath(ArtPath)) if(old && old!=container) UnityEngine.Object.DestroyImmediate(old,true);
@@ -141,6 +149,8 @@ namespace Cardboard.Editor
                 camera.targetTexture=rt;Canvas.ForceUpdateCanvases();
                 var menu=UnityEngine.Object.FindFirstObjectByType<FactoryMainMenu>();
                 if(menu && menu.uiCamera && menu.uiCamera.enabled){menu.uiCamera.aspect=camera.aspect;menu.uiCamera.fieldOfView=camera.fieldOfView;}
+                var inventory=camera.GetComponent<FactoryInventorySlot>();if(inventory)inventory.Layout();
+                var death=UnityEngine.Object.FindFirstObjectByType<FactoryDeathPresentation>();if(death)death.Layout();
                 var request=new UnityEngine.Rendering.RenderPipeline.StandardRequest {destination=rt};
                 if(UnityEngine.Rendering.RenderPipeline.SupportsRenderRequest(camera,request))UnityEngine.Rendering.RenderPipeline.SubmitRenderRequest(camera,request);
                 else camera.Render();

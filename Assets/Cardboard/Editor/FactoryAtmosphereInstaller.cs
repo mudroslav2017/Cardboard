@@ -168,8 +168,8 @@ namespace Cardboard.Editor
         {
             var system=Group(name,root,center).gameObject.AddComponent<ParticleSystem>();system.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
             var main=system.main;main.loop=true;main.duration=30;main.prewarm=true;main.startLifetime=new ParticleSystem.MinMaxCurve(24,38);
-            main.startSpeed=new ParticleSystem.MinMaxCurve(.008f,.025f);main.startSize=new ParticleSystem.MinMaxCurve(.008f,.023f);
-            main.startColor=new ParticleSystem.MinMaxGradient(new Color(.65f,.52f,.34f,.25f),new Color(.92f,.80f,.57f,.5f));
+            main.startSpeed=new ParticleSystem.MinMaxCurve(.008f,.025f);main.startSize=new ParticleSystem.MinMaxCurve(.01f,.026f);
+            main.startColor=new ParticleSystem.MinMaxGradient(new Color(.65f,.52f,.34f,.30f),new Color(.92f,.80f,.57f,.58f));
             main.simulationSpace=ParticleSystemSimulationSpace.Local;main.maxParticles=particles;main.playOnAwake=true;
             var emission=system.emission;emission.rateOverTime=rate;
             var shape=system.shape;shape.shapeType=ParticleSystemShapeType.Box;shape.scale=size;
@@ -222,6 +222,7 @@ namespace Cardboard.Editor
                 .Where(path=>!new[]{"11","22","33"}.Contains(Path.GetFileNameWithoutExtension(path))).OrderBy(path=>path,StringComparer.Ordinal).ToArray();
             var meshes=new Mesh[paths.Length];var materials=new Material[paths.Length];
             for(int i=0;i<paths.Length;i++){var texture=Texture(paths[i]);meshes[i]=SpriteMesh(texture,"FloorDust_"+i);materials[i]=Cutout(texture,"FloorDust_"+i);}
+            var previous=root.Find("Floor • settled dust and offcuts");if(previous)Object.DestroyImmediate(previous.gameObject);
             var holder=Group("Floor • settled dust and offcuts",root,Vector3.zero);
             var random=new System.Random(172012);int index=0;float floor=FactoryEnvironmentInstaller.FloorY(world);
             float Range(float a,float b)=>Mathf.Lerp(a,b,(float)random.NextDouble());
@@ -238,15 +239,60 @@ namespace Cardboard.Editor
                 renderer.sharedMaterial=materials[type];CardboardSurface.Configure(renderer);
             }
             foreach(var station in world.GetComponentsInChildren<FactoryWorkstation>(true))
-                for(int i=0;i<14;i++)Patch(station.transform.TransformPoint(new Vector3(Range(-3.8f,5.5f),0,Range(-2.1f,.5f))),Range(.30f,1.05f));
-            for(int i=0;i<48;i++)
+                for(int i=0;i<26;i++)Patch(station.transform.TransformPoint(new Vector3(Range(-3.8f,5.5f),0,Range(-2.1f,.5f))),Range(.30f,1.05f));
+            for(int i=0;i<105;i++)
             {
                 float x=Range(CardboardFactoryWorld.WorkshopWest+1.2f,CardboardFactoryWorld.WorkshopEast-1.2f),z=Range(-12.5f,12.5f);
-                if(i<22)z=i%2==0?Range(-13,-11):Range(11,13);
+                if(i<44)z=i%2==0?Range(-13,-11):Range(11,13);
                 Patch(new Vector3(x,0,z),Range(.3f,1.3f));
             }
-            for(int i=0;i<25;i++)Patch(new Vector3(Range(-24.7f,-1.3f),0,Range(-32.7f,-17.5f)),Range(.25f,.8f));
+            for(int i=0;i<45;i++)Patch(new Vector3(Range(-24.7f,-1.3f),0,Range(-32.7f,-17.5f)),Range(.25f,.8f));
             report.AppendLine("Floor debris: "+index+" grounded patches using all "+paths.Length+" dust, sawdust and tape variants; no colliders, doors and pump plates kept clear");
+        }
+        static void Haze(Transform world,Transform root)
+        {
+            RenderSettings.fog=true;RenderSettings.fogMode=FogMode.Exponential;
+            RenderSettings.fogDensity=.0065f;RenderSettings.fogColor=CardboardArt.Hex("706452");
+            var previous=root.Find("Light • subtle warm scattering");if(previous)Object.DestroyImmediate(previous.gameObject);
+            var holder=Group("Light • subtle warm scattering",root,Vector3.zero);
+            string path=Generated+"FactoryLightScattering.mat";var material=AssetDatabase.LoadAssetAtPath<Material>(path);
+            if(!material){material=new Material(Shader.Find("Cardboard/SoftLightScattering"));AssetDatabase.CreateAsset(material,path);}
+            material.SetColor("_ScatterColor",new Color(1.10f,.86f,.56f,1));material.SetFloat("_Density",.026f);
+            CardboardSurface.Configure(material);EditorUtility.SetDirty(material);
+            float floor=FactoryEnvironmentInstaller.FloorY(world);int count=0;
+            foreach(var light in world.GetComponentsInChildren<Light>(true))
+            {
+                if(light.name!="Practical workshop lamp" && light.name!="Canteen warm light")continue;
+                float height=Mathf.Max(.5f,light.transform.position.y-floor-.06f);
+                var volume=GameObject.CreatePrimitive(PrimitiveType.Cube);volume.name="Depth-clipped warm lamp haze "+(++count);
+                volume.transform.SetParent(holder,false);volume.transform.position=light.transform.position-Vector3.up*(height*.5f);
+                volume.transform.localScale=new Vector3(height*.90f,height,height*.90f);
+                Object.DestroyImmediate(volume.GetComponent<Collider>());
+                var renderer=volume.GetComponent<MeshRenderer>();renderer.sharedMaterial=material;renderer.shadowCastingMode=ShadowCastingMode.Off;renderer.receiveShadows=false;
+            }
+            Camera.main.GetUniversalAdditionalCameraData().requiresDepthTexture=true;
+            report.AppendLine("Subtle exponential haze (0.0065) and "+count+" warm scattering volumes, clipped against scene depth; no collisions or solid shadow casters.");
+        }
+        public static void Enhance(Transform world)
+        {
+            report.Clear();readable.Clear();var root=world.Find(RootName);
+            if(!root)throw new InvalidOperationException("Existing factory atmosphere is missing.");
+            foreach(var system in root.GetComponentsInChildren<ParticleSystem>(true))
+            {
+                if(system.transform.parent!=root)continue;
+                bool canteen=system.name.StartsWith("Canteen");var main=system.main;
+                main.maxParticles=canteen?1100:3600;main.startSize=new ParticleSystem.MinMaxCurve(.01f,.026f);
+                main.startColor=new ParticleSystem.MinMaxGradient(new Color(.65f,.52f,.34f,.30f),new Color(.92f,.80f,.57f,.58f));
+                var emission=system.emission;emission.rateOverTime=canteen?28:95;EditorUtility.SetDirty(system);
+            }
+            try {FloorDust(world,root);Haze(world,root);}
+            finally
+            {
+                foreach(string path in readable.Distinct())
+                {var importer=(TextureImporter)AssetImporter.GetAtPath(path);importer.isReadable=false;importer.SaveAndReimport();}
+            }
+            report.AppendLine("Airborne paper dust: workshop emission 95/s, canteen 28/s, approximately three times previous density.");
+            File.WriteAllText("Library/FactoryAtmosphereEnhancement.txt",report.ToString());
         }
         public static void Apply(Transform world)
         {
@@ -256,9 +302,9 @@ namespace Cardboard.Editor
             try
             {
                 AO();Grading(root);var material=MoteMaterial();
-                Air(root,"Workshop • slow beige airborne dust",new Vector3(CardboardFactoryWorld.WorkshopCenterX,2.5f,0),new Vector3(42,4,25),1300,33,material);
-                Air(root,"Canteen • slow beige airborne dust",new Vector3(-13,2.4f,-25),new Vector3(23,3.8f,15),400,9,material);
-                Shavings(world,root);FloorDust(world,root);
+                Air(root,"Workshop • slow beige airborne dust",new Vector3(CardboardFactoryWorld.WorkshopCenterX,2.5f,0),new Vector3(42,4,25),3600,95,material);
+                Air(root,"Canteen • slow beige airborne dust",new Vector3(-13,2.4f,-25),new Vector3(23,3.8f,15),1100,28,material);
+                Shavings(world,root);FloorDust(world,root);Haze(world,root);
             }
             finally
             {
@@ -286,7 +332,7 @@ namespace Cardboard.Editor
             try
             {
                 foreach(var system in systems){system.Simulate(30,true,true);system.Pause();}
-                camera.fieldOfView=72;
+                camera.fieldOfView=CardboardCamera.GameplayFov;
                 var eye=new Vector3(CardboardFactoryWorld.WorkshopEast-3,2,-8);
                 camera.transform.SetPositionAndRotation(eye,Quaternion.LookRotation(new Vector3(-13,1.8f,8)-eye));
                 CardboardFactorySceneBuilder.Capture("FactoryAtmosphere");

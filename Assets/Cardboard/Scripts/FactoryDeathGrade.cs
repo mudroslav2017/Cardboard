@@ -10,6 +10,7 @@ namespace Cardboard
         public RectTransform word,pin;
         public Text lettering;
         public CanvasGroup wordOpacity,pinOpacity;
+        public FactoryDeathPresentation presentation;
         public static FactoryDeathGrade Create(Transform canvas)
         {
             var root=new GameObject("Death • black screen and pinned grade",typeof(RectTransform),typeof(CanvasRenderer),typeof(Image));
@@ -34,6 +35,7 @@ namespace Cardboard
         public void Show(float time)
         {
             gameObject.SetActive(true);
+            if(presentation)presentation.Show(time);
             float flight=Mathf.Clamp01(time/.40f);
             float settle=Mathf.Max(0,time-.4f);
             word.localScale=Vector3.one*Mathf.Lerp(4.5f,1,Mathf.SmoothStep(0,1,flight));
