@@ -71,16 +71,126 @@ namespace Cardboard.Editor
             string materialPath=FactoryPresentationInstaller.Generated+"InventorySlotOutline.mat";
             var material=AssetDatabase.LoadAssetAtPath<Material>(materialPath);
             if(!material){material=new Material(Shader.Find("Cardboard/InventorySlotOutline"));AssetDatabase.CreateAsset(material,materialPath);}
-            material.SetFloat("_OutlinePixels",4);CardboardSurface.Configure(material);EditorUtility.SetDirty(material);
+            material.SetFloat("_OutlinePixels",8);CardboardSurface.Configure(material);EditorUtility.SetDirty(material);
             var part=MeshObject("Inventory slot • four pixel black outline",slot,mesh,material,Vector3.zero);OverlayPart(part);
             inventory.outline=part.GetComponent<MeshRenderer>();inventory.Layout();EditorUtility.SetDirty(inventory);
+        }
+        public static void UpdateLayoutCurrent()
+        {
+            if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Stop Play Mode before updating inventory.");
+            var inventory=Camera.main.GetComponent<FactoryInventorySlot>();inventory.ResetInertia();inventory.Layout();
+            if(inventory.outline)
+            {
+                inventory.outline.sharedMaterial.SetFloat("_OutlinePixels",8);
+                EditorUtility.SetDirty(inventory.outline.sharedMaterial);AssetDatabase.SaveAssets();
+            }
+            EditorUtility.SetDirty(inventory.visuals);
+            EditorSceneManager.MarkSceneDirty(inventory.gameObject.scene);EditorSceneManager.SaveScene(inventory.gameObject.scene);
+            File.WriteAllText("Library/FactoryInventoryLayout.txt","SUCCESS: slot and marker scaled to 2/3, subtle smoothed camera/locomotion inertia; eight-pixel outline.");
         }
         public static void StyleCurrent()
         {
             if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Stop Play Mode before updating inventory style.");
             var inventory=Camera.main.GetComponent<FactoryInventorySlot>();Outline(inventory);
             AssetDatabase.SaveAssets();EditorSceneManager.MarkSceneDirty(inventory.gameObject.scene);EditorSceneManager.SaveScene(inventory.gameObject.scene);
-            File.WriteAllText("Library/FactoryInventoryStyle.txt","SUCCESS: gentle opposite view-relative tilt (3, 9, 3 degrees), black four-pixel screen-space silhouette; existing scene layout retained.");
+            File.WriteAllText("Library/FactoryInventoryStyle.txt","SUCCESS: gentle opposite view-relative tilt (3, 9, 3 degrees), black eight-pixel screen-space silhouette; existing scene layout retained.");
+        }
+        static Texture2D PaletteTexture()
+        {
+            string path=FactoryPresentationInstaller.Generated+"InventoryPaletteFibers.asset";
+            var texture=AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if(texture)return texture;
+            const int size=192;
+            texture=new Texture2D(size,size,TextureFormat.RGBA32,true)
+                {name="Inventory palette • star cardboard fibers",wrapMode=TextureWrapMode.Clamp,filterMode=FilterMode.Bilinear};
+            var pixels=new Color[size*size];var random=new System.Random(173);
+            for(int y=0;y<size;y++)
+            for(int x=0;x<size;x++)
+            {
+                // The mistake stars use this same seeded paper grain and diagonal fibers.
+                float grain=.94f+(float)random.NextDouble()*.09f;
+                if((x+y/4)%21<2)grain-=.08f;
+                float edge=Mathf.Min(Mathf.Min(x,size-1-x),Mathf.Min(y,size-1-y))/(size*.5f);
+                Color paper=edge<.026f?new Color(.28f,.18f,.095f):
+                    edge<.065f?new Color(.93f,.73f,.40f):Color.white;
+                pixels[y*size+x]=new Color(paper.r*grain,paper.g*grain,paper.b*grain,1);
+            }
+            texture.SetPixels(pixels);texture.Apply();
+            AssetDatabase.CreateAsset(texture,path);return texture;
+        }
+        static Mesh PaletteCard()
+        {
+            string path=FactoryPresentationInstaller.Generated+"InventoryPaletteCard.asset";
+            var mesh=AssetDatabase.LoadAssetAtPath<Mesh>(path);if(mesh)return mesh;
+            var edge=new[]{new Vector2(-.18f,-.21f),new Vector2(-.19f,.16f),new Vector2(-.16f,.21f),
+                new Vector2(.15f,.205f),new Vector2(.19f,.18f),new Vector2(.185f,-.17f),new Vector2(.16f,-.205f)};
+            var vertices=new List<Vector3>();var uv=new List<Vector2>();var triangles=new List<int>();
+            for(int face=0;face<2;face++)
+            {
+                int start=vertices.Count;float z=face==0?-.012f:.012f;
+                vertices.Add(new Vector3(0,0,z));uv.Add(Vector2.one*.5f);
+                foreach(var point in edge){vertices.Add(new Vector3(point.x,point.y,z));uv.Add(new Vector2(point.x/.38f+.5f,point.y/.42f+.5f));}
+                for(int i=0;i<edge.Length;i++)
+                {
+                    triangles.Add(start);triangles.Add(start+1+(face==0?i:(i+1)%edge.Length));
+                    triangles.Add(start+1+(face==0?(i+1)%edge.Length:i));
+                }
+            }
+            for(int i=0;i<edge.Length;i++)
+            {
+                int start=vertices.Count;var a=edge[i];var b=edge[(i+1)%edge.Length];
+                vertices.Add(new Vector3(a.x,a.y,-.012f));vertices.Add(new Vector3(a.x,a.y,.012f));
+                vertices.Add(new Vector3(b.x,b.y,.012f));vertices.Add(new Vector3(b.x,b.y,-.012f));
+                uv.Add(new Vector2(.005f,0));uv.Add(new Vector2(.015f,0));uv.Add(new Vector2(.015f,1));uv.Add(new Vector2(.005f,1));
+                triangles.AddRange(new[]{start,start+1,start+2,start,start+2,start+3});
+            }
+            mesh=new Mesh{name="Inventory palette • thick cut cardboard"};mesh.SetVertices(vertices);mesh.SetUVs(0,uv);
+            mesh.SetTriangles(triangles,0);mesh.RecalculateNormals();mesh.RecalculateTangents();mesh.RecalculateBounds();
+            AssetDatabase.CreateAsset(mesh,path);return mesh;
+        }
+        static TextMesh PaletteLabel(string value,Transform parent,Vector3 position,float height,Color color,Material ink)
+        {
+            var root=Group("Inventory shortcut • "+value,parent,Vector3.zero);
+            var text=root.gameObject.AddComponent<TextMesh>();text.font=CardboardTypography.DefaultFont;
+            text.fontSize=64;text.characterSize=1;text.anchor=TextAnchor.MiddleCenter;
+            text.alignment=TextAlignment.Center;text.color=color;text.text=value;
+            text.font.RequestCharactersInTexture(value,64,FontStyle.Normal);
+            var label=root.gameObject.AddComponent<CardboardWorldLabel>();label.ink=ink;label.Refresh();
+            var renderer=root.GetComponent<MeshRenderer>();var bounds=renderer.localBounds;
+            root.localScale=Vector3.one*(height/Mathf.Max(.001f,bounds.size.y));
+            root.localPosition=position-Vector3.Scale(bounds.center,root.localScale);
+            OverlayPart(root);return text;
+        }
+        static void Palette(FactoryInventorySlot inventory)
+        {
+            var old=inventory.visuals.Find("Inventory • five cardboard ink colors");if(old)Object.DestroyImmediate(old.gameObject);
+            var oldKey=inventory.visuals.Find("Inventory shortcut • F");if(oldKey)Object.DestroyImmediate(oldKey.gameObject);
+            var root=Group("Inventory • five cardboard ink colors",inventory.visuals,Vector3.zero);
+            root.localRotation=Quaternion.Euler(0,-22,0);
+            var palette=root.gameObject.AddComponent<FactoryMarkerPalette>();root.gameObject.layer=FactoryInventorySlot.Layer;
+            palette.cards=new Transform[5];palette.numbers=new TextMesh[5];
+            var font=Paper("InventoryPaletteLettering",Color.white,null,true);
+            CardboardSurface.Configure(font);EditorUtility.SetDirty(font);
+            var colors=inventory.lens.GetComponent<CardboardMarker>().Colors;
+            var mesh=PaletteCard();var texture=PaletteTexture();
+            for(int i=0;i<5;i++)
+            {
+                var material=Paper("InventoryInkColor"+(i+1),colors[i],texture);
+                CardboardSurface.Configure(material);EditorUtility.SetDirty(material);
+                palette.cards[i]=Group("Ink "+(i+1)+" • sliding cardboard",root,FactoryMarkerPalette.ClosedPosition);
+                palette.cards[i].gameObject.layer=FactoryInventorySlot.Layer;
+                var card=MeshObject("Colored cardboard",palette.cards[i],mesh,material,Vector3.zero);OverlayPart(card);
+                palette.numbers[i]=PaletteLabel((i+1).ToString(),palette.cards[i],new Vector3(0,.30f,-.025f),.115f,Color.white,font);
+            }
+            palette.shortcut=PaletteLabel("F",inventory.visuals,new Vector3(-.25f,-.26f,inventory.markerHome.z-.018f),.16f,Color.black,font);
+            inventory.palette=palette;palette.Pose(0,false,false);EditorUtility.SetDirty(inventory);
+        }
+        public static void PaletteCurrent()
+        {
+            if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Stop Play Mode before updating palette.");
+            var inventory=Camera.main.GetComponent<FactoryInventorySlot>();Palette(inventory);
+            AssetDatabase.SaveAssets();EditorSceneManager.MarkSceneDirty(inventory.gameObject.scene);EditorSceneManager.SaveScene(inventory.gameObject.scene);
+            File.WriteAllText("Library/FactoryInventoryPalette.txt","SUCCESS: five sequential bouncing cardboard colors, white 1–5 and black F in the project font; original inventory and level retained.");
         }
         public static void Create(Transform world)
         {
@@ -121,7 +231,7 @@ namespace Cardboard.Editor
             var light=Group("Inventory • paper fill light",lens.transform,new Vector3(.25f,.35f,.05f)).gameObject.AddComponent<Light>();
             light.type=LightType.Point;light.color=Hex("FFF1D7");light.range=2;light.intensity=.55f;
             light.shadows=LightShadows.None;light.cullingMask=1<<FactoryInventorySlot.Layer;
-            inventory.Pose(0,false,false);
+            Palette(inventory);inventory.Pose(0,false,false);
         }
         static Bounds BoundsOf(Transform root)
         {

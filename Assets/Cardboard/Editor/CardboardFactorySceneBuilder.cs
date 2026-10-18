@@ -63,8 +63,11 @@ namespace Cardboard.Editor
             else if(command=="environment-verify") FactoryEnvironmentVerification.Run();
             else if(command=="feel-verify") FactoryFeelVerification.Run();
             else if(command=="feel-update") FactoryFeelInstaller.ApplyCurrent();
+            else if(command=="inventory-palette") FactoryInventoryInstaller.PaletteCurrent();
+            else if(command=="inventory-layout") FactoryInventoryInstaller.UpdateLayoutCurrent();
             else if(command=="inventory-style") FactoryInventoryInstaller.StyleCurrent();
             else if(command=="inventory-update") FactoryInventoryInstaller.ApplyCurrent();
+            else if(command=="held-gear-verify") FactoryHeldGearVerification.Run();
             else if(command=="inventory-verify") FactoryInventoryVerification.Run();
             else if(command=="inventory-preview") FactoryInventoryInstaller.Preview();
             else if(command=="atmosphere-update") FactoryAtmosphereInstaller.ApplyCurrent();

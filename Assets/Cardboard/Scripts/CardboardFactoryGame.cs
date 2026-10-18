@@ -253,6 +253,7 @@ namespace Cardboard
             carried.transform.localPosition=new Vector3(-.28f,-.28f,.64f);
             carried.transform.localRotation=Quaternion.Euler(12,10,0);carried.transform.localScale=Vector3.one*.24f;
             FactoryGeometry.GearVisual(carried.transform,HeldRecipe,gearMeshes,hubMeshes,gearPaper,gearEdge,gearInk);
+            carried.AddComponent<FactoryHeldGearMotion>().Initialize(this,Camera.main);
             Toast("Деталь снята со станка: "+HeldRecipe+". Найдите подходящий узел.",6);if(sound) sound.Play("good");
         }
         public bool BeginDip()

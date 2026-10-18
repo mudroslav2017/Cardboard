@@ -26,7 +26,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _Cull: 0
-    - _OutlinePixels: 4
+    - _OutlinePixels: 8
     - _Smoothness: 0
     m_Colors:
     - _PixelStep: {r: 0.002, g: 0.002, b: 0, a: 0}

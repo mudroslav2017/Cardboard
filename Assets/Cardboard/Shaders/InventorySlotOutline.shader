@@ -2,7 +2,7 @@ Shader "Cardboard/InventorySlotOutline"
 {
     Properties
     {
-        _OutlinePixels ("Outline width in screen pixels", Float) = 4
+        _OutlinePixels ("Outline width in screen pixels", Float) = 8
         _PixelStep ("One pixel in clip coordinates", Vector) = (.002, .002, 0, 0)
         [HideInInspector] _Cull ("Cull", Float) = 0
         [HideInInspector] _Smoothness ("Smoothness", Float) = 0
@@ -12,7 +12,7 @@ Shader "Cardboard/InventorySlotOutline"
         Tags { "RenderPipeline"="UniversalPipeline" "Queue"="Geometry-20" "RenderType"="Opaque" }
         Pass
         {
-            Name "Four pixel silhouette"
+            Name "Eight pixel silhouette"
             Tags { "LightMode"="SRPDefaultUnlit" }
             Cull Off
             ZWrite Off
