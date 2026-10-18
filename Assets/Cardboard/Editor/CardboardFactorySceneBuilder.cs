@@ -46,6 +46,7 @@ namespace Cardboard.Editor
             else if(command=="floor-texture") FactoryFloorInstaller.ApplyCurrentScene();
             else if(command=="presentation-update") FactoryPresentationInstaller.ApplyCurrentScene();
             else if(command=="menu-rebuild") FactoryMenuBuilder.RebuildCurrent();
+            else if(command=="lunch-install") FactoryLunchInstaller.InstallCurrent();
             else if(command=="import-people") ImportedCharacterInstaller.Install();
             else if(command=="verify") FactoryWorkstationVerification.Verify();
             else if(command=="play") { EditorApplication.ExecuteMenuItem("Window/General/Game");EditorApplication.isPlaying=true; }
@@ -90,6 +91,7 @@ namespace Cardboard.Editor
                 root.AddComponent<CardboardFactoryWorld>().Build();
                 FactoryFloorInstaller.Apply(root.transform);
                 FactoryPresentationInstaller.Apply(root.transform);
+                FactoryLunchInstaller.Create(root.transform);
                 var container=AssetDatabase.LoadAssetAtPath<CardboardGeneratedAssets>(ArtPath);
                 if(!container) { container=ScriptableObject.CreateInstance<CardboardGeneratedAssets>();AssetDatabase.CreateAsset(container,ArtPath); }
                 else foreach(var old in AssetDatabase.LoadAllAssetsAtPath(ArtPath)) if(old && old!=container) UnityEngine.Object.DestroyImmediate(old,true);

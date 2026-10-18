@@ -53,7 +53,7 @@ namespace Cardboard
         void Update()
         {
             var mouse=Mouse.current;var keyboard=Keyboard.current;
-            if(!Game || Game.Ended || Game.Inspection || Game.State==FactoryState.Chased || !Application.isFocused)
+            if(!Game || Game.Ended || Game.HandsBusy || Game.State==FactoryState.Chased || !Application.isFocused)
             { if(Manipulating) EndGrip(false);return; }
             if(Manipulating)
             {
@@ -69,7 +69,7 @@ namespace Cardboard
         }
         public bool TryGrip(Ray ray,Vector2 pointer)
         {
-            if(!Game || Game.Ended || Game.Inspection || Game.State==FactoryState.Chased || Manipulating) return false;
+            if(!Game || Game.Ended || Game.HandsBusy || Game.State==FactoryState.Chased || Manipulating) return false;
             var hit=Game.TargetForRay(ray);
             var control=hit?hit.GetComponent<WorkbenchControl>():null;
             if(!control || control.machine!=this) return false;
@@ -212,7 +212,7 @@ namespace Cardboard
         }
         public bool Operate(WorkbenchPart part)
         {
-            if(!Game || Game.Ended || Game.Inspection || Game.State==FactoryState.Chased || Manipulating) return false;
+            if(!Game || Game.Ended || Game.HandsBusy || Game.State==FactoryState.Chased || Manipulating) return false;
             bool done=false;
             switch(part)
             {

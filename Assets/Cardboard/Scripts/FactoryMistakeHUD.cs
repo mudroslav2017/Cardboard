@@ -8,7 +8,8 @@ namespace Cardboard
     {
         public Image[] stars;
         public Text reasons;
-        int displayed=-1;
+        [System.NonSerialized] public Image[] fills;
+        float displayed=-1;
         public static FactoryMistakeHUD Create(Transform parent,Camera camera)
         {
             var root=new GameObject("Shift mistakes • three cardboard stars",typeof(RectTransform),typeof(Canvas),typeof(CanvasScaler),typeof(CanvasGroup));
@@ -44,10 +45,27 @@ namespace Cardboard
         void LateUpdate() { Refresh(); }
         public void Refresh()
         {
-            var game=CardboardFactoryGame.Instance;int count=game?game.Mistakes:0;
+            var game=CardboardFactoryGame.Instance;float count=game?game.Mistakes:0;
+            if(stars==null || !reasons) return;
+            // Existing scenes already contain the dim stars; add their filled overlays at runtime.
+            if(fills==null || fills.Length!=stars.Length)
+            {
+                fills=new Image[stars.Length];
+                for(int i=0;i<stars.Length;i++)
+                {
+                    stars[i].color=new Color(.43f,.40f,.34f,.65f);
+                    var overlay=new GameObject("Filled star",typeof(RectTransform),typeof(CanvasRenderer),typeof(Image));
+                    var rect=overlay.GetComponent<RectTransform>();rect.SetParent(stars[i].transform,false);
+                    rect.anchorMin=Vector2.zero;rect.anchorMax=Vector2.one;rect.offsetMin=rect.offsetMax=Vector2.zero;
+                    var fill=overlay.GetComponent<Image>();fill.sprite=stars[i].sprite;fill.raycastTarget=false;
+                    fill.type=Image.Type.Filled;fill.fillMethod=Image.FillMethod.Horizontal;fill.fillOrigin=0;
+                    fills[i]=fill;
+                }
+                displayed=-1;
+            }
             if(count==displayed || stars==null || !reasons) return;
             displayed=count;
-            for(int i=0;i<stars.Length;i++) stars[i].color=i<count?Color.white:new Color(.43f,.40f,.34f,.65f);
+            for(int i=0;i<fills.Length;i++) fills[i].fillAmount=Mathf.Clamp01(count-i);
             var text=new StringBuilder();
             if(game) for(int i=0;i<game.MistakeReasons.Count;i++)
             {if(i>0) text.Append("\n\n");text.Append(i+1).Append(". ").Append(game.MistakeReasons[i]);}

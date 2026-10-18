@@ -37,13 +37,20 @@ namespace Cardboard
 
         void Update()
         {
-            float dt=Mathf.Min(Time.deltaTime,.05f);
+            TickMovement(Mathf.Min(Time.deltaTime,.05f));
+        }
+        public void TickMovement(float dt)
+        {
             if (dt<=0) return;
             var factory=CardboardFactoryGame.Instance;
             if(factory && factory.captureSequence && factory.captureSequence.ControlsWorkers && !isPlayer) return;
             if(factory && (factory.Ended || (isPlayer && factory.PlayerBlocked)))
             { velocity=Vector3.zero;speed=0;Pose(cycle,0);return; }
             bool chasing=factory && factory.State==FactoryState.Chased;
+            var diners=factory && factory.lunch?factory.lunch.diners:null;
+            bool lunchGuided=!isPlayer && !chasing && diners && diners.Guides(this);
+            if(lunchGuided && diners.IsEating(this))
+            {velocity=Vector3.zero;speed=0;diners.PoseDiner(this);return;}
             Vector3 wish=Vector3.zero;
             bool party=Time.time<PartyUntil;
             if (isPlayer)
@@ -55,15 +62,15 @@ namespace Cardboard
                         (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed?1:0)-(keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed?1:0));
                     Vector3 forward=Quaternion.Euler(0,Camera.main?Camera.main.transform.eulerAngles.y:180,0)*Vector3.forward;
                     Vector3 right=Vector3.Cross(Vector3.up,forward);
-                    wish=(forward*input.y+right*input.x).normalized*(factory && factory.Pretending?1.35f:keyboard.leftShiftKey.isPressed?6:3.2f);
-                    if (keyboard.spaceKey.wasPressedThisFrame && jumpHeight<=.001f) jumpVelocity=5.5f;
+                    wish=(forward*input.y+right*input.x).normalized*(factory && factory.HandsBusy?1.8f:factory && factory.Pretending?1.35f:keyboard.leftShiftKey.isPressed?6:3.2f);
+                    if (keyboard.spaceKey.wasPressedThisFrame && jumpHeight<=.001f && (!factory || !factory.HandsBusy)) jumpVelocity=5.5f;
                     if (!factory && keyboard.eKey.wasPressedThisFrame) Whistle();
                     if (!factory && keyboard.rKey.wasPressedThisFrame) Party();
                 }
             }
             else
             {
-                if(Time.time>=nextRest && Time.time>=restUntil) PauseFor(5);
+                if(!lunchGuided && Time.time>=nextRest && Time.time>=restUntil) PauseFor(5);
                 float a=Time.time*(.17f+personality*.005f)+personality*Mathf.PI*2/11;
                 Vector3 target=new Vector3(Mathf.Cos(a)*(7.4f+Mathf.Sin(personality)*1.1f),0,Mathf.Sin(a)*4.8f);
                 if (Time.time<FollowUntil && Player)
@@ -73,7 +80,8 @@ namespace Cardboard
                 if(factory)
                 {
                     target=factory.WorkerTarget(this,out float factorySpeed);
-                    wish=Vector3.ClampMagnitude(target-transform.position,1)*factorySpeed;
+                    var direction=target-transform.position;
+                    wish=Vector3.ClampMagnitude(direction*(lunchGuided?4:1),1)*factorySpeed;
                 }
                 if (CardboardWorld.Instance)
                 foreach (var other in CardboardWorld.Instance.runners)
@@ -81,15 +89,15 @@ namespace Cardboard
                     if (!other || other==this) continue;
                     if(chasing && other.isPlayer) continue;
                     Vector3 separation=transform.position-other.transform.position; separation.y=0;
-                    float distance=separation.magnitude, space=other.isPlayer?1.5f:1;
+                    float distance=separation.magnitude, space=other.isPlayer?1.5f:(lunchGuided ? .8f : 1);
                     if (distance<space && distance>.001f) wish+=separation/distance*(space-distance)*4;
                 }
-                if(IsResting && !chasing) wish=Vector3.zero;
+                if(IsResting && !chasing && !lunchGuided) wish=Vector3.zero;
             }
             if(!isPlayer && Time.time<paintHoldUntil && !chasing) velocity=Vector3.zero;
             velocity=Vector3.Lerp(velocity,wish,1-Mathf.Exp(-9*dt)); speed=velocity.magnitude;
             Vector3 position=transform.position+velocity*dt;
-            if(factory) { position.x=Mathf.Clamp(position.x,CardboardFactoryWorld.WorkshopWest+.4f,CardboardFactoryWorld.WorkshopEast-.4f);position.z=Mathf.Clamp(position.z,-26.6f,13.6f); }
+            if(factory) { position.x=Mathf.Clamp(position.x,CardboardFactoryWorld.WorkshopWest+.4f,CardboardFactoryWorld.WorkshopEast-.4f);position.z=Mathf.Clamp(position.z,CardboardFactoryWorld.CanteenSouth+.4f,13.6f); }
             else
             {
                 float boundary=position.x*position.x/(10.7f*10.7f)+position.z*position.z/(7.2f*7.2f);
@@ -99,7 +107,7 @@ namespace Cardboard
             { characterController.Move(position-transform.position);position=transform.position; }
             position.y=0; transform.position=position;
             // Follow the walking direction. Resting sheets keep their world orientation.
-            if (!isPlayer && (!IsResting || chasing))
+            if (!isPlayer && (!IsResting || chasing || lunchGuided))
             {
                 Vector3 facing=velocity; facing.y=0;
                 if (facing.sqrMagnitude>.01f)

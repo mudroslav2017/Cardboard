@@ -39,7 +39,7 @@ namespace Cardboard.Editor
             {
                 check(menu.buttons[0].Hovered && (menu.buttons[0].transform.localPosition-menu.buttons[0].home).magnitude>.01f,"Real pointer attracts hovered hanging button toward cursor");
                 check(Vector3.Distance(workerBefore,game.crowd.runners[8].transform.position)>.01f,"Cardboard workers keep walking in the menu background");
-                check(game.ShiftRemaining==initialClock && game.Mistakes==0 && !game.Inspection,"Menu time does not consume shift or trigger inspection and mistakes");
+                check(game.ShiftRemaining==initialClock && game.Mistakes==0,"Menu time does not consume shift or trigger mistakes");
                 Pointer(menu,menu.buttons[0].hit.bounds.center,true);Next(2);
             }
             else if(step==2 && Time.unscaledTime-since>.13f)

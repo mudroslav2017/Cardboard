@@ -34,7 +34,7 @@ namespace Cardboard
             var previous=GUI.matrix;GUI.matrix=Matrix4x4.Scale(Vector3.one*scale);
             float w=Screen.width/scale,h=Screen.height/scale;
             // The machine has its own labels, gauge and workpiece. No recipe overlay or station menu.
-            if(game.workbench && game.workbench.Nearby && !game.Ended && !game.Inspection && game.State!=FactoryState.Chased)
+            if(game.workbench && game.workbench.Nearby && !game.Ended && game.State!=FactoryState.Chased)
             {
                 if(!game.workbench.Manipulating && !CardboardMarker.DrawingMode)
                 { Fill(w/2-2,h/2,4,1,paper);Fill(w/2,h/2-2,1,4,paper); }
@@ -88,14 +88,7 @@ namespace Cardboard
                         Fill(x,h-143,30,23,marker.Colors[i]);
                     }
                 }
-                if(game.Inspection)
-                {
-                    Fill(w/2-270,138,540,92,panel);
-                    GUI.Label(new Rect(w/2-250,151,500,28),"ПРОВЕРКА: ЗАЖМИТЕ C И ЗАМРИТЕ",title);
-                    GUI.Label(new Rect(w/2-250,185,500,22),"Не двигайтесь 2 секунды. Осталось: "+Mathf.CeilToInt(game.InspectionRemaining),text);
-                    Meter(w/2-250,216,500,game.InspectionProgress/2,gold);
-                }
-                else if(Time.time<game.MessageUntil)
+                if(Time.time<game.MessageUntil)
                 {
                     Fill(w/2-360,h-165,720,52,panel);
                     GUI.Label(new Rect(w/2-344,h-154,688,42),game.Message,wrapped);

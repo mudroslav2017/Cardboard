@@ -3,15 +3,15 @@ using UnityEngine;
 
 namespace Cardboard
 {
-    // Capture-only floor grid: workers route around stations and through the canteen door.
+    // Shared floor grid for capture and lunch routes through the canteen doorway.
     public sealed class FactoryCaptureNavigation
     {
-        const float Step=.6f, MinX=-28.5f, MinZ=-27.6f;
+        const float Step=.6f, MinX=-28.5f, MinZ=CardboardFactoryWorld.CanteenSouth-.6f;
         readonly int width=Mathf.CeilToInt((CardboardFactoryWorld.WorkshopEast-MinX+1)/Step);
-        readonly int depth=71;
+        readonly int depth=Mathf.CeilToInt((14.5f-MinZ)/Step)+1;
         readonly bool[] walkable;
         static readonly Collider[] overlaps=new Collider[48];
-        public FactoryCaptureNavigation(float clearance=.30f)
+        public FactoryCaptureNavigation(float clearance=.30f,Vector3[] occupied=null)
         {
             Physics.SyncTransforms();walkable=new bool[width*depth];
             for(int z=0;z<depth;z++) for(int x=0;x<width;x++)
@@ -19,8 +19,24 @@ namespace Cardboard
                 Vector3 p=Point(z*width+x);
                 bool floor=Physics.Raycast(p+Vector3.up*.3f,Vector3.down,.8f,1<<8,QueryTriggerInteraction.Ignore);
                 bool blocked=Blocked(p+Vector3.up*(clearance+.08f),p+Vector3.up*1.65f,clearance);
+                if(occupied!=null) foreach(var diner in occupied)
+                    if((p-diner).sqrMagnitude<(clearance+.3f)*(clearance+.3f)) {blocked=true;break;}
                 walkable[z*width+x]=floor && !blocked;
             }
+        }
+        FactoryCaptureNavigation(FactoryCaptureNavigation source)
+        {walkable=(bool[])source.walkable.Clone();}
+        public FactoryCaptureNavigation Avoiding(Vector3[] occupied,float clearance=.38f)
+        {
+            var route=new FactoryCaptureNavigation(this);
+            for(int id=0;id<route.walkable.Length;id++)
+            {
+                if(!route.walkable[id]) continue;
+                var point=route.Point(id);
+                foreach(var person in occupied) if((point-person).sqrMagnitude<(clearance+.3f)*(clearance+.3f))
+                {route.walkable[id]=false;break;}
+            }
+            return route;
         }
         static bool Blocked(Vector3 bottom,Vector3 top,float radius)
         {

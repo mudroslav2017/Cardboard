@@ -265,14 +265,14 @@ namespace Cardboard.Editor
                     Check(game.WorkingGears==3 && game.Repairs==3 && game.TryExit() && game.State==FactoryState.Escaped,"All three repaired gears allow a successful escape");
                     game.ResetShift();
                     Check(game.WorkingGears==0 && game.Repairs==0 && !game.ReadyToLeave && game.exitGate.localPosition==closedGate,"New shift resets all three gears and closes the victory door");
-                    game.AddSuspicion(20);game.StartInspection();
-                    InputSystem.QueueStateEvent(keyboard,new KeyboardState(Key.C));started=Time.time;stage=6;
+                    game.TickShiftClock(241);
+                    Check(game.Mistakes==0,"Expired shift clock does not award suspicion");
+                    started=Time.time;stage=6;
                 }
                 else if(stage==6 && Time.time-started>2.3f)
                 {
-                    Check(!game.Inspection && game.Suspicion<7,"Holding still in cardboard disguise passes a coworker inspection");
                     InputSystem.QueueStateEvent(keyboard,new KeyboardState());
-                    game.AddSuspicion(100);
+                    game.RegisterMistake("Ошибка 1");game.RegisterMistake("Ошибка 2");game.RegisterMistake("Ошибка 3");
                     Check(game.State==FactoryState.Chased,"Complete suspicion exposes the player and starts a chase");
                     Vector3 target=game.WorkerTarget(game.crowd.runners[1],out float speed);
                     Check(speed>4 && Vector3.Distance(target,CardboardRunner.Player.transform.position)<.1f,"Exposed workers hunt the player's actual position");

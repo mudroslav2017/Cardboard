@@ -10,6 +10,7 @@ namespace Cardboard
         public const float WorkshopLength=44.8f, WorkshopWidth=28f, WallHeight=5.8f;
         public const float WorkshopWest=-28f, WorkshopEast=WorkshopWest+WorkshopLength;
         public const float WorkshopCenterX=(WorkshopWest+WorkshopEast)*.5f;
+        public const float CanteenWidth=26f, CanteenDepth=18f, CanteenSouth=-34f;
         public void Build()
         {
             Initialize();
@@ -31,15 +32,15 @@ namespace Cardboard
             Solid("East wall below exit",transform,new Vector3(WorkshopEast,2.7f,-8.8f),new Vector3(.5f,5.8f,10.4f),Leaf);
             Solid("South wall west of canteen door",transform,new Vector3(-21.25f,2.7f,-14),new Vector3(13.5f,5.8f,.5f),DarkLeaf);
             Solid("South mechanism wall",transform,new Vector3((WorkshopEast-11.5f)*.5f,2.7f,-14),new Vector3(WorkshopEast+11.5f,WallHeight,.5f),DarkLeaf);
-            // Empty canteen and its short doorway, as in the floor-plan reference.
+            // Shared dining room, with a clear central aisle from the workshop.
             var canteen=Group("Empty canteen",transform,Vector3.zero);
-            Solid("Canteen floor",canteen,new Vector3(-13,-.32f,-21.5f),new Vector3(22,.3f,11),Kraft);
-            Box("Canteen floor surface",canteen,new Vector3(-13,-.16f,-21.5f),new Vector3(22,.025f,11),Path);
-            Solid("Canteen south wall",canteen,new Vector3(-13,2.7f,-27),new Vector3(22,5.8f,.4f),Leaf);
-            Solid("Canteen west wall",canteen,new Vector3(-24,2.7f,-21.5f),new Vector3(.4f,5.8f,11),Leaf);
-            Solid("Canteen east wall",canteen,new Vector3(-2,2.7f,-21.5f),new Vector3(.4f,5.8f,11),Leaf);
+            Solid("Canteen floor",canteen,new Vector3(-13,-.32f,-25),new Vector3(CanteenWidth,.3f,CanteenDepth),Kraft);
+            Box("Canteen floor surface",canteen,new Vector3(-13,-.16f,-25),new Vector3(CanteenWidth,.025f,CanteenDepth),Path);
+            Solid("Canteen south wall",canteen,new Vector3(-13,2.7f,CanteenSouth),new Vector3(CanteenWidth,5.8f,.4f),Leaf);
+            Solid("Canteen west wall",canteen,new Vector3(-26,2.7f,-25),new Vector3(.4f,5.8f,CanteenDepth),Leaf);
+            Solid("Canteen east wall",canteen,new Vector3(0,2.7f,-25),new Vector3(.4f,5.8f,CanteenDepth),Leaf);
             for(int side=-1;side<=1;side+=2)
-                Solid("Canteen north wall",canteen,new Vector3(-13+side*6.25f,2.7f,-16),new Vector3(9.5f,5.8f,.4f),Leaf);
+                Solid("Canteen north wall",canteen,new Vector3(-13+side*7.25f,2.7f,-16),new Vector3(11.5f,5.8f,.4f),Leaf);
             Solid("Canteen doorway floor",canteen,new Vector3(-13,-.32f,-15),new Vector3(3,.3f,2.4f),Path);
             for(int side=-1;side<=1;side+=2)
                 Solid("Canteen door jamb",canteen,new Vector3(-13+side*1.5f,1.6f,-15),new Vector3(.18f,3.5f,2.4f),Edge);

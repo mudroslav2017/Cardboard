@@ -29,7 +29,7 @@ namespace Cardboard
 
         void Update()
         {
-            if(CardboardFactoryGame.Instance && CardboardFactoryGame.Instance.PlayerBlocked)
+            if(CardboardFactoryGame.Instance && (CardboardFactoryGame.Instance.PlayerBlocked || CardboardFactoryGame.Instance.HandsBusy))
             { if(drawing) SetDrawingMode(false,false);return; }
             var keyboard=Keyboard.current;var mouse=Mouse.current;
             if(keyboard==null) return;
@@ -82,6 +82,7 @@ namespace Cardboard
         void BreakStroke() { previous=null;dragging=false; }
         public void SetDrawingMode(bool active,bool captureOnExit=true)
         {
+            if(active && CardboardFactoryGame.Instance && CardboardFactoryGame.Instance.HandsBusy) return;
             drawing=active;Target=null;IsTouching=false;IsPressed=false;BreakStroke();
             Cursor.lockState=active || !captureOnExit?CursorLockMode.None:CursorLockMode.Locked;
             Cursor.visible=active || !captureOnExit;

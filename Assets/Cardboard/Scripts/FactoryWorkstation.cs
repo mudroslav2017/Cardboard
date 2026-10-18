@@ -77,7 +77,7 @@ namespace Cardboard
             if (initialized) Refresh();
         }
         public void PrintOrder(int number) { QueuedOrder = Mathf.Clamp(number, 0, 3); }
-        bool Available => isPlayerStation && Game && !Game.MenuActive && !Game.Ended && !Game.Inspection && Game.State != FactoryState.Chased;
+        bool Available => isPlayerStation && Game && !Game.MenuActive && !Game.Ended && !Game.HandsBusy && Game.State != FactoryState.Chased;
         void Update()
         {
             if (ExecutionControlled) return;
@@ -252,7 +252,7 @@ namespace Cardboard
                         !PressClosed || pressBlend<.99f?"Начал крутить штурвал до закрытия пресса.":
                         !GuardClosed || GuardBlend<.99f?"Начал крутить штурвал до подъёма защитной решётки.":
                         "Начал крутить штурвал, не накачав давление до максимума.";
-                    Game.RegisterMistake(reason);
+                    Game.RegisterMistake(reason,.5f);
                 }
                 Refresh(); return false;
             }

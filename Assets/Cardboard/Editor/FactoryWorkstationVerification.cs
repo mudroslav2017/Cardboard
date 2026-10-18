@@ -30,6 +30,7 @@ namespace Cardboard.Editor
             if (SceneManager.GetActiveScene().path != CardboardFactorySceneBuilder.ScenePath) EditorSceneManager.OpenScene(CardboardFactorySceneBuilder.ScenePath);
             FactoryMenuVerification.Reset();menuVerified=false;
             report.Clear(); running = true; start = 0; inputStage=0; feeds=0; oldBackground = Application.runInBackground;
+            FactoryLunchCrowdVerification.Reset();
             oldInputBackground=InputSystem.settings.backgroundBehavior;
             InputSystem.settings.backgroundBehavior=InputSettings.BackgroundBehavior.IgnoreFocus;
             Application.logMessageReceived+=OnLog;
@@ -226,11 +227,28 @@ namespace Cardboard.Editor
         static void TestJumpInput(CardboardFactoryGame game)
         {
             if(Time.frameCount==lastInputFrame) return;lastInputFrame=Time.frameCount;
-            if(Time.realtimeSinceStartup-inputStarted>(inputStage>=8?45:12)) {Check(false,"Physical input timed out at stage "+inputStage+" blocked="+game.PlayerBlocked+" capture="+game.captureSequence.Phase+" controller="+CardboardRunner.Player.GetComponent<CharacterController>().enabled+" jump="+CardboardRunner.Player.JumpHeight);Finish();return;}
+            if(Time.realtimeSinceStartup-inputStarted>(inputStage==11?120:inputStage>=8?45:12)) {Check(false,"Physical input timed out at stage "+inputStage+" blocked="+game.PlayerBlocked+" capture="+game.captureSequence.Phase+" controller="+CardboardRunner.Player.GetComponent<CharacterController>().enabled+" jump="+CardboardRunner.Player.JumpHeight);Finish();return;}
             try
             {
                 float jump=CardboardRunner.Player.JumpHeight;
                 if(inputStage==9)
+                {
+                    if(game.PlayerBlocked) return;
+                    FactoryLunchVerification.Check(game,Check);
+                    inputStage=11;return;
+                }
+                if(inputStage==11)
+                {
+                    if(!FactoryLunchCrowdVerification.Tick(game,Check)) return;
+                    inputStarted=Time.realtimeSinceStartup;
+                    game.ResetShift();var lunchStation=game.station;lunchStation.Tick(.7f);
+                    Feed(lunchStation);lunchStation.Operate(StationPart.Press);lunchStation.Tick(1.1f);
+                    lunchStation.Operate(StationPart.Guard);lunchStation.Tick(.7f);
+                    var lunchBody=CardboardRunner.Player.GetComponent<CharacterController>();lunchBody.enabled=false;
+                    CardboardRunner.Player.transform.position=new Vector3(lunchStation.pumpPlate.position.x,0,lunchStation.pumpPlate.position.z);lunchBody.enabled=true;
+                    inputStage=10;return;
+                }
+                if(inputStage==10)
                 {
                     if(!game.PlayerBlocked){InputSystem.QueueStateEvent(keyboard,new KeyboardState(Key.Space));inputStage=1;}
                     return;
@@ -250,8 +268,8 @@ namespace Cardboard.Editor
                     {
                         Check(game.Suspicion<.1f,"Legitimate pump jumps do not raise suspicion");
                         game.ReadBlueprint(game.gears[0]);game.station.TurnWheel(360);
-                        game.RegisterMistake("Рабочие заметили бег.");
-                        game.RegisterMistake("Рабочие заметили прыжок вне панели насоса.");
+                        game.RegisterMistake("Рабочие заметили бег.",.5f);
+                        game.RegisterMistake("Рабочие заметили прыжок вне панели насоса.",.5f);
                         inputStage=4;
                     }
                 }
