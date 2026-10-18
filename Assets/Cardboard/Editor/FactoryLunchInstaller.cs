@@ -61,6 +61,7 @@ namespace Cardboard.Editor
             }
             bounds=BoundsOf(pose);height=bounds.size.y;
             File.WriteAllText("Library/LunchTrayModelAudit.txt","Source: Assets/podnos.fbx\nNormalized bounds: "+bounds+"\n");
+            FactoryTrayInstaller.Visual(tray);
             return tray;
         }
         static void Control(Transform parent,FactoryLunch lunch,bool serve,Vector3 position,Vector3 size)
@@ -126,14 +127,7 @@ namespace Cardboard.Editor
             lunch.pickup=Group("Lunch pickup pose",root,new Vector3(-19,1.01f,-19.2f));
             lunch.destination=Group("Lunch served pose",root,new Vector3(-7,.83f,-23.55f));
             lunch.tray=Tray(root,trayMaterial,out float trayHeight);
-            lunch.food=new Transform[3];
-            string[] names={"Food cube • main course","Food cube • vegetables","Food cube • bread"};
-            string[] colors={"BC693F","789A4B","DBBF7E"};
-            for(int i=0;i<3;i++)
-            {
-                var material=FactoryPresentationInstaller.Paper("LunchFood"+i,Hex(colors[i]));
-                lunch.food[i]=Cube(names[i],lunch.tray,new Vector3((i-1)*.19f,Mathf.Min(trayHeight,.02f)+.05f,.13f),new Vector3(.15f,.10f,.15f),material);
-            }
+            lunch.food=new[]{FactoryLunchProps.Cup(lunch.tray)};
             lunch.tray.position=lunch.pickup.position;
             Control(root,lunch,false,new Vector3(-19,1.08f,-19.2f),new Vector3(.85f,.28f,.6f));
             Control(root,lunch,true,new Vector3(-7,.98f,-23.55f),new Vector3(1.4f,.45f,.9f));lunch.destinationHit.SetActive(false);
@@ -196,9 +190,9 @@ namespace Cardboard.Editor
             if(EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Stop Play Mode before installing lunch.");
             var game=Object.FindFirstObjectByType<CardboardFactoryGame>();
             if(!game) throw new InvalidOperationException("Open FactoryShift first.");
-            Create(game.transform);AssetDatabase.SaveAssets();EditorSceneManager.MarkSceneDirty(game.gameObject.scene);
+            Create(game.transform);FactorySurfaceInstaller.Apply(game.transform);AssetDatabase.SaveAssets();EditorSceneManager.MarkSceneDirty(game.gameObject.scene);
             EditorSceneManager.SaveScene(game.gameObject.scene);
-            File.WriteAllText("Library/FactoryLunchInstall.txt","SUCCESS: shift lunch, imported podnos.fbx, cube food, serving counter, delivery table and balance HUD installed.\n");
+            File.WriteAllText("Library/FactoryLunchInstall.txt","SUCCESS: shift lunch, imported podnos.fbx, textured water glass, serving counter, delivery table and balance HUD installed.\n");
         }
     }
 }

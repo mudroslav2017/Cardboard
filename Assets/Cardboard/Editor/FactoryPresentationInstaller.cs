@@ -18,10 +18,7 @@ namespace Cardboard.Editor
         public static Material Matte(Material material)
         {
             if(!material)return material;
-            foreach(string property in new[]{"_Smoothness","_Glossiness","_Metallic","_EnvironmentReflections","_SpecularHighlights"})
-                if(material.HasProperty(property))material.SetFloat(property,0);
-            if(material.HasProperty("_EnvironmentReflections"))material.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
-            if(material.HasProperty("_SpecularHighlights"))material.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
+            CardboardSurface.Configure(material);
             EditorUtility.SetDirty(material);return material;
         }
         public static Material SourceMaterial(string folder)

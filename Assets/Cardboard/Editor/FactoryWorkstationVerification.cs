@@ -28,6 +28,7 @@ namespace Cardboard.Editor
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
             if (SceneManager.GetActiveScene().path != CardboardFactorySceneBuilder.ScenePath) EditorSceneManager.OpenScene(CardboardFactorySceneBuilder.ScenePath);
+            FactoryMainMenu.SkipNextMenu=false;EditorApplication.isPaused=false;
             FactoryMenuVerification.Reset();FactoryNewAssetsVerification.Reset();menuVerified=assetsVerified=false;
             report.Clear(); running = true; start = 0; inputStage=0; feeds=0; oldBackground = Application.runInBackground;
             FactoryLunchCrowdVerification.Reset();
@@ -163,6 +164,8 @@ namespace Cardboard.Editor
                 if (!station) throw new InvalidOperationException("Rebuild FactoryShift before verification.");
                 game.ResetShift();
                 ImportedCharacterInstaller.VerifyRuntime(Check);
+                FactoryLightingVerification.Check(game,Check);
+                FactoryGuardLampInstaller.Check(game,Check);
                 Check(game.workbench == null && UnityEngine.Object.FindObjectsByType<FactoryWorkbench>(FindObjectsSortMode.None).Length == 0, "Legacy machine absent from active scene");
                 Check(UnityEngine.Object.FindObjectsByType<FactoryHUD>(FindObjectsSortMode.None).Length == 0 && UnityEngine.Object.FindObjectsByType<CardboardHUD>(FindObjectsSortMode.None).Length == 0 && UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None).Length == 2 && UnityEngine.Object.FindFirstObjectByType<FactoryMistakeHUD>(), "Only shift HUD and menu transition canvas are present");
                 Check(GameObject.Find("Spare cardboard disguise locker") == null, "Disguise replacement removed");

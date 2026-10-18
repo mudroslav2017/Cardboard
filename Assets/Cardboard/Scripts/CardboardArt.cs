@@ -43,6 +43,7 @@ namespace Cardboard
             mat.SetColor("_BaseColor", Hex(hex)); mat.color = Hex(hex);
             mat.SetTexture("_BaseMap", texture); mat.mainTexture = texture;
             mat.SetFloat("_Smoothness", 0); mat.SetFloat("_Metallic", 0);
+            CardboardSurface.Configure(mat);
             Generated.Add(texture); Generated.Add(mat); return mat;
         }
 

@@ -27,9 +27,9 @@ namespace Cardboard.Editor
             lunch.TickSchedule(59);check(lunch.State==LunchState.Waiting,"Lunch does not open before one minute");
             lunch.TickSchedule(1);check(lunch.State==LunchState.Ready && game.Mistakes==0,"Lunch opens at one minute without awarding suspicion");
             lunch.TickSchedule(600);check(lunch.State==LunchState.Ready && game.Mistakes==0,"Missing the lunch announcement has no deadline penalty");
-            var model=lunch.tray.Find("podnos • normalized model");
-            check(model && Array.Exists(model.GetComponentsInChildren<MeshFilter>(),filter=>AssetDatabase.GetAssetPath(filter.sharedMesh)=="Assets/podnos.fbx"),"Tray uses the supplied podnos.fbx asset");
-            check(lunch.food.Length==3 && lunch.food[0].GetComponent<MeshFilter>().sharedMesh.name=="Cube","Meal consists of cube placeholders");
+            var model=lunch.tray.Find(FactoryTrayInstaller.VisualName);
+            check(model && model.GetComponent<MeshFilter>().sharedMesh==AssetDatabase.LoadAssetAtPath<Mesh>("Assets/Cardboard/Generated/TexturedLunchTray.asset"),"Tray uses the new authored Tray.fbx model");
+            check(lunch.food.Length==1 && lunch.food[0].name==FactoryLunchProps.CupName && lunch.food[0].GetComponent<MeshRenderer>().sharedMaterial.GetTexture("_BaseMap")==AssetDatabase.LoadAssetAtPath<Texture2D>(FactoryLunchProps.TexturePath),"Tray contains the authored textured glass instead of colored cubes");
             var target=game.TargetForRay(new Ray(Camera.main.transform.position,lunch.pickup.position-Camera.main.transform.position));
             check(target && target.GetComponent<FactoryLunchControl>() && !target.GetComponent<FactoryLunchControl>().serve,"Player ray reaches the tray on the serving counter");
             game.ReceiveWorkbenchPart(FactoryRecipe.ForType(1));
@@ -69,7 +69,7 @@ namespace Cardboard.Editor
             for(int i=0;i<50;i++) lunch.TickBalance(.02f,false,false);
             check(game.Mistakes==1 && !lunch.TryTake(),"A spill cannot award repeated penalties or restart the same lunch");
             hud.SendMessage("LateUpdate");UnityEngine.Object.FindFirstObjectByType<FactoryMistakeHUD>().Refresh();
-            Camera.main.transform.rotation=Quaternion.LookRotation(lunch.food[1].position-Camera.main.transform.position);
+            Camera.main.transform.rotation=Quaternion.LookRotation(lunch.food[0].position-Camera.main.transform.position);
             CardboardFactorySceneBuilder.Capture("LunchSpilled");
             game.ResetShift();lunch.TickSchedule(60);AtCounter(lunch);lunch.TryTake();game.Capture(FactoryDeath.Press);
             check(!lunch.Carrying && !game.HandsBusy && !lunch.tray.gameObject.activeSelf,"Capture cancels balancing without an extra lunch penalty");

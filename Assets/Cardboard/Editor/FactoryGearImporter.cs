@@ -28,7 +28,7 @@ namespace Cardboard.Editor
                 if(!material) {material=new Material(Shader.Find("Universal Render Pipeline/Lit"));AssetDatabase.CreateAsset(material,materialPath);}
                 material.name="Gear "+type+" • original atlas • both sides";
                 material.SetTexture("_BaseMap",AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath));material.color=Color.white;
-                material.SetFloat("_Smoothness",0);material.SetFloat("_Metallic",0);material.SetFloat("_Cull",0);material.doubleSidedGI=true;EditorUtility.SetDirty(material);
+                material.SetFloat("_Smoothness",0);material.SetFloat("_Metallic",0);material.SetFloat("_Cull",0);material.doubleSidedGI=true;CardboardSurface.Configure(material);EditorUtility.SetDirty(material);
                 var instance=UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(modelPath));
                 try
                 {

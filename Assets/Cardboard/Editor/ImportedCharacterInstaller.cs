@@ -45,7 +45,7 @@ namespace Cardboard.Editor
                 material.SetFloat("_Smoothness", 0); material.SetFloat("_Metallic", 0);
                 material.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off); material.doubleSidedGI = true;
                 material.SetFloat("_SmoothnessTextureChannel", 0); material.DisableKeyword("_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A");
-                EditorUtility.SetDirty(material);
+                CardboardSurface.Configure(material);EditorUtility.SetDirty(material);
                 var model = AssetDatabase.LoadAssetAtPath<GameObject>(modelPath);
                 var instance = UnityEngine.Object.Instantiate(model);
                 try

@@ -39,7 +39,7 @@ namespace Cardboard.Editor
             material.SetFloat("_Metallic",0);material.SetFloat("_Smoothness",0);
             material.SetFloat("_EnvironmentReflections",0);material.SetFloat("_SpecularHighlights",0);
             material.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");material.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
-            EditorUtility.SetDirty(material);
+            CardboardSurface.Configure(material);EditorUtility.SetDirty(material);
             Directory.CreateDirectory("Assets/Cardboard/Generated");
             var report=new StringBuilder();
             foreach(string name in Surfaces)

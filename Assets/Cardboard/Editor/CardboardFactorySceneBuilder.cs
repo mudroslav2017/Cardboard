@@ -36,6 +36,7 @@ namespace Cardboard.Editor
             catch(IOException) { return; }
             if(command=="build") Build();
             else if(command=="audit") WorkstationModelAudit.Write();
+            else if(command=="editor-state") File.WriteAllText("Library/FactoryEditorState.txt","Playing="+EditorApplication.isPlaying+" paused="+EditorApplication.isPaused+" timeScale="+Time.timeScale+" frame="+Time.frameCount);
             else if(command=="new-assets-audit") FactoryNewAssetsAudit.Write();
             else if(command=="audit-marker") WorkstationModelAudit.AuditMarkerFaces();
             else if(command=="refresh") AssetDatabase.Refresh();
@@ -49,6 +50,11 @@ namespace Cardboard.Editor
             else if(command=="menu-rebuild") FactoryMenuBuilder.RebuildCurrent();
             else if(command=="new-assets") FactoryNewAssetsInstaller.ApplyCurrent();
             else if(command=="lunch-install") FactoryLunchInstaller.InstallCurrent();
+            else if(command=="surfaces") FactorySurfaceInstaller.ApplyCurrent();
+            else if(command=="guard-lamps") FactoryGuardLampInstaller.ApplyCurrent();
+            else if(command=="tray-update") FactoryTrayInstaller.ApplyCurrent();
+            else if(command=="tray-verify") FactoryTrayInstaller.Verify();
+            else if(command=="lighting-verify") FactoryLightingVerification.RunCurrent();
             else if(command=="import-people") ImportedCharacterInstaller.Install();
             else if(command=="verify") FactoryWorkstationVerification.Verify();
             else if(command=="play") { EditorApplication.ExecuteMenuItem("Window/General/Game");EditorApplication.isPlaying=true; }
@@ -94,7 +100,9 @@ namespace Cardboard.Editor
                 FactoryFloorInstaller.Apply(root.transform);
                 FactoryPresentationInstaller.Apply(root.transform);
                 FactoryNewAssetsInstaller.Presses(root.transform);FactoryNewAssetsInstaller.Instruction(root.transform);
+                FactoryGuardLampInstaller.Guards(root.transform);
                 FactoryLunchInstaller.Create(root.transform);
+                FactorySurfaceInstaller.Apply(root.transform);
                 var container=AssetDatabase.LoadAssetAtPath<CardboardGeneratedAssets>(ArtPath);
                 if(!container) { container=ScriptableObject.CreateInstance<CardboardGeneratedAssets>();AssetDatabase.CreateAsset(container,ArtPath); }
                 else foreach(var old in AssetDatabase.LoadAllAssetsAtPath(ArtPath)) if(old && old!=container) UnityEngine.Object.DestroyImmediate(old,true);
