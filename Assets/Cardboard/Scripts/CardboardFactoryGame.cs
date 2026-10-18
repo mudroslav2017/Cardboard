@@ -20,7 +20,8 @@ namespace Cardboard
         public FactoryCaptureSequence captureSequence;
         public FactoryMainMenu mainMenu;
         public FactoryLunch lunch;
-        public bool HandsBusy => lunch && lunch.Carrying;
+        public FactoryInstruction instruction;
+        public bool HandsBusy => (lunch && lunch.Carrying) || (instruction && instruction.Held);
         public bool MenuActive => mainMenu && mainMenu.BlocksGameplay;
         public bool CaptureActive => captureSequence && captureSequence.Active;
         public FactoryWorkstation[] stations;
@@ -73,6 +74,7 @@ namespace Cardboard
             HasPart=false;Pretending=false;Memorized=null;
             DippingPart=false;
             if(lunch) lunch.ResetLunch();
+            if(instruction) instruction.ResetFloor();
             if(workbench) workbench.ResetMachine();
             if(station) station.ResetMachine();
             jumpWatch=0;
@@ -100,7 +102,8 @@ namespace Cardboard
             if(keyboard!=null)
             {
                 if(keyboard.eKey.wasPressedThisFrame && !PlayerBlocked && !CardboardMarker.DrawingMode) Interact();
-                if(keyboard.qKey.wasPressedThisFrame && HasPart && !PlayerBlocked) DropPart();
+                if(keyboard.qKey.wasPressedThisFrame && !PlayerBlocked)
+                {if(instruction && instruction.Held) instruction.PutDown();else if(HasPart) DropPart();}
             }
             if(ReadyToLeave) exitGate.localPosition=Vector3.Lerp(exitGate.localPosition,gateHome+Vector3.right*2.5f,dt*2);
             bool watched=IsWatched();
@@ -198,10 +201,13 @@ namespace Cardboard
         }
         public void Interact()
         {
+            if(instruction && instruction.Held){instruction.Flip();return;}
             if(!Focus || Ended) return;
             if(HandsBusy && Focus.action!=FactoryAction.Lunch) return;
             switch(Focus.action)
             {
+                case FactoryAction.Instruction:
+                    if(instruction) instruction.Take();break;
                 case FactoryAction.Gear:
                     if(HasPart && Focus.gear.broken) TryInstall(Focus.gear);else ReadBlueprint(Focus.gear);break;
                 case FactoryAction.Blueprint: ReadBlueprint(Focus.gear);break;

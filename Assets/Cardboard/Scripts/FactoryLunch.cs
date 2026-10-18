@@ -64,7 +64,7 @@ namespace Cardboard
         }
         public bool TryTake()
         {
-            if(!Gameplay || State!=LunchState.Ready || game.HasPart || game.PlayerBlocked || !CardboardRunner.Player ||
+            if(!Gameplay || State!=LunchState.Ready || game.HasPart || game.HandsBusy || game.PlayerBlocked || !CardboardRunner.Player ||
                 CardboardRunner.Player.JumpHeight>.01f || Vector3.Distance(CardboardRunner.Player.transform.position,pickup.position)>3.5f) return false;
             if(game.station) game.station.EndGrip(false);
             if(CardboardMarker.Instance) CardboardMarker.Instance.SetDrawingMode(false);

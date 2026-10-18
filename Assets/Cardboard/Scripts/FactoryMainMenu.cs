@@ -162,7 +162,11 @@ namespace Cardboard
         public void SetVolume(float value,bool save=true)
         {
             Volume=Mathf.Clamp01(value);AudioListener.volume=Volume;
-            if(volumeKnob)volumeKnob.localPosition=new Vector3(Mathf.Lerp(-1.05f,1.05f,Volume),0,-.10f);
+            if(volumeKnob)
+            {
+                volumeKnob.localPosition=new Vector3(Mathf.Lerp(-1.05f,1.05f,Volume),0,-.10f);
+                volumeKnob.localRotation=Quaternion.Euler(0,0,-Volume*360);
+            }
             if(volumeText)volumeText.text=Mathf.RoundToInt(Volume*100).ToString();
             if(save)SaveVolume();
         }

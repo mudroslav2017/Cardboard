@@ -36,6 +36,7 @@ namespace Cardboard.Editor
             catch(IOException) { return; }
             if(command=="build") Build();
             else if(command=="audit") WorkstationModelAudit.Write();
+            else if(command=="new-assets-audit") FactoryNewAssetsAudit.Write();
             else if(command=="audit-marker") WorkstationModelAudit.AuditMarkerFaces();
             else if(command=="refresh") AssetDatabase.Refresh();
             else if(command=="table-materials-audit") FactoryTableMaterials.Audit();
@@ -46,6 +47,7 @@ namespace Cardboard.Editor
             else if(command=="floor-texture") FactoryFloorInstaller.ApplyCurrentScene();
             else if(command=="presentation-update") FactoryPresentationInstaller.ApplyCurrentScene();
             else if(command=="menu-rebuild") FactoryMenuBuilder.RebuildCurrent();
+            else if(command=="new-assets") FactoryNewAssetsInstaller.ApplyCurrent();
             else if(command=="lunch-install") FactoryLunchInstaller.InstallCurrent();
             else if(command=="import-people") ImportedCharacterInstaller.Install();
             else if(command=="verify") FactoryWorkstationVerification.Verify();
@@ -91,6 +93,7 @@ namespace Cardboard.Editor
                 root.AddComponent<CardboardFactoryWorld>().Build();
                 FactoryFloorInstaller.Apply(root.transform);
                 FactoryPresentationInstaller.Apply(root.transform);
+                FactoryNewAssetsInstaller.Presses(root.transform);FactoryNewAssetsInstaller.Instruction(root.transform);
                 FactoryLunchInstaller.Create(root.transform);
                 var container=AssetDatabase.LoadAssetAtPath<CardboardGeneratedAssets>(ArtPath);
                 if(!container) { container=ScriptableObject.CreateInstance<CardboardGeneratedAssets>();AssetDatabase.CreateAsset(container,ArtPath); }

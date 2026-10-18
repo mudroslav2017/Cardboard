@@ -14,7 +14,7 @@ namespace Cardboard.Editor
     public static class FactoryWorkstationVerification
     {
         static readonly List<string> report = new List<string>();
-        static bool running, oldBackground, menuVerified;
+        static bool running, oldBackground, menuVerified, assetsVerified;
         static float start;
         static int inputStage,jumps,lastInputFrame,feeds;
         static CardboardFactoryGame captureInstance;
@@ -28,7 +28,7 @@ namespace Cardboard.Editor
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
             if (SceneManager.GetActiveScene().path != CardboardFactorySceneBuilder.ScenePath) EditorSceneManager.OpenScene(CardboardFactorySceneBuilder.ScenePath);
-            FactoryMenuVerification.Reset();menuVerified=false;
+            FactoryMenuVerification.Reset();FactoryNewAssetsVerification.Reset();menuVerified=assetsVerified=false;
             report.Clear(); running = true; start = 0; inputStage=0; feeds=0; oldBackground = Application.runInBackground;
             FactoryLunchCrowdVerification.Reset();
             oldInputBackground=InputSystem.settings.backgroundBehavior;
@@ -145,6 +145,12 @@ namespace Cardboard.Editor
             if(!menuVerified)
             {
                 try {if(FactoryMenuVerification.Tick(game,Check)){menuVerified=true;FactoryMenuVerification.CheckWorkstations(game,Check);}}
+                catch(Exception error){report.Add("FAIL "+error);Finish();}
+                return;
+            }
+            if(!assetsVerified)
+            {
+                try{if(FactoryNewAssetsVerification.Tick(game,Check))assetsVerified=true;}
                 catch(Exception error){report.Add("FAIL "+error);Finish();}
                 return;
             }
@@ -336,7 +342,7 @@ namespace Cardboard.Editor
         }
         static void Finish()
         {
-            FactoryMenuVerification.Cleanup();
+            FactoryMenuVerification.Cleanup();FactoryNewAssetsVerification.Cleanup();
             Application.logMessageReceived-=OnLog;
             if(keyboard!=null && keyboard.added) InputSystem.RemoveDevice(keyboard);keyboard=null;
             File.WriteAllLines("Library/FactoryVerification.txt",report);running=false;inputStage=0;

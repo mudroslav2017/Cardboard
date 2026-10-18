@@ -105,13 +105,6 @@ namespace Cardboard.Editor
                 }
                 mesh.vertices=vertices;if(normals.Length==vertices.Length)mesh.normals=normals;else mesh.RecalculateNormals();
                 mesh.RecalculateBounds();
-                if(name.StartsWith("MenuButton"))
-                {
-                    var uv=mesh.uv;Bounds face=mesh.bounds;
-                    for(int i=0;i<vertices.Length;i++)if(Mathf.Abs(normals[i].z)>.65f)
-                        uv[i]=new Vector2(Mathf.Lerp(.01f,.99f,Mathf.InverseLerp(face.min.x,face.max.x,vertices[i].x)),Mathf.Lerp(.02f,.47f,Mathf.InverseLerp(face.min.y,face.max.y,vertices[i].y)));
-                    mesh.uv=uv;
-                }
                 mesh.RecalculateTangents();
                 string path=Generated+name+".asset";var saved=AssetDatabase.LoadAssetAtPath<Mesh>(path);
                 if(saved)

@@ -26,6 +26,13 @@ namespace Cardboard.Editor
             root.position+=parent.TransformPoint(position)-renderer.bounds.center;
             root.gameObject.layer=10;return text;
         }
+        static Transform ImportedCard(string name,Transform parent,string model,string texture,string generated,float width,Vector3 position)
+        {
+            const string root="Assets/Game_Assets/Buttons/";
+            var mesh=Bake(root+model,generated,-90,Vector3.zero,true,width);
+            var material=Paper(generated,Color.white,AssetDatabase.LoadAssetAtPath<Texture2D>(root+texture));
+            var part=MeshObject(name,parent,mesh,material,position);part.gameObject.layer=10;return part;
+        }
         public static void RebuildCurrent()
         {
             var world=Object.FindFirstObjectByType<CardboardFactoryWorld>();
@@ -69,7 +76,7 @@ namespace Cardboard.Editor
                 var button=pivot.gameObject.AddComponent<FactoryHangingButton>();button.action=(FactoryMenuAction)i;menu.buttons[i]=button;
                 var texture=AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Game_Assets/Buttons/"+textures[i]);
                 var material=Paper("MenuButton"+(i+1),Color.white,texture);
-                var mesh=Bake("Assets/Game_Assets/Buttons/"+(i+1)+"/"+(i+1)+".fbx","MenuButton"+(i+1),i==0?90:-90,Vector3.zero,true,2.6f);
+                var mesh=Bake("Assets/Game_Assets/Buttons/"+(i+1)+"/"+(i+1)+".fbx","MenuButton"+(i+1),-90,Vector3.zero,true,2.6f);
                 var face=MeshObject("Imported button "+(i+1),pivot,mesh,material,Vector3.down*.65f);
                 face.gameObject.layer=10;
                 var hit=Group("Button pointer target",pivot,Vector3.down*.65f);hit.gameObject.layer=10;
@@ -82,23 +89,17 @@ namespace Cardboard.Editor
                 }
             }
             menu.settingsPanel=Group("Settings • cardboard volume panel",camera.transform,new Vector3(0,-.05f,5));
-            BoxPart("Settings cardboard slab",menu.settingsPanel,Vector3.zero,new Vector3(3.6f,2.35f,.14f),paper);
-            BoxPart("Settings upper ink",menu.settingsPanel,new Vector3(0,1.08f,-.082f),new Vector3(3.40f,.022f,.015f),ink);
-            BoxPart("Settings lower ink",menu.settingsPanel,new Vector3(0,-1.08f,-.082f),new Vector3(3.40f,.022f,.015f),ink);
-            foreach(int side in new[]{-1,1})BoxPart("Settings side ink",menu.settingsPanel,new Vector3(side*1.70f,0,-.082f),new Vector3(.022f,2.16f,.015f),ink);
-            Text("Громкость",menu.settingsPanel,new Vector3(0,.70f,-.10f),.15f,2.7f);
-            var slider=Group("Volume pointer track",menu.settingsPanel,new Vector3(0,-.10f,-.13f));slider.gameObject.layer=10;
-            menu.volumeTrack=slider.gameObject.AddComponent<BoxCollider>();menu.volumeTrack.size=new Vector3(2.5f,.6f,.4f);
-            BoxPart("Volume bar",slider,Vector3.zero,new Vector3(2.15f,.075f,.055f),ink);
-            menu.volumeKnob=Group("Volume cardboard knob",slider,Vector3.zero);
-            var knob=GameObject.CreatePrimitive(PrimitiveType.Cylinder);Object.DestroyImmediate(knob.GetComponent<Collider>());
-            knob.transform.SetParent(menu.volumeKnob,false);knob.transform.localRotation=Quaternion.Euler(90,0,0);knob.transform.localScale=new Vector3(.32f,.045f,.32f);
-            knob.GetComponent<Renderer>().sharedMaterial=gold;knob.layer=10;
-            menu.volumeText=Text("65",menu.settingsPanel,new Vector3(0,-.72f,-.10f),.075f,.8f);
+            ImportedCard("Settings backing",menu.settingsPanel,"Settings/Podloshka.fbx","Settings/Podlosha.png","MenuSettingsBacking",3.6f,Vector3.zero);
+            Text("Громкость",menu.settingsPanel,new Vector3(0,.70f,-.13f),.15f,2.7f);
+            var slider=Group("Volume pointer track",menu.settingsPanel,new Vector3(0,-.10f,-.18f));slider.gameObject.layer=10;
+            menu.volumeTrack=slider.gameObject.AddComponent<BoxCollider>();menu.volumeTrack.size=new Vector3(2.5f,.62f,.4f);
+            ImportedCard("Volume bar",slider,"Volume_Bar/Volume_Bar.fbx","Volume_Bar/Volum_Bar_Texture.png","MenuVolumeBar",2.25f,Vector3.zero);
+            menu.volumeKnob=Group("Volume cardboard gear",slider,Vector3.zero);
+            ImportedCard("Volume gear",menu.volumeKnob,"Volume_Bar/Volume_Gear.fbx","Volume_Bar/Volume_Gear_Texture.png","MenuVolumeGear",.48f,Vector3.zero);
+            menu.volumeText=Text("65",menu.settingsPanel,new Vector3(0,-.72f,-.13f),.075f,.8f);
             var backRoot=Group("Back to menu",menu.settingsPanel,Vector3.zero);
             menu.back=backRoot.gameObject.AddComponent<FactoryHangingButton>();menu.back.action=FactoryMenuAction.Back;menu.back.home=new Vector3(-2.25f,1.30f,-.03f);
-            BoxPart("Back cardboard",backRoot,new Vector3(0,-.65f,0),new Vector3(.55f,.55f,.13f),paper);
-            Text("<",backRoot,new Vector3(0,-.75f,-.09f),.15f,.38f);
+            ImportedCard("Back cardboard",backRoot,"Settings/Back_Button.fbx","Settings/Back_Button.png","MenuBackButton",.55f,new Vector3(0,-.65f,0));
             var backHit=Group("Back pointer target",backRoot,new Vector3(0,-.65f,0));backHit.gameObject.layer=10;
             menu.back.hit=backHit.gameObject.AddComponent<BoxCollider>();menu.back.hit.size=new Vector3(.60f,.60f,.22f);
             var overlay=new GameObject("Menu transition • black fade",typeof(RectTransform),typeof(Canvas),typeof(CanvasScaler));
