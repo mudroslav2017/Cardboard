@@ -11,7 +11,7 @@ namespace Cardboard
         { var s=new GUIStyle {font=font,fontSize=size,fontStyle=weight};s.normal.textColor=color;return s; }
         void Init()
         {
-            font=Font.CreateDynamicFontFromOSFont(new[] {"Arial","DejaVu Sans"},24);
+            font=CardboardTypography.DefaultFont;
             title=Style(22,paper,FontStyle.Bold);large=Style(34,paper,FontStyle.Bold);text=Style(14,paper);small=Style(11,muted);
             wrapped=new GUIStyle(text) {wordWrap=true};center=new GUIStyle(text) {alignment=TextAnchor.MiddleCenter};
             button=Style(14,paper,FontStyle.Bold);button.alignment=TextAnchor.MiddleCenter;
@@ -122,6 +122,6 @@ namespace Cardboard
             GUI.Label(new Rect(x+30,y+205,600,25),"Ремонтов: "+game.Repairs+"   Ошибок: "+game.Mistakes+"   Подозрение: "+Mathf.RoundToInt(game.Suspicion)+"%",text);
             if(Button(new Rect(x+30,y+263,600,48),"НОВАЯ СМЕНА / ENTER",true)) { game.Restart();GUIUtility.ExitGUI(); }
         }
-        void OnDestroy() { if(font) Destroy(font); }
+
     }
 }

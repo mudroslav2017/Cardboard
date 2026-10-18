@@ -42,6 +42,8 @@ namespace Cardboard
             { transform.SetPositionAndRotation(factory.CameraPosition,factory.CameraRotation);return; }
             if (player) transform.position=player.position+Vector3.up*(1.62f+(controller?controller.JumpHeight:0));
         }
+        public void ResetView(float direction)
+        {yaw=direction;pitch=0;transform.rotation=Quaternion.Euler(0,yaw,0);}
         void OnDisable() { Release(); }
         void OnApplicationFocus(bool focused) { if(!focused) Release(); }
         static void Release() { Cursor.lockState=CursorLockMode.None; Cursor.visible=true; }

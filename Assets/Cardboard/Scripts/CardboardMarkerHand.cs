@@ -22,7 +22,7 @@ namespace Cardboard
         {
             var shader=Shader.Find("Universal Render Pipeline/Lit");if(!shader) shader=Shader.Find("Standard");
             var mat=new Material(shader) {name=name,color=CardboardArt.Hex(hex)};
-            mat.SetFloat("_Smoothness",.18f);owned.Add(mat);return mat;
+            mat.SetFloat("_Smoothness",0);owned.Add(mat);return mat;
         }
         Transform Part(string name,Transform parent,Vector3 pos,Vector3 size,Material mat,PrimitiveType shape=PrimitiveType.Cube)
         {

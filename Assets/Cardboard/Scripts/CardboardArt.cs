@@ -143,7 +143,7 @@ namespace Cardboard
         public static Transform Label(string text, Transform parent, Vector3 position, float size, Material unused = null)
         {
             var t = Group(text, parent, position); t.localRotation = Quaternion.Euler(0, 180, 0);
-            var mesh = t.gameObject.AddComponent<TextMesh>(); mesh.font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var mesh = t.gameObject.AddComponent<TextMesh>(); mesh.font=CardboardTypography.DefaultFont;
             mesh.text = text; mesh.fontSize = 32;
             mesh.characterSize = size; mesh.anchor = TextAnchor.MiddleCenter; mesh.alignment = TextAlignment.Center;
             mesh.color = Ink.color;

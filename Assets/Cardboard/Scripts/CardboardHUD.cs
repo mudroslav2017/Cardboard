@@ -8,7 +8,7 @@ namespace Cardboard
         Font font;
         void Init()
         {
-            font=Font.CreateDynamicFontFromOSFont(new[] {"Arial","DejaVu Sans"},20);
+            font=CardboardTypography.DefaultFont;
             text=Style(14,CardboardArt.Hex("F4EBD7"));
             small=Style(11,CardboardArt.Hex("C4D3BF"));
             title=Style(19,CardboardArt.Hex("F4EBD7"));title.fontStyle=FontStyle.Bold;
@@ -72,6 +72,6 @@ namespace Cardboard
             }
             GUI.matrix=previous;
         }
-        void OnDestroy() { if(font) Destroy(font); }
+
     }
 }

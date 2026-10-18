@@ -69,6 +69,14 @@ namespace Cardboard
             WorldLabel(number.ToString(), face, Vector3.zero, size, .5f);
         }
 #endif
+        public static Bounds Footprint(Transform station)
+        {
+#if UNITY_EDITOR
+            return BoundsIn(station,station);
+#else
+            throw new InvalidOperationException("Measure workstation models in the editor.");
+#endif
+        }
         public static FactoryWorkstation Build(Transform parent, CardboardFactoryGame game, Vector3 position, bool playerStation)
         {
 #if UNITY_EDITOR
@@ -78,7 +86,10 @@ namespace Cardboard
             var station = root.gameObject.AddComponent<FactoryWorkstation>();
             station.isPlayerStation = playerStation;
             root.gameObject.AddComponent<FactoryWorkbenchSound>();
-            Model("Table", "Table/Model/Table.fbx", root, Teal);
+            // Preserve the player's authored materials on every table, including rebuilt scenes.
+            var tablePrefab=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Cardboard/Generated/WorkbenchTable.prefab");
+            if(tablePrefab) ((GameObject)PrefabUtility.InstantiatePrefab(tablePrefab,root)).name="Table";
+            else Model("Table", "Table/Model/Table.fbx", root, Teal);
             Box("Workstation backboard",root,new Vector3(.85f,1.75f,.85f),new Vector3(4.02f,2,.072f),Teal);
             var conveyor = Model("Static conveyor", "Conveer/Model/Conveer.fbx", root, Edge);
             conveyor.localPosition += new Vector3(-2.14f, 1.015f, 0) - BoundsIn(conveyor, root).center;

@@ -38,6 +38,14 @@ namespace Cardboard.Editor
             else if(command=="audit") WorkstationModelAudit.Write();
             else if(command=="audit-marker") WorkstationModelAudit.AuditMarkerFaces();
             else if(command=="refresh") AssetDatabase.Refresh();
+            else if(command=="table-materials-audit") FactoryTableMaterials.Audit();
+            else if(command=="table-materials") FactoryTableMaterials.Apply();
+            else if(command=="table-materials-preview") {FactoryTableMaterials.Audit();FactoryTableMaterials.Preview();}
+            else if(command=="table-leg-color") FactoryTableMaterials.FixLegColor();
+            else if(command=="table-legs-rotate") FactoryTableMaterials.RotateVerticalLegs();
+            else if(command=="floor-texture") FactoryFloorInstaller.ApplyCurrentScene();
+            else if(command=="presentation-update") FactoryPresentationInstaller.ApplyCurrentScene();
+            else if(command=="menu-rebuild") FactoryMenuBuilder.RebuildCurrent();
             else if(command=="import-people") ImportedCharacterInstaller.Install();
             else if(command=="verify") FactoryWorkstationVerification.Verify();
             else if(command=="play") { EditorApplication.ExecuteMenuItem("Window/General/Game");EditorApplication.isPlaying=true; }
@@ -52,11 +60,12 @@ namespace Cardboard.Editor
                 cam.transform.rotation=Quaternion.LookRotation(station.transform.TransformPoint(new Vector3(.4f,1.4f,0))-cam.transform.position);
                 Capture("WorkbenchPreview");cam.transform.SetPositionAndRotation(position,rotation);
             }
+            else if(command=="layout-audit") FactoryLayoutAudit.Write();
             else if(command=="layout-preview")
             {
                 var cam=Camera.main;var position=cam.transform.position;var rotation=cam.transform.rotation;
                 bool ortho=cam.orthographic;float size=cam.orthographicSize;
-                cam.transform.SetPositionAndRotation(new Vector3(0,65,-5),Quaternion.Euler(90,0,0));cam.orthographic=true;cam.orthographicSize=29;
+                cam.transform.SetPositionAndRotation(new Vector3(CardboardFactoryWorld.WorkshopCenterX,65,-5),Quaternion.Euler(90,0,0));cam.orthographic=true;cam.orthographicSize=29;
                 Capture("FactoryLayout");cam.orthographic=ortho;cam.orthographicSize=size;cam.transform.SetPositionAndRotation(position,rotation);
             }
         }
@@ -71,6 +80,7 @@ namespace Cardboard.Editor
             else if(previousScene.isDirty && !string.IsNullOrEmpty(previousScene.path)) EditorSceneManager.SaveScene(previousScene);
             try
             {
+                CardboardTypographyInstaller.Prepare();
                 ImportedCharacterInstaller.Prepare();
                 FactoryGearImporter.Prepare();
                 Directory.CreateDirectory("Assets/Cardboard/Generated");Directory.CreateDirectory("Assets/Scenes");
@@ -78,6 +88,8 @@ namespace Cardboard.Editor
                 var root=new GameObject("НЕ СВОЙ • cardboard factory shift");
                 root.AddComponent<CardboardWorld>();root.AddComponent<CardboardFactoryGame>();
                 root.AddComponent<CardboardFactoryWorld>().Build();
+                FactoryFloorInstaller.Apply(root.transform);
+                FactoryPresentationInstaller.Apply(root.transform);
                 var container=AssetDatabase.LoadAssetAtPath<CardboardGeneratedAssets>(ArtPath);
                 if(!container) { container=ScriptableObject.CreateInstance<CardboardGeneratedAssets>();AssetDatabase.CreateAsset(container,ArtPath); }
                 else foreach(var old in AssetDatabase.LoadAllAssetsAtPath(ArtPath)) if(old && old!=container) UnityEngine.Object.DestroyImmediate(old,true);
@@ -99,7 +111,13 @@ namespace Cardboard.Editor
             var previous=camera.targetTexture;var active=RenderTexture.active;Texture2D tex=null;
             try
             {
-                camera.targetTexture=rt;camera.Render();RenderTexture.active=rt;
+                camera.targetTexture=rt;Canvas.ForceUpdateCanvases();
+                var menu=UnityEngine.Object.FindFirstObjectByType<FactoryMainMenu>();
+                if(menu && menu.uiCamera && menu.uiCamera.enabled){menu.uiCamera.aspect=camera.aspect;menu.uiCamera.fieldOfView=camera.fieldOfView;}
+                var request=new UnityEngine.Rendering.RenderPipeline.StandardRequest {destination=rt};
+                if(UnityEngine.Rendering.RenderPipeline.SupportsRenderRequest(camera,request))UnityEngine.Rendering.RenderPipeline.SubmitRenderRequest(camera,request);
+                else camera.Render();
+                RenderTexture.active=rt;
                 tex=new Texture2D(1600,1000,TextureFormat.RGB24,false);
                 tex.ReadPixels(new Rect(0,0,1600,1000),0,0);tex.Apply();
                 // Image viewers may keep a memory map open on Windows. Each capture is immutable.

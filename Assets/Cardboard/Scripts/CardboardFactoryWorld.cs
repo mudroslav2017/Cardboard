@@ -7,6 +7,9 @@ namespace Cardboard
 {
     public class CardboardFactoryWorld : MonoBehaviour
     {
+        public const float WorkshopLength=44.8f, WorkshopWidth=28f, WallHeight=5.8f;
+        public const float WorkshopWest=-28f, WorkshopEast=WorkshopWest+WorkshopLength;
+        public const float WorkshopCenterX=(WorkshopWest+WorkshopEast)*.5f;
         public void Build()
         {
             Initialize();
@@ -21,13 +24,13 @@ namespace Cardboard
             var sun=Group("Warm factory skylight",transform,Vector3.zero).gameObject.AddComponent<Light>();
             sun.type=LightType.Directional;sun.intensity=1.2f;sun.color=Hex("FFE9BD");sun.shadows=LightShadows.Soft;
             sun.transform.rotation=Quaternion.Euler(57,-28,0);sun.shadowStrength=.65f;
-            Floor("Main workshop",Vector3.zero,new Vector2(56,28));
-            Solid("North workstation wall",transform,new Vector3(0,2.7f,14),new Vector3(56,5.8f,.5f),DarkLeaf);
+            Floor("Main workshop",new Vector3(WorkshopCenterX,0,0),new Vector2(WorkshopLength,WorkshopWidth));
+            Solid("North workstation wall",transform,new Vector3(WorkshopCenterX,2.7f,14),new Vector3(WorkshopLength,WallHeight,.5f),DarkLeaf);
             Solid("West workshop wall",transform,new Vector3(-28,2.7f,0),new Vector3(.5f,5.8f,28),Leaf);
-            Solid("East wall above exit",transform,new Vector3(28,2.7f,6.8f),new Vector3(.5f,5.8f,14.4f),Leaf);
-            Solid("East wall below exit",transform,new Vector3(28,2.7f,-8.8f),new Vector3(.5f,5.8f,10.4f),Leaf);
+            Solid("East wall above exit",transform,new Vector3(WorkshopEast,2.7f,6.8f),new Vector3(.5f,5.8f,14.4f),Leaf);
+            Solid("East wall below exit",transform,new Vector3(WorkshopEast,2.7f,-8.8f),new Vector3(.5f,5.8f,10.4f),Leaf);
             Solid("South wall west of canteen door",transform,new Vector3(-21.25f,2.7f,-14),new Vector3(13.5f,5.8f,.5f),DarkLeaf);
-            Solid("South mechanism wall",transform,new Vector3(8.25f,2.7f,-14),new Vector3(39.5f,5.8f,.5f),DarkLeaf);
+            Solid("South mechanism wall",transform,new Vector3((WorkshopEast-11.5f)*.5f,2.7f,-14),new Vector3(WorkshopEast+11.5f,WallHeight,.5f),DarkLeaf);
             // Empty canteen and its short doorway, as in the floor-plan reference.
             var canteen=Group("Empty canteen",transform,Vector3.zero);
             Solid("Canteen floor",canteen,new Vector3(-13,-.32f,-21.5f),new Vector3(22,.3f,11),Kraft);
@@ -41,36 +44,36 @@ namespace Cardboard
             for(int side=-1;side<=1;side+=2)
                 Solid("Canteen door jamb",canteen,new Vector3(-13+side*1.5f,1.6f,-15),new Vector3(.18f,3.5f,2.4f),Edge);
             Box("Canteen doorway lintel",canteen,new Vector3(-13,3.5f,-15),new Vector3(3.2f,.2f,2.4f),Edge);
-            for(int x=-26;x<=26;x+=4)
+            for(float x=WorkshopWest+2;x<=WorkshopEast-2;x+=4)
             {
                 Box("Wall corrugation",transform,new Vector3(x,2.8f,13.68f),new Vector3(.10f,5.7f,.12f),Edge);
                 Box("Roof truss",transform,new Vector3(x,5.6f,0),new Vector3(.15f,.28f,28),Edge);
             }
             for(int z=-10;z<=10;z+=5)
             {
-                Box("Overhead beam",transform,new Vector3(0,5.5f,z),new Vector3(56,.22f,.18f),Kraft);
-                for(int x=-20;x<=20;x+=13)
+                Box("Overhead beam",transform,new Vector3(WorkshopCenterX,5.5f,z),new Vector3(WorkshopLength,.22f,.18f),Kraft);
+                for(float x=WorkshopWest+8;x<=WorkshopEast-3;x+=11)
                 {
                     Box("Folded light fitting",transform,new Vector3(x,4.8f,z),new Vector3(2,.15f,.65f),Cream);
                     var light=Group("Practical workshop lamp",transform,new Vector3(x,4.5f,z)).gameObject.AddComponent<Light>();
                     light.type=LightType.Point;light.range=10;light.intensity=2.1f;light.color=Hex("FFDEA2");
                 }
             }
+            Box("Factory ceiling sheets",transform,new Vector3(WorkshopCenterX,5.64f,0),new Vector3(WorkshopLength,.08f,WorkshopWidth),Kraft);
             Machine(game);
             game.stations=new FactoryWorkstation[4];game.workerPosts=new Vector3[3];
-            float[] places={-20.25f,-6.75f,6.75f,20.25f};int post=0;
             for(int i=0;i<4;i++)
             {
-                game.stations[i]=FactoryWorkstationBuilder.Build(transform,game,new Vector3(places[i],0,11.2f),i==1);
+                game.stations[i]=FactoryWorkstationBuilder.Build(transform,game,new Vector3(0,0,11.2f),i==1);
                 if(i==1) game.station=game.stations[i];
-                else game.workerPosts[post++]=new Vector3(places[i],0,9.55f);
             }
+            LayoutStations(game);
             Exit(game);ExecutionTools(game);
-            game.patrol=new[] {new Vector3(-20,0,4),new Vector3(-7,0,3),new Vector3(7,0,3),new Vector3(22,0,0),new Vector3(16,0,-8),new Vector3(-17,0,-8)};
+            game.patrol=new[] {new Vector3(-20,0,4),new Vector3(-7,0,3),new Vector3(7,0,3),new Vector3(WorkshopEast-6,0,0),new Vector3(WorkshopEast-12,0,-8),new Vector3(-17,0,-8)};
             for(int i=0;i<12;i++)
             {
-                Vector3 pos=i==0?new Vector3(-6.75f,0,8.5f):
-                    i>=2 && i<=4?game.workerPosts[i-2]:new Vector3(-20+(i%6)*7,0,-4+(i/6)*7);
+                Vector3 pos=i==0?new Vector3(game.station.transform.localPosition.x,0,8.5f):
+                    i>=2 && i<=4?game.workerPosts[i-2]:new Vector3(WorkshopWest+6+(i%6)*5.5f,0,-4+(i/6)*7);
                 var root=Group(i==0?"YOU • disguised worker 017":i==1?"Inspector • cardboard shift supervisor":"Cardboard factory worker "+i,transform,pos);
                 var runner=root.gameObject.AddComponent<CardboardRunner>();runner.isPlayer=i==0;runner.personality=i;
                 var pivot=Group("Whole-sheet sway pivot",root,new Vector3(0,-.16f,0));runner.puppet=pivot;
@@ -86,11 +89,29 @@ namespace Cardboard
                 }
                 crowd.runners.Add(runner);runner.Pose(i*1.79f,i==0?0:.6f);
             }
-            var cameraObject=Group("Main Camera",transform,new Vector3(-6.75f,1.62f,8.5f)).gameObject;cameraObject.tag="MainCamera";
+            var cameraObject=Group("Main Camera",transform,new Vector3(game.station.transform.localPosition.x,1.62f,8.5f)).gameObject;cameraObject.tag="MainCamera";
             var cam=cameraObject.AddComponent<Camera>();cam.nearClipPlane=.05f;cam.farClipPlane=120;cam.fieldOfView=72;
             cam.clearFlags=CameraClearFlags.SolidColor;cam.backgroundColor=Hex("3E4E45");cam.transform.rotation=Quaternion.identity;
             cameraObject.AddComponent<AudioListener>();cameraObject.AddComponent<CardboardCamera>().player=crowd.runners[0].transform;
             cameraObject.AddComponent<CardboardMarker>();
+            var hud=FactoryMistakeHUD.Create(transform,cam);
+            var grade=FactoryDeathGrade.Create(hud.transform);
+            game.captureSequence=FactoryCaptureSequence.Create(transform,game,grade);
+        }
+        void LayoutStations(CardboardFactoryGame game)
+        {
+            Bounds footprint=FactoryWorkstationBuilder.Footprint(game.stations[0].transform);
+            float left=WorkshopWest+.25f, right=WorkshopEast-.25f;
+            float gap=(right-left-footprint.size.x*game.stations.Length)/(game.stations.Length+1);
+            if(gap<0) throw new System.InvalidOperationException("Workstations do not fit inside workshop.");
+            float cursor=left+gap;int post=0;
+            for(int i=0;i<game.stations.Length;i++)
+            {
+                var station=game.stations[i].transform;
+                station.localPosition=new Vector3(cursor-footprint.min.x,0,11.2f);
+                if(i!=1) game.workerPosts[post++]=new Vector3(station.localPosition.x,0,9.55f);
+                cursor+=footprint.size.x+gap;
+            }
         }
         void Floor(string name,Vector3 center,Vector2 size)
         {
@@ -103,7 +124,7 @@ namespace Cardboard
         }
         void Machine(CardboardFactoryGame game)
         {
-            var machine=Group("THE GREAT MECHANISM • giant cardboard press drive",transform,new Vector3(16,0,-13.2f));
+            var machine=Group("THE GREAT MECHANISM • giant cardboard press drive",transform,new Vector3(WorkshopEast-12,0,-13.2f));
             Solid("Machine chassis",machine,new Vector3(0,2.35f,0),new Vector3(21,4.8f,.7f),Teal);
             Solid("Machine foundation",machine,new Vector3(0,.22f,.1f),new Vector3(22,.7f,1.5f),Ink);
             for(int i=0;i<35;i++)
@@ -142,7 +163,7 @@ namespace Cardboard
         }
         void Exit(CardboardFactoryGame game)
         {
-            var gate=Group("End of shift exit",transform,new Vector3(27.8f,0,-2));
+            var gate=Group("End of shift exit",transform,new Vector3(WorkshopEast-.2f,0,-2));
             gate.localRotation=Quaternion.Euler(0,90,0);
             game.exitGate=Solid("Sliding exit gate",gate,new Vector3(0,1.45f,0),new Vector3(2.6f,3.2f,.35f),Teal);
             var inside=Box("Exit control",gate,new Vector3(0,1.4f,-.25f),new Vector3(1.4f,.8f,.08f),Cream);
@@ -156,7 +177,7 @@ namespace Cardboard
             game.victim=Group("Caught worker cardboard victim",stage,new Vector3(9,.15f,3.3f));
             CardboardCutout.Create(game.victim,0);game.victim.gameObject.SetActive(false);
             game.pins=Group("Pin capture animation",stage,new Vector3(9,.15f,3.3f));
-            game.buttons=Group("Drawing pin button capture animation",transform,new Vector3(9,.15f,3.3f));
+            game.buttons=Group("Drawing pin button capture animation",stage,new Vector3(9,.15f,3.3f));
             Vector2[] points={new Vector2(-.2f,1.95f),new Vector2(.2f,1.75f),new Vector2(-.22f,1.35f),new Vector2(.20f,1.13f),new Vector2(-.2f,.8f),new Vector2(.2f,.5f),new Vector2(0,1.55f),new Vector2(0,.2f)};
             for(int i=0;i<points.Length;i++)
             {

@@ -40,6 +40,7 @@ namespace Cardboard
             float dt=Mathf.Min(Time.deltaTime,.05f);
             if (dt<=0) return;
             var factory=CardboardFactoryGame.Instance;
+            if(factory && factory.captureSequence && factory.captureSequence.ControlsWorkers && !isPlayer) return;
             if(factory && (factory.Ended || (isPlayer && factory.PlayerBlocked)))
             { velocity=Vector3.zero;speed=0;Pose(cycle,0);return; }
             bool chasing=factory && factory.State==FactoryState.Chased;
@@ -88,7 +89,7 @@ namespace Cardboard
             if(!isPlayer && Time.time<paintHoldUntil && !chasing) velocity=Vector3.zero;
             velocity=Vector3.Lerp(velocity,wish,1-Mathf.Exp(-9*dt)); speed=velocity.magnitude;
             Vector3 position=transform.position+velocity*dt;
-            if(factory) { position.x=Mathf.Clamp(position.x,-27.6f,27.6f);position.z=Mathf.Clamp(position.z,-26.6f,13.6f); }
+            if(factory) { position.x=Mathf.Clamp(position.x,CardboardFactoryWorld.WorkshopWest+.4f,CardboardFactoryWorld.WorkshopEast-.4f);position.z=Mathf.Clamp(position.z,-26.6f,13.6f); }
             else
             {
                 float boundary=position.x*position.x/(10.7f*10.7f)+position.z*position.z/(7.2f*7.2f);

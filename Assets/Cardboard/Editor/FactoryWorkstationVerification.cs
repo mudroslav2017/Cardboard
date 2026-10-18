@@ -14,9 +14,11 @@ namespace Cardboard.Editor
     public static class FactoryWorkstationVerification
     {
         static readonly List<string> report = new List<string>();
-        static bool running, oldBackground;
+        static bool running, oldBackground, menuVerified;
         static float start;
         static int inputStage,jumps,lastInputFrame,feeds;
+        static CardboardFactoryGame captureInstance;
+        static bool sawCarry,sawLever,sawCrush,sawGrade;
         static float inputStarted,idleUntil;
         static Keyboard keyboard;
         static InputSettings.BackgroundBehavior oldInputBackground;
@@ -26,6 +28,7 @@ namespace Cardboard.Editor
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
             if (SceneManager.GetActiveScene().path != CardboardFactorySceneBuilder.ScenePath) EditorSceneManager.OpenScene(CardboardFactorySceneBuilder.ScenePath);
+            FactoryMenuVerification.Reset();menuVerified=false;
             report.Clear(); running = true; start = 0; inputStage=0; feeds=0; oldBackground = Application.runInBackground;
             oldInputBackground=InputSystem.settings.backgroundBehavior;
             InputSystem.settings.backgroundBehavior=InputSettings.BackgroundBehavior.IgnoreFocus;
@@ -69,9 +72,6 @@ namespace Cardboard.Editor
             Vector3 before = station.guardModel.position;
             Check(station.Operate(StationPart.Guard), "Separate tabletop button raises grille"); station.Tick(.7f);
             Check(station.GuardBlend == 1 && station.guardClip && Vector3.Distance(before, station.guardModel.position) > .1f, "Imported Zabralo animation changes pose");
-            Quaternion wheelBefore=station.wheel.localRotation,baseBefore=station.wheelBase.localRotation;
-            Check(!station.TurnWheel(45) && station.CutProgress == 0, "Cutting requires pressure");
-            Check(Quaternion.Angle(wheelBefore,station.wheel.localRotation)>44 && Quaternion.Angle(baseBefore,station.wheelBase.localRotation)<.01f,"Round child rotates while wheel base stays still");
             Check(!station.TryPump(station.transform.TransformPoint(new Vector3(2, 0, -1.5f))), "Landing beside plate does not pump");
             for (int j = 0; j < 4; j++) Check(station.TryPump(station.pumpPlate.position), "Landing pumps step " + (j + 1));
             Check(station.PressureReady && !station.TryPump(station.pumpPlate.position), "Four landings fill pressure without overflow");
@@ -79,6 +79,7 @@ namespace Cardboard.Editor
         static void Wheel(FactoryWorkstation station)
         {
             var cam = Camera.main.transform;
+            Quaternion baseBefore=station.wheelBase.localRotation;
             cam.position = station.transform.TransformPoint(new Vector3(2.049f, .85f, -2.4f));
             cam.rotation = Quaternion.LookRotation(station.WheelCenter - cam.position);
             Vector2 center = Camera.main.WorldToScreenPoint(station.WheelCenter);
@@ -91,7 +92,7 @@ namespace Cardboard.Editor
                 station.DragWheel(center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 90);
                 if(step==6)
                 {
-                    Check(Vector3.Distance(handBefore,station.wheelGrip.position)>.5f,"Hand follows round rim through quarter turn");
+                    Check(Vector3.Distance(handBefore,station.wheelGrip.position)>.5f && Quaternion.Angle(baseBefore,station.wheelBase.localRotation)<.01f,"Hand and round child turn while wheel base stays still");
                     if(CardboardFactoryGame.Instance.CurrentOrder==1) CardboardFactorySceneBuilder.Capture("WheelHand");
                 }
             }
@@ -140,6 +141,12 @@ namespace Cardboard.Editor
             if (!running || !EditorApplication.isPlaying || EditorApplication.isCompiling) return;
             var game = CardboardFactoryGame.Instance;
             if (!game || !CardboardRunner.Player) return;
+            if(!menuVerified)
+            {
+                try {if(FactoryMenuVerification.Tick(game,Check)){menuVerified=true;FactoryMenuVerification.CheckWorkstations(game,Check);}}
+                catch(Exception error){report.Add("FAIL "+error);Finish();}
+                return;
+            }
             if(inputStage>0) { TestJumpInput(game);return; }
             if (start == 0) { start = Time.time; return; }
             if (Time.time < start + .15f) return;
@@ -150,7 +157,7 @@ namespace Cardboard.Editor
                 game.ResetShift();
                 ImportedCharacterInstaller.VerifyRuntime(Check);
                 Check(game.workbench == null && UnityEngine.Object.FindObjectsByType<FactoryWorkbench>(FindObjectsSortMode.None).Length == 0, "Legacy machine absent from active scene");
-                Check(UnityEngine.Object.FindObjectsByType<FactoryHUD>(FindObjectsSortMode.None).Length == 0 && UnityEngine.Object.FindObjectsByType<CardboardHUD>(FindObjectsSortMode.None).Length == 0 && UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None).Length == 0, "No screen HUD or Canvas");
+                Check(UnityEngine.Object.FindObjectsByType<FactoryHUD>(FindObjectsSortMode.None).Length == 0 && UnityEngine.Object.FindObjectsByType<CardboardHUD>(FindObjectsSortMode.None).Length == 0 && UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None).Length == 2 && UnityEngine.Object.FindFirstObjectByType<FactoryMistakeHUD>(), "Only shift HUD and menu transition canvas are present");
                 Check(GameObject.Find("Spare cardboard disguise locker") == null, "Disguise replacement removed");
                 Check(station.baths.Length == 3 && station.guardClip, "Animated guard and three finishing baths present");
                 CheckNewScene(game);
@@ -198,9 +205,8 @@ namespace Cardboard.Editor
                 game.ResetShift(); game.ReceiveWorkbenchPart(FactoryRecipe.ForType(1, false)); station.Operate(StationPart.Bath, 2); station.Tick(1.2f);
                 Check(!game.TryInstall(game.gears[0]) && game.Mistakes == 1, "Wrong bath finish is rejected");
                 game.DropPart(); Check(!game.HasPart, "Wrong part can be discarded");
-                game.ResetShift(); game.AddSuspicion(100); Check(game.State == FactoryState.Chased, "Suspicion still triggers chase");
-                foreach (FactoryDeath ending in Enum.GetValues(typeof(FactoryDeath)))
-                { game.ResetShift(); game.Capture(ending); Check(game.State == FactoryState.Captured && game.CameraOverride, "Capture retained: " + ending); }
+                FactoryMistakeVerification.Check(game,Check);
+                FactoryCaptureVerification.Check(game,Check);
                 game.ResetShift();station.Tick(.7f);
                 Camera.main.transform.position = station.transform.TransformPoint(new Vector3(0,2.9f,-6.7f));
                 Camera.main.transform.rotation = Quaternion.LookRotation(station.transform.TransformPoint(new Vector3(.4f,1.4f,0)) - Camera.main.transform.position);
@@ -208,8 +214,8 @@ namespace Cardboard.Editor
                 Feed(station);station.Operate(StationPart.Press);station.Tick(1.1f);station.Operate(StationPart.Guard);station.Tick(.7f);
                 var body=CardboardRunner.Player.GetComponent<CharacterController>();body.enabled=false;
                 CardboardRunner.Player.transform.position=new Vector3(station.pumpPlate.position.x,0,station.pumpPlate.position.z);body.enabled=true;
-                keyboard=InputSystem.AddDevice<Keyboard>();jumps=0;inputStage=1;inputStarted=Time.realtimeSinceStartup;lastInputFrame=Time.frameCount;
-                InputSystem.QueueStateEvent(keyboard,new KeyboardState(Key.Space));
+                keyboard=InputSystem.AddDevice<Keyboard>();jumps=0;inputStage=9;inputStarted=Time.realtimeSinceStartup;lastInputFrame=Time.frameCount;
+                InputSystem.QueueStateEvent(keyboard,new KeyboardState());
             }
             catch (Exception error) { report.Add("FAIL " + error); }
             finally
@@ -220,10 +226,15 @@ namespace Cardboard.Editor
         static void TestJumpInput(CardboardFactoryGame game)
         {
             if(Time.frameCount==lastInputFrame) return;lastInputFrame=Time.frameCount;
-            if(Time.realtimeSinceStartup-inputStarted>12) {Check(false,"Physical jump input timed out at stage "+inputStage);Finish();return;}
+            if(Time.realtimeSinceStartup-inputStarted>(inputStage>=8?45:12)) {Check(false,"Physical input timed out at stage "+inputStage+" blocked="+game.PlayerBlocked+" capture="+game.captureSequence.Phase+" controller="+CardboardRunner.Player.GetComponent<CharacterController>().enabled+" jump="+CardboardRunner.Player.JumpHeight);Finish();return;}
             try
             {
                 float jump=CardboardRunner.Player.JumpHeight;
+                if(inputStage==9)
+                {
+                    if(!game.PlayerBlocked){InputSystem.QueueStateEvent(keyboard,new KeyboardState(Key.Space));inputStage=1;}
+                    return;
+                }
                 if(inputStage==1 && jump>.15f)
                 {InputSystem.QueueStateEvent(keyboard,new KeyboardState());inputStage=2;}
                 else if(inputStage==2 && jump==0)
@@ -238,7 +249,10 @@ namespace Cardboard.Editor
                     else
                     {
                         Check(game.Suspicion<.1f,"Legitimate pump jumps do not raise suspicion");
-                        game.ReadBlueprint(game.gears[0]);game.station.TurnWheel(360);inputStage=4;
+                        game.ReadBlueprint(game.gears[0]);game.station.TurnWheel(360);
+                        game.RegisterMistake("Рабочие заметили бег.");
+                        game.RegisterMistake("Рабочие заметили прыжок вне панели насоса.");
+                        inputStage=4;
                     }
                 }
                 else if(inputStage==4)
@@ -272,13 +286,39 @@ namespace Cardboard.Editor
                 else if(inputStage==7 && Time.time>=idleUntil)
                 {
                     Check(game.station.operatorHand.Grip==game.station.feedGrip && game.station.LeverTravel>0,"Live lever downstroke retains hand grip");
-                    CardboardFactorySceneBuilder.Capture("LeverHandLive");Finish();
+                    CardboardFactorySceneBuilder.Capture("LeverHandLive");
+                    game.ResetShift();captureInstance=game;sawCarry=sawLever=sawCrush=sawGrade=false;
+                    var hunter=game.captureSequence.workers[0];var hunterBody=hunter.GetComponent<CharacterController>();
+                    hunterBody.enabled=false;hunter.transform.position=CardboardRunner.Player.transform.position+Vector3.back*4;hunterBody.enabled=true;
+                    game.RegisterMistake("Ошибка последовательности 1");game.RegisterMistake("Ошибка последовательности 2");game.RegisterMistake("Ошибка последовательности 3");
+                    inputStarted=Time.realtimeSinceStartup;inputStage=8;
+                }
+                else if(inputStage==8)
+                {
+                    if(game!=captureInstance)
+                    {
+                        Check(sawCarry && sawLever && sawCrush && sawGrade,"Real-time ending plays carry, worker lever, crush, and pinned grade");
+                        Check(game.Mistakes==0 && game.CurrentOrder==1 && game.Repairs==0 && !game.HasPart && !game.CaptureActive,"Automatic restart reloads full shift state");
+                        Check(game.station.Stage==StationStage.Empty && game.station.Pressure==0 && !game.captureSequence.grade.gameObject.activeSelf,"Automatic restart restores station and removes black screen");
+                        Check(game.WorkingGears==0 && game.crowd.runners.Count==12,"Automatic restart restores broken mechanism and complete crowd");
+                        Finish();return;
+                    }
+                    var sequence=game.captureSequence;
+                    if(!sawCarry && sequence.Phase==CapturePhase.Carrying && sequence.PhaseTime>.25f)
+                    {sawCarry=true;CardboardFactorySceneBuilder.Capture("CaptureCarryLive");}
+                    if(!sawLever && sequence.Phase==CapturePhase.Lever && sequence.PhaseTime>1)
+                    {sawLever=true;CardboardFactorySceneBuilder.Capture("CaptureLeverLive");}
+                    if(!sawCrush && sequence.Phase==CapturePhase.Crushing && sequence.PhaseTime>.5f)
+                    {sawCrush=true;CardboardFactorySceneBuilder.Capture("CaptureCrushLive");}
+                    if(!sawGrade && sequence.Phase==CapturePhase.Grade && sequence.PhaseTime>1.1f)
+                    {sawGrade=true;CardboardFactorySceneBuilder.Capture("CaptureGradeLive");}
                 }
             }
             catch(Exception error) {report.Add("FAIL "+error);Finish();}
         }
         static void Finish()
         {
+            FactoryMenuVerification.Cleanup();
             Application.logMessageReceived-=OnLog;
             if(keyboard!=null && keyboard.added) InputSystem.RemoveDevice(keyboard);keyboard=null;
             File.WriteAllLines("Library/FactoryVerification.txt",report);running=false;inputStage=0;
