@@ -210,6 +210,7 @@ namespace Cardboard
         {
             var worker=workers[index];Vector3 before=worker.transform.position;
             Vector3 next=navigate?Waypoint(worker,target):target;
+            FactoryDoor.OpenForWorker(before,next-before);
             worker.transform.position=Vector3.MoveTowards(before,next,dt*speed);
             Vector3 direction=worker.transform.position-before;
             if(direction.sqrMagnitude>.0001f)worker.transform.rotation=Quaternion.Slerp(worker.transform.rotation,Quaternion.LookRotation(direction),Mathf.Clamp01(dt*8));

@@ -40,6 +40,7 @@ namespace Cardboard.Editor
             else if(command=="new-assets-audit") FactoryNewAssetsAudit.Write();
             else if(command=="audit-marker") WorkstationModelAudit.AuditMarkerFaces();
             else if(command=="refresh") AssetDatabase.Refresh();
+            else if(command=="save" && !EditorApplication.isPlaying) {AssetDatabase.SaveAssets();EditorSceneManager.SaveScene(SceneManager.GetActiveScene());}
             else if(command=="table-materials-audit") FactoryTableMaterials.Audit();
             else if(command=="table-materials") FactoryTableMaterials.Apply();
             else if(command=="table-materials-preview") {FactoryTableMaterials.Audit();FactoryTableMaterials.Preview();}
@@ -54,6 +55,15 @@ namespace Cardboard.Editor
             else if(command=="guard-lamps") FactoryGuardLampInstaller.ApplyCurrent();
             else if(command=="tray-update") FactoryTrayInstaller.ApplyCurrent();
             else if(command=="tray-verify") FactoryTrayInstaller.Verify();
+            else if(command=="walls-box") FactoryWallsBoxInstaller.ApplyCurrent();
+            else if(command=="walls-box-preview") FactoryWallsBoxInstaller.Preview();
+            else if(command=="environment-audit") FactoryEnvironmentInstaller.Audit();
+            else if(command=="environment-update") FactoryEnvironmentInstaller.ApplyCurrent();
+            else if(command=="environment-preview") FactoryEnvironmentInstaller.Preview();
+            else if(command=="environment-verify") FactoryEnvironmentVerification.Run();
+            else if(command=="atmosphere-update") FactoryAtmosphereInstaller.ApplyCurrent();
+            else if(command=="atmosphere-preview") FactoryAtmosphereInstaller.Preview();
+            else if(command=="atmosphere-verify") FactoryAtmosphereVerification.Run();
             else if(command=="lighting-verify") FactoryLightingVerification.RunCurrent();
             else if(command=="import-people") ImportedCharacterInstaller.Install();
             else if(command=="verify") FactoryWorkstationVerification.Verify();
@@ -103,6 +113,10 @@ namespace Cardboard.Editor
                 FactoryGuardLampInstaller.Guards(root.transform);
                 FactoryLunchInstaller.Create(root.transform);
                 FactorySurfaceInstaller.Apply(root.transform);
+                FactoryEnvironmentInstaller.Geometry(root.transform);
+                FactoryWallsBoxInstaller.Apply(root.transform);
+                FactoryEnvironmentInstaller.Ground(root.transform);
+                FactoryAtmosphereInstaller.Apply(root.transform);
                 var container=AssetDatabase.LoadAssetAtPath<CardboardGeneratedAssets>(ArtPath);
                 if(!container) { container=ScriptableObject.CreateInstance<CardboardGeneratedAssets>();AssetDatabase.CreateAsset(container,ArtPath); }
                 else foreach(var old in AssetDatabase.LoadAllAssetsAtPath(ArtPath)) if(old && old!=container) UnityEngine.Object.DestroyImmediate(old,true);

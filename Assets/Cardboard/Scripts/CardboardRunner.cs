@@ -95,6 +95,7 @@ namespace Cardboard
                 if(IsResting && !chasing && !lunchGuided) wish=Vector3.zero;
             }
             if(!isPlayer && Time.time<paintHoldUntil && !chasing) velocity=Vector3.zero;
+            if(factory && !isPlayer)FactoryDoor.OpenForWorker(transform.position,wish);
             velocity=Vector3.Lerp(velocity,wish,1-Mathf.Exp(-9*dt)); speed=velocity.magnitude;
             Vector3 position=transform.position+velocity*dt;
             if(factory) { position.x=Mathf.Clamp(position.x,CardboardFactoryWorld.WorkshopWest+.4f,CardboardFactoryWorld.WorkshopEast-.4f);position.z=Mathf.Clamp(position.z,CardboardFactoryWorld.CanteenSouth+.4f,13.6f); }

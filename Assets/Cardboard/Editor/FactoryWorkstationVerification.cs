@@ -118,7 +118,7 @@ namespace Cardboard.Editor
             Check(GameObject.Find("Shipping carton")==null,"Old shipping cartons removed");
             Check(game.captureStage.position.x>900 && game.victim.IsChildOf(game.captureStage) && game.pressHead.IsChildOf(game.captureStage),"Old capture press and board outside workshop");
             Check(GameObject.Find("Empty canteen") && GameObject.Find("Canteen doorway floor"),"Empty canteen has connected doorway");
-            Check(!Physics.Linecast(new Vector3(-13,1,-12),new Vector3(-13,1,-20),1<<8),"Canteen passage is physically open");
+            Check(Physics.Linecast(new Vector3(-13,1,-12),new Vector3(-13,1,-20),out var doorHit,1<<8) && FactoryDoor.IsLeaf(doorHit.collider),"Canteen passage has a physical closed door");
             foreach(float z in new[]{-13f,-15f,-17f,-24f}) Check(Physics.Raycast(new Vector3(-13,1,z),Vector3.down,2,1<<8),"Canteen route has solid floor at "+z);
             Check(station.sheet.localScale.y==.07f,"Cardboard blank thickness doubled");
             Vector3 gauge=station.transform.InverseTransformPoint(station.pressureNeedle.parent.position);

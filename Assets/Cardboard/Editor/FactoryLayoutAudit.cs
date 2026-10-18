@@ -44,7 +44,8 @@ namespace Cardboard.Editor
                 report.Add((game.station==game.stations[1]?"PASS ":"FAIL ")+"Player retains second workstation.");
                 var foundation=GameObject.Find("Machine foundation").GetComponent<Renderer>().bounds;
                 report.Add((foundation.max.x<east.min.x && foundation.min.x>west.max.x?"PASS ":"FAIL ")+"Main mechanism remains inside shortened room.");
-                report.Add((!Physics.Linecast(new Vector3(-13,1,-12),new Vector3(-13,1,-20),1<<8)?"PASS ":"FAIL ")+"Canteen doorway remains open.");
+                bool clearDoorway=!Physics.Linecast(new Vector3(-13,1,-12),new Vector3(-13,1,-20),out var doorHit,1<<8) || FactoryDoor.IsLeaf(doorHit.collider);
+                report.Add((clearDoorway?"PASS ":"FAIL ")+"Canteen passage contains an operable door instead of a blocking wall.");
             }
             catch(Exception error) { report.Add("FAIL "+error); }
             File.WriteAllLines("Library/FactoryLayoutAudit.txt",report);

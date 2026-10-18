@@ -12,6 +12,7 @@ namespace Cardboard
         public Transform feedLever, pressLever, selector, wheel, wheelBase, press, guardModel;
         public Transform feedGrip, pressGrip, wheelGrip;
         public FactoryOperatorHand operatorHand;
+        public FactoryMachiningVFX machiningEffects;
         public AnimationClip guardClip;
         public BoxCollider guardHit;
         public Transform sheet, cutPart, pumpPlate, pressureNeedle, progressFill, orderCard;
@@ -74,6 +75,7 @@ namespace Cardboard
             PressClosed = GuardClosed = false; landingPulse = wheelAngle = 0;
             OrderNumber = QueuedOrder = 0; OrderTravel = 0;
             if (dippingVisual) Destroy(dippingVisual);
+            if (machiningEffects) machiningEffects.Clear();
             if (initialized) Refresh();
         }
         public void PrintOrder(int number) { QueuedOrder = Mathf.Clamp(number, 0, 3); }
@@ -262,7 +264,9 @@ namespace Cardboard
                 Game.RegisterMistake("Начал резать шестерёнку "+SelectedType+", но на перфокарте заказ "+Game.CurrentOrder+".");
                 if(Game.CaptureActive) return false;
             }
+            float previousProgress=CutProgress;
             CutProgress = Mathf.Clamp01(CutProgress + degrees / 1080);
+            if(machiningEffects)machiningEffects.Cut(Mathf.Max(0,CutProgress-previousProgress));
             Stage = CutProgress >= .9999f ? StationStage.Cut : StationStage.Cutting;
             if (Stage == StationStage.Cut)
             {

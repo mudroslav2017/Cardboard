@@ -21,6 +21,7 @@ namespace Cardboard.Editor
             for(int step=0;step<Mathf.CeilToInt(seconds/.05f);step++)
             {
                 crowd.Tick(.05f);
+                foreach(var door in crowd.lunch.game.GetComponentsInChildren<FactoryDoor>())door.Tick(.05f);
                 foreach(var worker in crowd.workers) worker.TickMovement(.05f);
                 Physics.SyncTransforms();
             }

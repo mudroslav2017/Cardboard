@@ -21,6 +21,7 @@ namespace Cardboard
         public FactoryMainMenu mainMenu;
         public FactoryLunch lunch;
         public FactoryInstruction instruction;
+        public FactoryDoor exitDoor;
         public bool HandsBusy => (lunch && lunch.Carrying) || (instruction && instruction.Held);
         public bool MenuActive => mainMenu && mainMenu.BlocksGameplay;
         public bool CaptureActive => captureSequence && captureSequence.Active;
@@ -83,6 +84,7 @@ namespace Cardboard
             SetOrder(1);
             victim.gameObject.SetActive(false);buttons.gameObject.SetActive(false);pins.gameObject.SetActive(false);
             pressHead.localPosition=pressHome;exitGate.localPosition=gateHome;
+            foreach(var door in GetComponentsInChildren<FactoryDoor>(true))door.SetOpen(false,true);
             Toast("Заказ на перфокарте у вашего рабочего места.",9);
         }
         void Update()
@@ -105,7 +107,7 @@ namespace Cardboard
                 if(keyboard.qKey.wasPressedThisFrame && !PlayerBlocked)
                 {if(instruction && instruction.Held) instruction.PutDown();else if(HasPart) DropPart();}
             }
-            if(ReadyToLeave) exitGate.localPosition=Vector3.Lerp(exitGate.localPosition,gateHome+Vector3.right*2.5f,dt*2);
+            if(ReadyToLeave && !exitDoor) exitGate.localPosition=Vector3.Lerp(exitGate.localPosition,gateHome+Vector3.right*2.5f,dt*2);
             bool watched=IsWatched();
             ObserveConduct(watched,CardboardRunner.Player.speed,CardboardRunner.Player.JumpHeight,station && station.IsPumpingPlayer,dt);
         }
@@ -179,7 +181,7 @@ namespace Cardboard
             if(Physics.Raycast(ray,out var hit,3.5f,~(1<<9),QueryTriggerInteraction.Ignore))
             {
                 var target=hit.collider.GetComponentInParent<FactoryInteractable>();
-                return HandsBusy && target && target.action!=FactoryAction.Lunch?null:target;
+                return HandsBusy && target && target.action!=FactoryAction.Lunch && target.action!=FactoryAction.Door?null:target;
             }
             return null;
         }
@@ -193,6 +195,7 @@ namespace Cardboard
                     var lunchControl=Focus.GetComponent<FactoryLunchControl>();
                     return lunchControl?lunchControl.Prompt:"";
                 }
+                if(Focus.action==FactoryAction.Door) return Focus.GetComponentInParent<FactoryDoor>().Prompt;
                 if(Focus.action==FactoryAction.Bench) return "";
                 if(Focus.action==FactoryAction.Gear) return Focus.gear.broken && HasPart?"E — установить деталь":"";
                 if(Focus.action==FactoryAction.Exit) return ReadyToLeave?"E — закончить смену и уйти":"Выход после починки всех 3 шестерёнок";
@@ -203,9 +206,11 @@ namespace Cardboard
         {
             if(instruction && instruction.Held){instruction.Flip();return;}
             if(!Focus || Ended) return;
-            if(HandsBusy && Focus.action!=FactoryAction.Lunch) return;
+            if(HandsBusy && Focus.action!=FactoryAction.Lunch && Focus.action!=FactoryAction.Door) return;
             switch(Focus.action)
             {
+                case FactoryAction.Door:
+                    var door=Focus.GetComponentInParent<FactoryDoor>();if(door)door.Toggle();break;
                 case FactoryAction.Instruction:
                     if(instruction) instruction.Take();break;
                 case FactoryAction.Gear:

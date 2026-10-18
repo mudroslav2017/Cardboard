@@ -40,8 +40,10 @@ namespace Cardboard
         }
         static bool Blocked(Vector3 bottom,Vector3 top,float radius)
         {
+            // Plan around the parked leaf, while allowing workers to open the closed leaf.
+            if(FactoryDoor.ParkedLeafBlocks(bottom,top,radius))return true;
             int count=Physics.OverlapCapsuleNonAlloc(bottom,top,radius,overlaps,(1<<8)|1,QueryTriggerInteraction.Ignore);
-            for(int i=0;i<count;i++) if(!overlaps[i].GetComponentInParent<CardboardRunner>()) return true;
+            for(int i=0;i<count;i++) if(!overlaps[i].GetComponentInParent<CardboardRunner>() && !FactoryDoor.IsLeaf(overlaps[i])) return true;
             return false;
         }
         public static bool LineBlocked(Vector3 from,Vector3 to)
