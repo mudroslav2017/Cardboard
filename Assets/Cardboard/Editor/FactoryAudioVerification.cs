@@ -38,8 +38,8 @@ namespace Cardboard.Editor
             Check(steps && steps.clips.Length==4 && steps.clips.All(c=>c && c.channels==1),"Four supplied mono player footstep variations are assigned");
             Check(steps.speaker.spatialBlend==1 && steps.speaker.volume==.30f && !steps.speaker.playOnAwake,"Footsteps use a quiet spatial source at the player");
             var ambient=game.GetComponentInChildren<FactoryMechanismAudio>();
-            Check(ambient.speakers.Length==5 && ambient.speakers.All(s=>s.clip && s.clip.channels==1 && s.spatialBlend==1 && s.loop && s.dopplerLevel==0),"All five supplied mechanism loops have spatial mono sources");
-            Check(ambient.speakers.Select(s=>s.transform.position).Distinct().Count()==5 && ambient.speakers.Select(s=>s.clip).Distinct().Count()==5,"Mechanism emitters occupy five different gear locations and use five distinct clips");
+            Check(ambient.speakers.Length==4 && ambient.speakers.All(s=>s.clip && s.clip.channels==1 && s.spatialBlend==1 && s.loop && s.dopplerLevel==0),"All four retained mechanism loops have spatial mono sources");
+            Check(ambient.speakers.Select(s=>s.transform.position).Distinct().Count()==4 && ambient.speakers.Select(s=>s.clip).Distinct().Count()==4,"Mechanism emitters occupy four different gear locations and use four distinct clips");
             Check(sound.cuttingClips.Length==2 && sound.cuttingClips[0]!=sound.cuttingClips[1] && sound.cuttingFirst.spatialBlend==1 && sound.cuttingSecond.spatialBlend==1,"Both authored cardboard cutting clips have separate spatial sources");
             Check(sound.leverClip && sound.leverClip.name=="РЫчаг" && sound.leverSpeaker.spatialBlend==1,"Authored lever clip has a spatial source");
             Check(FactoryAudioInstaller.ApplePose(game.lunch)==File.ReadAllText("Library/FactoryAudioApplePose.txt"),"User-edited apple root, model position, rotation and scale survive a shift reset");

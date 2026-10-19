@@ -19,7 +19,7 @@ namespace Cardboard
             Vector3 current=transform.position,delta=current-previous;previous=current;delta.y=0;
             var game=CardboardFactoryGame.Instance;
             if(!runner || !runner.isPlayer || !speaker || clips==null || clips.Length==0 ||
-                runner.JumpHeight>.02f || (game && (game.PlayerBlocked || game.CaptureActive)) || delta.sqrMagnitude>1)
+                runner.JumpHeight>.02f || (game && ((game.PlayerBlocked && !(game.ending && game.ending.Running)) || game.CaptureActive)) || delta.sqrMagnitude>1)
             {distance=0;return;}
             float travel=delta.magnitude;
             if(travel<.001f)return;

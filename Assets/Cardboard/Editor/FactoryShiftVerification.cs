@@ -63,7 +63,7 @@ namespace Cardboard.Editor
                 if(!target || target.gear!=gear){reachable=false;report.Add("DETAIL unreachable socket "+(gear.index+1)+" hit="+(target?target.name:"none"));}
             }
             Check(reachable,"All 17 gear sockets can be targeted from standing height within E interaction range");
-            Check(game.RepairGoal==3,"The shift still requires three repairs");
+            Check(game.RepairGoal==6,"The shift requires six repairs");
             var backing=game.gears[0].transform.parent.Find("Machine chassis • cardboard wall texture").GetComponent<Renderer>();
             Check(backing.sharedMaterial.GetTexture("_BaseMap")==AssetDatabase.LoadAssetAtPath<Texture2D>(FactoryWallsBoxInstaller.BackboardTexture),"The blue backing uses the wall texture");
             var meals=new[]{game.lunch.tray}.Concat(game.lunch.diners.meals).ToArray();
@@ -114,7 +114,7 @@ namespace Cardboard.Editor
                     game.TickFaults(8.1f);Check(game.CurrentOrder>0 && game.gears.Count(g=>g.broken)==1,"A new random fault creates the next work order");
                 }
             }
-            Check(repaired.Count==3 && game.ReadyToLeave && game.WorkingGears==17,"Three distinct repaired sockets complete the shift");
+            Check(repaired.Count==game.RepairGoal && game.ReadyToLeave && game.WorkingGears==17,"Six distinct repaired sockets complete the shift");
             game.TickFaults(100);Check(game.CurrentOrder==0,"No new mandatory faults after the repair goal");
         }
         static void Trays()

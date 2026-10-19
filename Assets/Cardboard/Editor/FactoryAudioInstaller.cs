@@ -44,14 +44,15 @@ namespace Cardboard.Editor
             steps.clips=clips;steps.speaker=Speaker(player.transform,"Player footsteps",player.transform.position+Vector3.up*.1f,.30f,8,false);EditorUtility.SetDirty(steps);
             var ambience=root.Find("Spatial mechanism sounds");if(!ambience){ambience=new GameObject("Spatial mechanism sounds").transform;ambience.SetParent(root,false);}
             var audio=ambience.GetComponent<FactoryMechanismAudio>();if(!audio)audio=ambience.gameObject.AddComponent<FactoryMechanismAudio>();
-            string[] names={"большой механизм","большой механизм.mp3","большой механизм2","большой механизм3","механищм"};
+            string[] names={"большой механизм","большой механизм.mp3","большой механизм3","механищм"};
             var gears=game.gears.OrderBy(g=>g.transform.position.x).ThenBy(g=>g.transform.position.y).ToArray();
-            audio.volumes=new[]{.18f,.16f,.14f,.14f,.12f};audio.speakers=new AudioSource[names.Length];
+            audio.volumes=new[]{.18f,.16f,.14f,.12f};audio.speakers=new AudioSource[names.Length];
             for(int i=0;i<names.Length;i++)
             {
                 var gear=gears[Mathf.RoundToInt(i*(gears.Length-1f)/(names.Length-1))];
                 audio.speakers[i]=Speaker(ambience,"Mechanism emitter "+(i+1),gear.transform.position+Vector3.forward*.12f,audio.volumes[i],13,true,Clip(names[i]));
             }
+            foreach(var stale in ambience.GetComponentsInChildren<AudioSource>().Where(s=>!audio.speakers.Contains(s)).ToArray())Object.DestroyImmediate(stale.gameObject);
             EditorUtility.SetDirty(audio);
             var cut=new[]{Clip("вырезка картона"),Clip("вырезка картона3")};var lever=Clip("РЫчаг");
             foreach(var station in game.GetComponentsInChildren<FactoryWorkstation>(true))
@@ -83,7 +84,7 @@ namespace Cardboard.Editor
                 if(ApplePose(game.lunch)!=before)throw new InvalidOperationException("Apple pose unexpectedly changed.");
                 AssetDatabase.SaveAssets();EditorSceneManager.MarkSceneDirty(game.gameObject.scene);EditorSceneManager.SaveScene(game.gameObject.scene);
                 var sounds=game.GetComponentsInChildren<AudioSource>(true).Where(s=>s.clip && s.transform.IsChildOf(game.transform.Find("Spatial mechanism sounds")));
-                File.WriteAllText("Library/FactoryAudioUpdate.txt","SUCCESS: footsteps, five spatial mechanism emitters, layered cutting, lever, printer at 70%, current apple pose saved.\n"+string.Join("\n",sounds.Select(s=>s.clip.name+": "+s.clip.length.ToString("F2")+"s @ "+s.transform.position)));
+                File.WriteAllText("Library/FactoryAudioUpdate.txt","SUCCESS: footsteps, four spatial mechanism emitters, layered cutting, lever, printer at 70%, current apple pose saved.\n"+string.Join("\n",sounds.Select(s=>s.clip.name+": "+s.clip.length.ToString("F2")+"s @ "+s.transform.position)));
             }
             catch(Exception error){File.WriteAllText("Library/FactoryAudioUpdate.txt",error.ToString());Debug.LogException(error);}
         }

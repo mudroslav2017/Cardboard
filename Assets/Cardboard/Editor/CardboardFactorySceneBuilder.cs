@@ -52,6 +52,10 @@ namespace Cardboard.Editor
             else if(command=="floor-texture") FactoryFloorInstaller.ApplyCurrentScene();
             else if(command=="presentation-update") FactoryPresentationInstaller.ApplyCurrentScene();
             else if(command=="menu-rebuild") FactoryMenuBuilder.RebuildCurrent();
+            else if(command=="finale-verify") FactoryFinaleVerification.Run();
+            else if(command=="finale-update") FactoryFinaleInstaller.ApplyCurrent();
+            else if(command=="canteen-update") FactoryCanteenInstaller.ApplyCurrent();
+            else if(command=="canteen-audit") FactoryFinaleInstaller.Audit();
             else if(command=="opening-verify") FactoryOpeningVerification.Run();
             else if(command=="opening-update") FactoryOpeningInstaller.ApplyCurrent();
             else if(command=="audio-update") FactoryAudioInstaller.ApplyCurrent();
@@ -204,6 +208,7 @@ namespace Cardboard.Editor
                 var menu=UnityEngine.Object.FindFirstObjectByType<FactoryMainMenu>();
                 if(menu && menu.uiCamera && menu.uiCamera.enabled){menu.uiCamera.aspect=camera.aspect;menu.uiCamera.fieldOfView=camera.fieldOfView;}
                 var inventory=camera.GetComponent<FactoryInventorySlot>();if(inventory)inventory.Layout();
+                var repairCounter=UnityEngine.Object.FindFirstObjectByType<FactoryRepairCounter>();if(repairCounter)repairCounter.Refresh();
                 var death=UnityEngine.Object.FindFirstObjectByType<FactoryDeathPresentation>();if(death)death.Layout();
                 var request=new UnityEngine.Rendering.RenderPipeline.StandardRequest {destination=rt};
                 if(UnityEngine.Rendering.RenderPipeline.SupportsRenderRequest(camera,request))UnityEngine.Rendering.RenderPipeline.SubmitRenderRequest(camera,request);

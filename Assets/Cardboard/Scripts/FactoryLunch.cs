@@ -13,6 +13,11 @@ namespace Cardboard
         public GameObject pickupHit,destinationHit;
         public TextMesh counterSign,tableSign;
         public float lunchAfter=60;
+        public float attendanceGrace=45;
+        public bool Attended {get;private set;}
+        public bool Missed {get;private set;}
+        public bool FinalLunch {get;private set;}
+        public float AttendanceElapsed {get;private set;}
         public FactoryLunchCrowd diners;
         public FactoryTrayPhysics physicsTray;
         public LunchState State {get;private set;}
@@ -24,9 +29,10 @@ namespace Cardboard
         public float CarryTime {get;private set;}
         public float ResultUntil {get;private set;}
         public bool CanServe=>Carrying && CardboardRunner.Player && Vector3.Distance(CardboardRunner.Player.transform.position,destination.position)<2.5f && Mathf.Abs(Tilt)<=.4f && Mathf.Abs(PitchTilt)<=.45f;
-        bool Gameplay=>game && !game.MenuActive && !game.Ended && !game.CaptureActive;
+        bool Gameplay=>game && !game.MenuActive && !game.Ended && !game.CaptureActive && !game.IntroBusy && !game.EndingBusy;
         public void ResetLunch()
         {
+            Attended=Missed=FinalLunch=false;AttendanceElapsed=0;
             State=LunchState.Waiting;Tilt=PitchTilt=AngularSpeed=Elapsed=CarryTime=ResultUntil=0;
             if(physicsTray)physicsTray.ResetContents();
             if(diners)diners.ResetLunch();
@@ -36,13 +42,33 @@ namespace Cardboard
         }
         public void TickSchedule(float dt)
         {
-            if(!Gameplay || State!=LunchState.Waiting)return;
+            if(!Gameplay || game.IntroActive)return;
+            if(State!=LunchState.Waiting){TickAttendance(dt);return;}
             Elapsed+=Mathf.Max(0,dt);
             if(Elapsed>=lunchAfter && game.Repairs>0 && !game.IntroActive)
             {
                 State=LunchState.Ready;RefreshWorld();if(diners)diners.Begin();
-                game.Toast("Lunch bell! Collect your tray from the canteen counter.",8);game.PlayCaptureSound("good");
+                game.Toast("Lunch bell! Reach the canteen within 45 seconds and collect your tray.",8);game.PlayCaptureSound("good");TickAttendance(0);
             }
+        }
+        void TickAttendance(float dt)
+        {
+            if(FinalLunch || Attended || Missed || !CardboardRunner.Player)return;
+            Vector3 p=CardboardRunner.Player.transform.position;
+            if(p.x>CardboardFactoryWorld.CanteenWest && p.x<CardboardFactoryWorld.CanteenEast &&
+                p.z>CardboardFactoryWorld.CanteenSouth && p.z<CardboardFactoryWorld.CanteenNorth)
+            {Attended=true;return;}
+            AttendanceElapsed+=Mathf.Max(0,dt);
+            if(AttendanceElapsed<attendanceGrace)return;
+            Missed=true;game.RegisterMistake("Missed the lunch break.",1.5f,emotion:FactoryWorkerEmotion.None);
+        }
+        public void BeginFinalLunch()
+        {
+            FinalLunch=true;
+            if(Carrying && physicsTray)physicsTray.ReleaseTray();
+            State=LunchState.Ready;RefreshWorld();
+            if(diners)diners.BeginFinal();
+            game.PlayCaptureSound("good");
         }
         public bool TryTake()
         {
@@ -50,7 +76,7 @@ namespace Cardboard
                 CardboardRunner.Player.JumpHeight>.01f || Vector3.Distance(CardboardRunner.Player.transform.position,pickup.position)>3.5f || !physicsTray)return false;
             if(game.station)game.station.EndGrip(false);
             if(CardboardMarker.Instance)CardboardMarker.Instance.SetDrawingMode(false);
-            State=LunchState.Carrying;Tilt=0;AngularSpeed=0;PitchTilt=0;CarryTime=0;
+            Attended=true;State=LunchState.Carrying;Tilt=0;AngularSpeed=0;PitchTilt=0;CarryTime=0;
             tray.SetParent(transform,true);
             HoldingPose(out var position,out var rotation);physicsTray.Begin(position,rotation);RefreshWorld();
             Cursor.lockState=CursorLockMode.Locked;FactoryVolumeCursor.SetSystemVisible(false);

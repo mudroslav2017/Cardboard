@@ -13,6 +13,21 @@ namespace Cardboard
         public bool Active {get;private set;}
         public bool Returning {get;private set;}
         public float Elapsed {get;private set;}
+        public bool AllInCanteen
+        {
+            get
+            {
+                if(!Active || Returning || workers==null)return false;
+                foreach(var worker in workers)
+                {
+                    if(!worker || !worker.gameObject.activeInHierarchy)continue;
+                    var p=worker.transform.position;
+                    if(p.x<CardboardFactoryWorld.CanteenWest+.4f || p.x>CardboardFactoryWorld.CanteenEast-.4f ||
+                        p.z>CardboardFactoryWorld.CanteenNorth-.6f || p.z<CardboardFactoryWorld.CanteenSouth+.4f)return false;
+                }
+                return true;
+            }
+        }
         public int EatingCount {get {int count=0;if(diners!=null) foreach(var diner in diners) if(diner.eating) count++;return count;} }
         sealed class Diner
         {
@@ -52,15 +67,27 @@ namespace Cardboard
                 diners[i]=diner;diner.path=navigation.Path(diner.home,diner.goal);meals[i].gameObject.SetActive(false);
             }
         }
+        public void BeginFinal()
+        {
+            if(!Active){Begin();return;}
+            if(!Returning)return;
+            Returning=false;Elapsed=playerFinished=0;navigation=new FactoryCaptureNavigation(.38f);
+            for(int i=0;i<workers.Length;i++)
+            {
+                var diner=diners[i];diner.eating=diner.done=false;diner.eatingTime=0;diner.point=diner.lastPoint=0;diner.pointAge=0;
+                diner.goal=places[i].position;diner.path=navigation.Path(workers[i].transform.position,diner.goal);
+                meals[i].gameObject.SetActive(false);
+            }
+        }
         void Update() {Tick(Time.deltaTime);}
         public void Tick(float dt)
         {
             if(!Active || !lunch.game || lunch.game.MenuActive || lunch.game.CaptureActive || lunch.game.Ended) return;
             Elapsed+=Mathf.Max(0,dt);
-            bool playerDone=lunch.State==LunchState.Served || lunch.State==LunchState.Spilled;
+            bool playerDone=lunch.State==LunchState.Served || lunch.State==LunchState.Spilled || lunch.Missed;
             playerFinished=playerDone?playerFinished+Mathf.Max(0,dt):0;
             bool allAte=true;foreach(var diner in diners) {if(diner.eating) diner.eatingTime+=Mathf.Max(0,dt);if(diner.eatingTime<12) allAte=false;}
-            if(!Returning && allAte && Elapsed>=minimumLunch && playerFinished>=afterPlayer) ReturnToWork();
+            if(!lunch.FinalLunch && !Returning && allAte && Elapsed>=minimumLunch && (playerFinished>=afterPlayer || Elapsed>=minimumLunch+45)) ReturnToWork();
             bool complete=true,routesDirty=false;
             for(int i=0;i<workers.Length;i++)
             {

@@ -13,6 +13,8 @@ namespace Cardboard
         public CardboardWorld crowd;
         public FactoryWorkerExpressions expressions;
         public FactoryIntro intro;
+        public FactoryEnding ending;
+        public bool EndingBusy=>ending && ending.Active;
         public bool IntroBusy=>intro && intro.BlocksControls;
         public bool IntroActive=>intro && intro.Active;
         public Mesh[] gearMeshes,hubMeshes;
@@ -40,7 +42,7 @@ namespace Cardboard
         public float Disguise {get;private set;}
         public int Repairs {get;private set;}
         public const int MistakeLimit=3;
-        public const int RequiredRepairs=3;
+        public const int RequiredRepairs=6;
         public int RepairGoal=>Mathf.Min(RequiredRepairs,gears.Length);
         public int OrderedType=>Memorized?Memorized.recipe.Type:0;
         readonly HashSet<int> faultHistory=new HashSet<int>();
@@ -58,10 +60,10 @@ namespace Cardboard
         public float MessageUntil {get;private set;}
         public bool Pretending {get;private set;}
         public bool Ended => State==FactoryState.Captured || State==FactoryState.Dead || State==FactoryState.Escaped;
-        public bool PlayerBlocked => MenuActive || Ended || IntroBusy || (!CaptureActive && (DippingPart || (workbench && workbench.ConsumesMouse) || (station && station.ConsumesMouse)));
-        public bool CameraOverride => (mainMenu && mainMenu.OwnsCamera) || (captureSequence && captureSequence.CameraControlled) || IntroBusy;
-        public Vector3 CameraPosition => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraPosition:IntroBusy?intro.CameraPosition:captureSequence.CameraPosition;
-        public Quaternion CameraRotation => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraRotation:IntroBusy?intro.CameraRotation:captureSequence.CameraRotation;
+        public bool PlayerBlocked => MenuActive || Ended || IntroBusy || EndingBusy || (!CaptureActive && (DippingPart || (workbench && workbench.ConsumesMouse) || (station && station.ConsumesMouse)));
+        public bool CameraOverride => (mainMenu && mainMenu.OwnsCamera) || (captureSequence && captureSequence.CameraControlled) || IntroBusy || (ending && ending.CameraControlled);
+        public Vector3 CameraPosition => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraPosition:IntroBusy?intro.CameraPosition:ending && ending.CameraControlled?ending.CameraPosition:captureSequence.CameraPosition;
+        public Quaternion CameraRotation => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraRotation:IntroBusy?intro.CameraRotation:ending && ending.CameraControlled?ending.CameraRotation:captureSequence.CameraRotation;
         public bool ReadyToLeave => RepairGoal>0 && Repairs>=RepairGoal && WorkingGears==gears.Length;
         public int WorkingGears {get { int count=0;foreach(var gear in gears) if(!gear.broken) count++;return count; } }
         float jumpWatch,runSeen,runGrace;
@@ -79,6 +81,7 @@ namespace Cardboard
         }
         public void ResetShift()
         {
+            if(ending)ending.Cancel();
             if(intro)intro.Cancel();
             if(captureSequence) captureSequence.Cancel();
             State=FactoryState.Working;Suspicion=0;Disguise=100;Repairs=0;Mistakes=0;ShiftRemaining=240;
@@ -106,13 +109,15 @@ namespace Cardboard
         void Update()
         {
             var keyboard=Keyboard.current;
-            if(MenuActive || CaptureActive || IntroBusy) return;
+            if(MenuActive || CaptureActive || IntroBusy || EndingBusy) return;
             if(Ended)
             {
                 if((State==FactoryState.Dead || State==FactoryState.Escaped) && keyboard!=null && keyboard.enterKey.wasPressedThisFrame) Restart();
                 return;
             }
             if(!CardboardRunner.Player) return;
+            if(keyboard!=null && keyboard.tKey.isPressed && keyboard.uKey.isPressed && keyboard.oKey.isPressed &&
+                (keyboard.tKey.wasPressedThisFrame || keyboard.uKey.wasPressedThisFrame || keyboard.oKey.wasPressedThisFrame) && CompleteRepairsShortcut())return;
             float dt=Time.deltaTime;if(IntroActive){UpdateFocus();if(keyboard!=null && keyboard.eKey.wasPressedThisFrame && !CardboardMarker.DrawingMode)Interact();return;}TickShiftClock(dt);if(Ended || CaptureActive) return;
             TickFaults(dt);if(lunch) lunch.TickSchedule(dt);
             Pretending=keyboard!=null && keyboard.cKey.isPressed && !CardboardMarker.DrawingMode && !PlayerBlocked;
@@ -125,6 +130,20 @@ namespace Cardboard
             if(ReadyToLeave && !exitDoor) exitGate.localPosition=Vector3.Lerp(exitGate.localPosition,gateHome+Vector3.right*2.5f,dt*2);
             bool watched=IsWatched();
             ObserveConduct(watched,CardboardRunner.Player.speed,CardboardRunner.Player.JumpHeight,station && station.IsPumpingPlayer,dt);
+        }
+        public bool CompleteRepairsShortcut()
+        {
+            if(MenuActive || Ended || CaptureActive || IntroActive || EndingBusy || !CardboardRunner.Player)return false;
+            if(station)station.EndGrip(false);
+            if(workbench)workbench.EndGrip(false);
+            if(objectCarry)objectCarry.Release(false);
+            if(lunch && lunch.Carrying)lunch.CancelCarry();
+            if(DippingPart)CancelDip();
+            if(HasPart)ReleasePart(false);
+            foreach(var gear in gears)gear.SetBroken(false);
+            Repairs=RepairGoal;SetOrder(0);nextFault=float.PositiveInfinity;Focus=null;
+            if(ending)ending.Begin();
+            return true;
         }
         public bool IsWatched()=>FindWitness()!=null;
         public CardboardRunner FindWitness()
@@ -155,7 +174,7 @@ namespace Cardboard
         }
         public void TickFaults(float dt)
         {
-            if(MenuActive || Ended || CaptureActive || IntroActive || CurrentOrder!=0 || Repairs>=RepairGoal)return;
+            if(MenuActive || Ended || CaptureActive || IntroActive || EndingBusy || CurrentOrder!=0 || Repairs>=RepairGoal)return;
             nextFault-=Mathf.Max(0,dt);if(nextFault<=0)BreakRandomGear();
         }
         public bool BreakRandomGear()
@@ -180,7 +199,7 @@ namespace Cardboard
         }
         public bool RegisterMistake(string reason,float stars=1f,CardboardRunner witness=null,FactoryWorkerEmotion emotion=FactoryWorkerEmotion.Machine)
         {
-            if(MenuActive || Ended || CaptureActive || Mistakes>=MistakeLimit || stars<=0 || float.IsNaN(stars) || float.IsInfinity(stars)) return false;
+            if(MenuActive || Ended || CaptureActive || EndingBusy || Mistakes>=MistakeLimit || stars<=0 || float.IsNaN(stars) || float.IsInfinity(stars)) return false;
             LastMistakeReason=string.IsNullOrWhiteSpace(reason)?"Shift rules violation.":reason;
             mistakeReasons.Add(LastMistakeReason);Mistakes=Mathf.Min(MistakeLimit,Mistakes+stars);
             Suspicion=100f*Mistakes/MistakeLimit;Disguise=100-Mistakes*25;
@@ -193,7 +212,7 @@ namespace Cardboard
         }
         public void ObserveConduct(bool watched,float speed,float jump,bool pumping,float dt)
         {
-            if(Ended) return;
+            if(Ended || EndingBusy) return;
             if(watched && speed>4.1f)
             {
                 runSeen+=Mathf.Max(0,dt);runGrace=0;
@@ -211,7 +230,7 @@ namespace Cardboard
         }
         public void TickShiftClock(float dt)
         {
-            if(MenuActive || Ended || IntroActive) return;
+            if(MenuActive || Ended || IntroActive || EndingBusy) return;
             ShiftRemaining=Mathf.Max(0,ShiftRemaining-Mathf.Max(0,dt));
         }
         // Compatibility for the preserved legacy machine's discrete jam event.
@@ -272,7 +291,7 @@ namespace Cardboard
                 if(Focus.action==FactoryAction.Door) return Focus.GetComponentInParent<FactoryDoor>().Prompt;
                 if(Focus.action==FactoryAction.Bench) return "";
                 if(Focus.action==FactoryAction.Gear) return Focus.gear.broken && HasPart?"E - INSTALL GEAR":"";
-                if(Focus.action==FactoryAction.Exit) return ReadyToLeave?"E - FINISH SHIFT AND LEAVE":"Exit unlocks after three repairs";
+                if(Focus.action==FactoryAction.Exit) return ReadyToLeave?"E - FINISH SHIFT AND LEAVE":"Exit unlocks after six repairs";
                 return Focus.prompt;
             }
         }
@@ -305,8 +324,10 @@ namespace Cardboard
         }
         public bool TryExit(bool atCorridorEnd=false)
         {
+            if(ending && ending.Active){if(atCorridorEnd)ending.EnterGlow();return true;}
             if(CaptureActive || HandsBusy) return false;
-            if(!ReadyToLeave || Ended) { Toast("Repair three faults in the main mechanism first.");return false; }
+            if(ending && ReadyToLeave)return ending.Begin();
+            if(!ReadyToLeave || Ended) { Toast("Repair six faults in the main mechanism first.");return false; }
             if(intro && !atCorridorEnd){exitDoor.SetOpen(true);Toast("The way out is open. Follow the corridor.",6);return true;}
             State=FactoryState.Escaped;Cursor.lockState=CursorLockMode.None;FactoryVolumeCursor.SetSystemVisible(true);
             if(sound) sound.Play("good");return true;
@@ -384,7 +405,8 @@ namespace Cardboard
             if(intro && intro.OnRepair(gear))return true;
             Repairs++;
             SetOrder(0);nextFault=Random.Range(4f,8f);
-            Toast(ReadyToLeave?"All orders complete. The mechanism is working. Head for the exit!":"Socket repaired. Repairs: "+Repairs+" / "+RepairGoal+".",6);
+            if(ReadyToLeave && ending)ending.Begin();
+            Toast(ReadyToLeave?"Six repairs complete. The lunch bell will ring in a moment.":"Socket repaired. Repairs: "+Repairs+" / "+RepairGoal+".",6);
             if(sound) sound.Play("good");return true;
         }
         public void DropPart(){ReleasePart(false);}

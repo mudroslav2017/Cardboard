@@ -120,15 +120,23 @@ namespace Cardboard.Editor
                 if(stage==2)
                 {
                     report.Add("DETAIL tutorial camera="+Camera.main.transform.position+" player="+CardboardRunner.Player.transform.position+" overlaps="+string.Join(",",Physics.OverlapSphere(Camera.main.transform.position,.4f).Select(c=>c.name)));CardboardFactorySceneBuilder.Capture("OpeningTutorialGear");var gear=intro.TutorialTarget;Check(intro.FloorGear.recipe.Equals(gear.recipe) && gear.broken && game.CurrentOrder==gear.index+1,"Floor gear exactly matches the one damaged tutorial socket");
-                    Check(intro.FloorGear.Take(game) && game.TryInstall(gear),"Tutorial gear can be picked up and installed");Check(intro.Phase==IntroPhase.PrinterDelay && game.Repairs==0,"Tutorial repair does not consume one of the three normal orders");intro.Tick(1.9f);Check(intro.Phase==IntroPhase.PrinterDelay,"Printer reveal waits two seconds after repair");intro.Tick(.2f);game.station.Tick(.2f);
+                    Check(intro.FloorGear.Take(game) && game.TryInstall(gear),"Tutorial gear can be picked up and installed");Check(intro.Phase==IntroPhase.PrinterDelay && game.Repairs==0,"Tutorial repair does not consume one of the six normal orders");intro.Tick(1.9f);Check(intro.Phase==IntroPhase.PrinterDelay,"Printer reveal waits two seconds after repair");intro.Tick(.2f);game.station.Tick(.2f);
                     Check(game.IntroBusy && game.station.IsPrinting && game.station.printerSignal.speaker.isPlaying,"Next fault rings the printer while camera control is taken");intro.Tick(1.5f);ViewIntro();Check(Camera.main.fieldOfView<45,"Printer reveal zooms in on the workstation");stage=3;return;
                 }
                 if(stage==3){CardboardFactorySceneBuilder.Capture("OpeningPrinterFocus");intro.Tick(2);Check(!intro.Active && !game.PlayerBlocked && Camera.main.fieldOfView==CardboardCamera.GameplayFov,"Cinematic ends with normal camera/input and a full-length shift");Machine();
-                    game.ResetShift();for(int i=0;i<3;i++){var broken=game.Memorized;game.ReceiveWorkbenchPart(broken.recipe);Check(game.TryInstall(broken),"Normal repair "+(i+1)+" succeeds after the introduction");if(i<2)game.TickFaults(8);}
-                    Check(game.ReadyToLeave && game.TryExit() && game.exitDoor.IsOpen && !game.Ended,"Three normal repairs unlock the corridor without ending the shift at the control panel");
-                    game.exitDoor.SetOpen(true,true);foreach(var exit in game.GetComponentsInChildren<FactoryCorridorExit>())if(exit.barrier)exit.barrier.SetActive(false);Place(new Vector3(CardboardFactoryWorld.WorkshopEast-1.5f,0,-2));Physics.simulationMode=SimulationMode.Script;var controller=CardboardRunner.Player.GetComponent<CharacterController>();
-                    for(int i=0;i<180 && !game.Ended;i++){controller.Move(Vector3.right*.1f);Physics.Simulate(.02f);}
-                    Check(game.State==FactoryState.Escaped,"Walking through the entire corridor reaches the escape trigger: position="+CardboardRunner.Player.transform.position+" state="+game.State);Physics.simulationMode=simulation;
+                    game.ResetShift();game.ending.enabled=false;
+                    for(int i=0;i<game.RepairGoal;i++){var broken=game.Memorized;game.ReceiveWorkbenchPart(broken.recipe);Check(game.TryInstall(broken),"Normal repair "+(i+1)+" succeeds after the introduction");if(i<game.RepairGoal-1)game.TickFaults(8);}
+                    Check(game.ReadyToLeave && game.ending.Phase==FactoryEndingPhase.BellDelay && !game.Ended,"Six normal repairs queue the final lunch and escape cinematic");
+                    for(int i=0;i<2500 && !game.MenuActive;i++)
+                    {
+                        game.ending.Tick(.02f);game.exitDoor.Tick(.02f);
+                        if(game.ending.Phase==FactoryEndingPhase.WaitingForLunch)
+                            for(int w=0;w<game.lunch.diners.workers.Length;w++)
+                            {var actor=game.lunch.diners.workers[w];var body=actor.GetComponent<CharacterController>();body.enabled=false;actor.transform.position=game.lunch.diners.places[w].position;body.enabled=true;}
+                    }
+                    Check(game.MenuActive && CardboardRunner.Player.transform.position.x>CardboardFactoryWorld.WorkshopEast+14,"Automatic corridor escape returns to the main menu");
+                    for(int i=0;i<50;i++)game.ending.Tick(.02f);game.ending.enabled=true;
+                    game.mainMenu.Tick(1);game.mainMenu.Choose(FactoryMenuAction.Play);game.mainMenu.Tick(.3f);game.mainMenu.Tick(1.2f);game.mainMenu.Tick(.3f);game.mainMenu.Tick(.6f);
                     stage=4;at=Time.time;Save();return;}
                 if(stage==4){TrayAndHand();stage=5;Save();return;}
                 if(stage==5){CardboardMarker.Instance.SetDrawingMode(true);CardboardMarker.Instance.TracePointer(new Vector2(Screen.width*.5f,Screen.height*.5f),false);Camera.main.GetComponent<CardboardMarkerHand>().RefreshPose(1);report.Add("DETAIL hand layers="+string.Join(" | ",Camera.main.GetComponent<CardboardMarkerHand>().Tip.GetComponentsInChildren<MeshRenderer>().Select(r=>r.name+" active="+r.gameObject.activeInHierarchy+" enabled="+r.enabled+" screen="+Camera.main.WorldToScreenPoint(r.bounds.center)+" bounds="+r.bounds.size)));CardboardFactorySceneBuilder.Capture("RestoredMarkerHand");Finish();}

@@ -22,7 +22,7 @@ namespace Cardboard
         }
         public static bool IsLeaf(Collider collider)
         {var target=collider.GetComponent<FactoryInteractable>();return target && target.action==FactoryAction.Door;}
-        public void Toggle(){var game=CardboardFactoryGame.Instance;if(game && game.exitDoor==this && !game.ReadyToLeave){game.Toast("Exit locked. Complete three repairs first.");return;}SetOpen(!IsOpen);}
+        public void Toggle(){var game=CardboardFactoryGame.Instance;if(game && game.exitDoor==this && !game.ReadyToLeave){game.Toast("Exit locked. Complete six repairs first.");return;}SetOpen(!IsOpen);}
         public void SetOpen(bool open,bool immediate=false)
         {
             IsOpen=open;
