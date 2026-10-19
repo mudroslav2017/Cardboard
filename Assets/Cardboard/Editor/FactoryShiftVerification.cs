@@ -110,7 +110,7 @@ namespace Cardboard.Editor
                 Check(game.TryInstall(gear) && !gear.broken,"Matching physical gear repairs random socket "+(gear.index+1));
                 if(i<game.RepairGoal-1)
                 {
-                    Check(game.CurrentOrder==0 && !game.ReadyToLeave,"Repair leaves a quiet interval before the next random fault");
+                    Check(game.CurrentOrder>0 && !game.ReadyToLeave,"Each successful installation immediately queues the next random fault, including after repair three");
                     game.TickFaults(8.1f);Check(game.CurrentOrder>0 && game.gears.Count(g=>g.broken)==1,"A new random fault creates the next work order");
                 }
             }

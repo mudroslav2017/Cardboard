@@ -16,6 +16,7 @@ namespace Cardboard
         public Camera viewCamera;
         public Material paperTemplate;
         public const int HandLayer=13;
+        public const string ShaderName="Cardboard/FirstPersonHand";
         CardboardMarker marker;
         Material ink;
         readonly List<Material> owned=new List<Material>();
@@ -24,7 +25,7 @@ namespace Cardboard
 
         Material Material(string name,string hex)
         {
-            var shader=paperTemplate?paperTemplate.shader:Shader.Find(CardboardSurface.ShaderName);
+            var shader=paperTemplate?paperTemplate.shader:Shader.Find(ShaderName);
             // Clone the serialized material, including the shader variant kept in the build.
             var mat=paperTemplate?new Material(paperTemplate):new Material(shader);
             mat.name=name;mat.SetColor("_BaseColor",CardboardArt.Hex(hex));
@@ -35,10 +36,9 @@ namespace Cardboard
             var obj=GameObject.CreatePrimitive(shape);obj.name=name;obj.transform.SetParent(parent,false);
             obj.transform.localPosition=pos;obj.transform.localScale=size;obj.layer=HandLayer;
             var renderer=obj.GetComponent<MeshRenderer>();renderer.sharedMaterial=mat;
-
-            renderer.shadowCastingMode=ShadowCastingMode.Off;renderer.receiveShadows=false;
+            var collider=obj.GetComponent<Collider>();if(collider){collider.enabled=false;Destroy(collider);}
+            renderer.shadowCastingMode=ShadowCastingMode.Off;renderer.receiveShadows=false;renderer.allowOcclusionWhenDynamic=false;
             var properties=new MaterialPropertyBlock();if(mat==ink)properties.SetFloat("_Cull",(float)CullMode.Back);else properties.SetColor("_BaseColor",mat.GetColor("_BaseColor"));renderer.SetPropertyBlock(properties);
-            var collider=obj.GetComponent<Collider>();collider.enabled=false;Destroy(collider);
             return obj.transform;
         }
         Transform Cylinder(string name,float z,float length,float radius,Material mat)
@@ -48,27 +48,23 @@ namespace Cardboard
         }
         void EnsureViewCamera()
         {
-            if(!viewCamera)
+            // Draw first-person geometry with the base camera on every graphics backend.
+            // The dedicated material handles world-depth occlusion and convex back faces.
+            if(viewCamera)
             {
-                var node=new GameObject("Lit marker hand camera");node.transform.SetParent(transform,false);viewCamera=node.AddComponent<Camera>();
+                viewCamera.enabled=false;
             }
-            var data=viewCamera.GetUniversalAdditionalCameraData();data.renderType=CameraRenderType.Overlay;data.renderPostProcessing=false;
-            data.renderShadows=false;
-            var stack=lens.GetUniversalAdditionalCameraData().cameraStack;if(!stack.Contains(viewCamera))stack.Insert(0,viewCamera);
-            UpdateViewCamera(false);
+            lens.cullingMask|=1<<HandLayer;
         }
         void UpdateViewCamera(bool show)
         {
-            if(!viewCamera)return;
-            viewCamera.CopyFrom(lens);viewCamera.cullingMask=1<<HandLayer;viewCamera.clearFlags=CameraClearFlags.Depth;
-            viewCamera.nearClipPlane=.02f;viewCamera.farClipPlane=10;viewCamera.enabled=show;
-            viewCamera.useOcclusionCulling=false;
+            if(viewCamera)viewCamera.enabled=false;
         }
         void EnsureModel()
         {
             if(pen) return;
             lens=GetComponent<Camera>();marker=GetComponent<CardboardMarker>();
-            lens.cullingMask &= ~((1<<FactoryDeathPresentation.Layer)|(1<<HandLayer));
+            lens.cullingMask &= ~(1<<FactoryDeathPresentation.Layer);
             EnsureViewCamera();
             var sleeve=Material("Cardboard sleeve","4F8075");
             var skin=Material("Hand cut from kraft","C39A69");
@@ -130,10 +126,15 @@ namespace Cardboard
             arm.localScale=new Vector3(.10f,Vector3.Distance(elbow,wrist),.105f);
             wasVisible=true;
         }
-        void OnDisable(){if(viewCamera)viewCamera.enabled=false;}
+        void OnDisable()
+        {
+            if(viewCamera)viewCamera.enabled=false;
+            if(pen)pen.gameObject.SetActive(false);
+            if(arm)arm.gameObject.SetActive(false);
+            wasVisible=false;
+        }
         void OnDestroy()
         {
-            if(lens && viewCamera)lens.GetUniversalAdditionalCameraData().cameraStack.Remove(viewCamera);
             foreach(var mat in owned)if(mat)Destroy(mat);
         }
     }

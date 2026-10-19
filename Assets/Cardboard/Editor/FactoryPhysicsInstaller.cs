@@ -110,6 +110,20 @@ namespace Cardboard.Editor
             var label=hint.gameObject.AddComponent<CardboardWorldLabel>();label.ink=ink;label.Refresh();
             EditorUtility.SetDirty(instruction);
         }
+        public static void InstructionFlipHintCurrent()
+        {
+            if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Update instruction hint in Edit Mode.");
+            var game=Object.FindFirstObjectByType<CardboardFactoryGame>();var instruction=game.instruction;
+            var bounds=instruction.sheet.GetComponent<MeshFilter>().sharedMesh.bounds;
+            var prior=instruction.sheet.Find("Flip instruction hint");if(prior)Object.DestroyImmediate(prior.gameObject);
+            var hint=Group("Flip instruction hint",instruction.sheet,new Vector3(bounds.max.x-.035f,bounds.min.y+.035f,bounds.min.z-.008f));
+            var source=instruction.controlHint.GetComponent<TextMesh>();var text=hint.gameObject.AddComponent<TextMesh>();
+            text.font=source.font;text.fontSize=48;text.characterSize=source.characterSize;text.text="E";text.anchor=TextAnchor.LowerRight;text.color=source.color;
+            text.font.RequestCharactersInTexture("E",48);hint.gameObject.AddComponent<CardboardWorldLabel>().ink=instruction.controlHint.GetComponent<CardboardWorldLabel>().ink;
+            hint.GetComponent<CardboardWorldLabel>().Refresh();instruction.flipHint=hint;EditorUtility.SetDirty(instruction);
+            AssetDatabase.SaveAssets();EditorSceneManager.MarkSceneDirty(game.gameObject.scene);EditorSceneManager.SaveScene(game.gameObject.scene);
+            File.WriteAllText("Library/FactoryInstructionFlipHint.txt","SUCCESS: E in the bottom-right corner.");
+        }
         public static void InstructionHintsCurrent()
         {
             if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Update instruction hints in Edit Mode.");

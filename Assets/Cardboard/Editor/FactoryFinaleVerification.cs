@@ -47,6 +47,9 @@ namespace Cardboard.Editor
         {
             if(game.CurrentOrder==0)game.BreakRandomGear();
             var gear=game.Memorized;game.ReceiveWorkbenchPart(gear.recipe);Check(game.TryInstall(gear),"Valid normal repair "+(game.Repairs)+" installs");
+            Check(game.Repairs>=game.RepairGoal?game.CurrentOrder==0:game.CurrentOrder>0,"Next order is queued until the sixth repair: "+game.Repairs);
+            for(int i=0;i<250;i++)game.station.Tick(.02f);
+            Check(game.Repairs>=game.RepairGoal?game.station.QueuedOrder==0:game.station.OrderNumber==game.CurrentOrder && game.station.OrderTravel>=.999f,"Printer produces the next card after repair "+game.Repairs);
             counter.Refresh();
         }
         static void Setup()

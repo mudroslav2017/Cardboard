@@ -35,6 +35,9 @@ namespace Cardboard.Editor
             try { command=File.ReadAllText(request).Trim();File.Delete(request); }
             catch(IOException) { return; }
             if(command=="build") Build();
+            else if(command=="instruction-flip-hint") FactoryPhysicsInstaller.InstructionFlipHintCurrent();
+            else if(command=="marker-web-fix") FactoryMarkerWebFix.Apply();
+            else if(command=="marker-web-verify") FactoryMarkerWebFix.Verify();
             else if(command=="web-fix-audit") FactoryWebFixVerification.Audit();
             else if(command=="web-fix-apply") FactoryWebFixVerification.Apply();
             else if(command=="web-fix-verify") FactoryWebFixVerification.Run();
@@ -68,6 +71,7 @@ namespace Cardboard.Editor
             else if(command=="lever-verify") FactoryLeverVerification.Run();
             else if(command=="floor-audio") FactoryFloorAudioInstaller.ApplyCurrent();
             else if(command=="floor-audio-verify") FactoryFloorAudioInstaller.Verify();
+            else if(command=="windows-build") FactoryWindowsBuilder.Request(File.ReadAllText("Library/FactoryWindowsBuildPath.txt").Trim());
             else if(command=="webgl-build") FactoryWebGLBuilder.Request(File.ReadAllText("Library/FactoryWebGLBuildPath.txt").Trim());
             else if(command=="gear-placement-verify") FactoryGearPlacementVerification.Run();
             else if(command=="gear-placement") FactoryGearPlacementInstaller.ApplyCurrent();

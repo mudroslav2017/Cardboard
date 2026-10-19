@@ -104,7 +104,7 @@ namespace Cardboard.Editor
             var worker=game.crowd.runners.First(w=>!w.isPlayer);var position=worker.transform.position;Camera.main.transform.SetPositionAndRotation(position+new Vector3(0,1.4f,2),Quaternion.LookRotation(Vector3.back));
             var marker=CardboardMarker.Instance;marker.SetDrawingMode(true);marker.TracePointer(new Vector2(Screen.width*.5f,Screen.height*.5f),false);var hand=Camera.main.GetComponent<CardboardMarkerHand>();hand.RefreshPose(.02f);
             
-            Check(hand.Visible && hand.Palm.gameObject.activeInHierarchy && hand.viewCamera && hand.viewCamera.enabled && hand.viewCamera.GetUniversalAdditionalCameraData().clearDepth && hand.paperTemplate.shader.name==CardboardSurface.ShaderName,"Marker hand and sleeve use lit geometry with their own depth buffer");
+            Check(hand.Visible && hand.Palm.gameObject.activeInHierarchy && (Camera.main.cullingMask & (1<<CardboardMarkerHand.HandLayer))!=0 && hand.paperTemplate.shader.name==CardboardMarkerHand.ShaderName,"Marker hand and sleeve use the dedicated lit first-person pass in the base camera");
             report.Add("DETAIL hand palm="+Camera.main.WorldToScreenPoint(hand.Palm.position)+" pointer="+marker.Pointer);at=Time.time;
         }
         static void Tick()

@@ -86,13 +86,13 @@ namespace Cardboard.Editor
         {
             var hand=camera.GetComponent<CardboardMarkerHand>();var marker=CardboardMarker.Instance;
             marker.TracePointer(new Vector2(Screen.width*.52f,Screen.height*.5f),false);hand.RefreshPose(1);
-            Check(hand.Visible && hand.viewCamera.enabled && hand.viewCamera.GetUniversalAdditionalCameraData().clearDepth && camera.GetUniversalAdditionalCameraData().cameraStack.Contains(hand.viewCamera),"Marker hand renders through the active depth-clearing URP overlay");
-            Check(hand.Tip.GetComponentsInChildren<Renderer>().All(r=>r.sharedMaterial.shader.name==CardboardSurface.ShaderName && r.sharedMaterial.GetFloat("_Cull")==2 && r.sharedMaterial.GetFloat("_ZWrite")==1),"Hand primitives use lit materials, outward faces and opaque depth writes");
+            Check(hand.Visible && (camera.cullingMask & (1<<CardboardMarkerHand.HandLayer))!=0 && (!hand.viewCamera || !hand.viewCamera.enabled),"Marker hand renders through the base camera for all graphics backends");
+            Check(hand.Tip.GetComponentsInChildren<Renderer>().All(r=>r.sharedMaterial.shader.name==CardboardMarkerHand.ShaderName && r.sharedMaterial.GetFloat("_Cull")==2 && r.sharedMaterial.renderQueue==3100),"Hand primitives use the dedicated lit shader, outward faces and late rendering");
             int mask=camera.cullingMask;var lights=Object.FindObjectsByType<Light>(FindObjectsSortMode.None);var intensities=lights.Select(l=>l.intensity).ToArray();Color ambient=RenderSettings.ambientLight;
             float difference=0;
             try
             {
-                camera.cullingMask=0;Frame();var lit=Frame();foreach(var light in lights)light.intensity=0;RenderSettings.ambientLight=Color.black;Frame();var dark=Frame();
+                camera.cullingMask=1<<CardboardMarkerHand.HandLayer;Frame();var lit=Frame();foreach(var light in lights)light.intensity=0;RenderSettings.ambientLight=Color.black;Frame();var dark=Frame();
                 double delta=0;for(int i=0;i<lit.Length;i++)delta+=Math.Abs(lit[i].r-dark[i].r)+Math.Abs(lit[i].g-dark[i].g)+Math.Abs(lit[i].b-dark[i].b);difference=(float)(delta/(lit.Length*765.0));
             }
             finally{camera.cullingMask=mask;for(int i=0;i<lights.Length;i++)lights[i].intensity=intensities[i];RenderSettings.ambientLight=ambient;}

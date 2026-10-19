@@ -182,6 +182,8 @@ namespace Cardboard
             if(CurrentOrder!=0 || Repairs>=RepairGoal)return false;
             var choices=new List<int>();
             for(int i=0;i<gears.Length;i++)if(gears[i] && !gears[i].broken && !faultHistory.Contains(i))choices.Add(i);
+            // Keep the shift progressing even when every available socket has already failed once.
+            if(choices.Count==0)for(int i=0;i<gears.Length;i++)if(gears[i] && !gears[i].broken)choices.Add(i);
             if(choices.Count==0)return false;
             int selected=choices[Random.Range(0,choices.Count)];faultHistory.Add(selected);
             gears[selected].SetBroken(true);SetOrder(selected+1);return true;
@@ -404,7 +406,9 @@ namespace Cardboard
             gear.SetBroken(false);HasPart=false;if(carried){carried.SetActive(false);Destroy(carried);carried=null;}
             if(intro && intro.OnRepair(gear))return true;
             Repairs++;
-            SetOrder(0);nextFault=Random.Range(4f,8f);
+            SetOrder(0);nextFault=0;
+            // Queue the next fault as part of completing this repair, rather than relying on a later Update.
+            if(Repairs<RepairGoal)BreakRandomGear();
             if(ReadyToLeave && ending)ending.Begin();
             Toast(ReadyToLeave?"Six repairs complete. The lunch bell will ring in a moment.":"Socket repaired. Repairs: "+Repairs+" / "+RepairGoal+".",6);
             if(sound) sound.Play("good");return true;

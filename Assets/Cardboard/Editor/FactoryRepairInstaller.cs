@@ -89,12 +89,12 @@ namespace Cardboard.Editor
         static void Marker(CardboardFactoryGame game)
         {
             var lens=Camera.main;var hand=lens.GetComponent<CardboardMarkerHand>();
-            hand.paperTemplate.shader=Shader.Find(CardboardSurface.ShaderName);CardboardSurface.Configure(hand.paperTemplate);hand.paperTemplate.SetFloat("_Cull",2);EditorUtility.SetDirty(hand.paperTemplate);
+            hand.paperTemplate.shader=Shader.Find(CardboardMarkerHand.ShaderName);hand.paperTemplate.renderQueue=3100;hand.paperTemplate.enableInstancing=false;CardboardSurface.Configure(hand.paperTemplate);hand.paperTemplate.SetFloat("_Cull",2);EditorUtility.SetDirty(hand.paperTemplate);
             var node=lens.transform.Find("Lit marker hand camera");if(!node){node=new GameObject("Lit marker hand camera").transform;node.SetParent(lens.transform,false);}
             var overlay=node.GetComponent<Camera>();if(!overlay)overlay=node.gameObject.AddComponent<Camera>();overlay.CopyFrom(lens);overlay.cullingMask=1<<CardboardMarkerHand.HandLayer;overlay.clearFlags=CameraClearFlags.Depth;overlay.enabled=false;
             var data=overlay.GetUniversalAdditionalCameraData();data.renderType=CameraRenderType.Overlay;data.renderPostProcessing=false;
-            var stack=lens.GetUniversalAdditionalCameraData().cameraStack;if(!stack.Contains(overlay))stack.Insert(0,overlay);
-            hand.viewCamera=overlay;lens.cullingMask &= ~(1<<CardboardMarkerHand.HandLayer);EditorUtility.SetDirty(hand);EditorUtility.SetDirty(lens);EditorUtility.SetDirty(overlay);EditorUtility.SetDirty(data);EditorUtility.SetDirty(lens.GetUniversalAdditionalCameraData());
+            var stack=lens.GetUniversalAdditionalCameraData().cameraStack;stack.Remove(overlay);
+            hand.viewCamera=overlay;lens.cullingMask |= 1<<CardboardMarkerHand.HandLayer;EditorUtility.SetDirty(hand);EditorUtility.SetDirty(lens);EditorUtility.SetDirty(overlay);EditorUtility.SetDirty(data);EditorUtility.SetDirty(lens.GetUniversalAdditionalCameraData());
             var sound=lens.GetComponent<FactoryMarkerSound>();if(!sound)sound=lens.gameObject.AddComponent<FactoryMarkerSound>();
             const string path="Assets/Game_Assets/Sounds/маркер2.mp3";var importer=(AudioImporter)AssetImporter.GetAtPath(path);
             if(!importer.forceToMono){importer.forceToMono=true;importer.SaveAndReimport();}sound.clip=AssetDatabase.LoadAssetAtPath<AudioClip>(path);
