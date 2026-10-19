@@ -25,8 +25,10 @@ namespace Cardboard
         Material Material(string name,string hex)
         {
             var shader=paperTemplate?paperTemplate.shader:Shader.Find(CardboardSurface.ShaderName);
-            var mat=new Material(shader) {name=name};mat.SetColor("_BaseColor",CardboardArt.Hex(hex));
-            CardboardSurface.Configure(mat);mat.SetFloat("_Cull",(float)CullMode.Back);mat.SetFloat("_ReceiveShadows",0);mat.EnableKeyword("_RECEIVE_SHADOWS_OFF");owned.Add(mat);return mat;
+            // Clone the serialized material, including the shader variant kept in the build.
+            var mat=paperTemplate?new Material(paperTemplate):new Material(shader);
+            mat.name=name;mat.SetColor("_BaseColor",CardboardArt.Hex(hex));
+            owned.Add(mat);return mat;
         }
         Transform Part(string name,Transform parent,Vector3 pos,Vector3 size,Material mat,PrimitiveType shape=PrimitiveType.Cube)
         {
@@ -51,6 +53,7 @@ namespace Cardboard
                 var node=new GameObject("Lit marker hand camera");node.transform.SetParent(transform,false);viewCamera=node.AddComponent<Camera>();
             }
             var data=viewCamera.GetUniversalAdditionalCameraData();data.renderType=CameraRenderType.Overlay;data.renderPostProcessing=false;
+            data.renderShadows=false;
             var stack=lens.GetUniversalAdditionalCameraData().cameraStack;if(!stack.Contains(viewCamera))stack.Insert(0,viewCamera);
             UpdateViewCamera(false);
         }
@@ -59,6 +62,7 @@ namespace Cardboard
             if(!viewCamera)return;
             viewCamera.CopyFrom(lens);viewCamera.cullingMask=1<<HandLayer;viewCamera.clearFlags=CameraClearFlags.Depth;
             viewCamera.nearClipPlane=.02f;viewCamera.farClipPlane=10;viewCamera.enabled=show;
+            viewCamera.useOcclusionCulling=false;
         }
         void EnsureModel()
         {

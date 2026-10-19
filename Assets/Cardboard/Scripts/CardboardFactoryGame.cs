@@ -231,6 +231,16 @@ namespace Cardboard
             for(int i=0;i<count;i++)
             {
                 var hit=hits[i];
+                // The liquid, rim and outside of a vessel all select the same bath.
+                // Resolve the first visible vessel only, so walls still block interaction.
+                var owner=hit.collider.GetComponentInParent<FactoryWorkstation>();
+                if(owner && owner.isPlayerStation && !HandsBusy)
+                    foreach(var bath in owner.baths)
+                        if(bath && hit.collider.transform.IsChildOf(bath))
+                        {
+                            var control=bath.GetComponentInChildren<FactoryStationControl>();
+                            if(control)return control.GetComponent<FactoryInteractable>();
+                        }
                 if(hit.collider.isTrigger && !hit.collider.GetComponentInParent<FactoryInteractable>())continue;
                 var station=hit.collider.GetComponentInParent<FactoryWorkstation>();
                 if(station && !hit.collider.GetComponentInParent<FactoryInteractable>())

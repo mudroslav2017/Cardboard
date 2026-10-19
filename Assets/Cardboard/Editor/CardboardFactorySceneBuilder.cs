@@ -35,6 +35,9 @@ namespace Cardboard.Editor
             try { command=File.ReadAllText(request).Trim();File.Delete(request); }
             catch(IOException) { return; }
             if(command=="build") Build();
+            else if(command=="web-fix-audit") FactoryWebFixVerification.Audit();
+            else if(command=="web-fix-apply") FactoryWebFixVerification.Apply();
+            else if(command=="web-fix-verify") FactoryWebFixVerification.Run();
             else if(command=="audit") WorkstationModelAudit.Write();
             else if(command=="editor-state") File.WriteAllText("Library/FactoryEditorState.txt","Playing="+EditorApplication.isPlaying+" paused="+EditorApplication.isPaused+" timeScale="+Time.timeScale+" frame="+Time.frameCount);
             else if(command=="new-assets-audit") FactoryNewAssetsAudit.Write();

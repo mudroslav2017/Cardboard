@@ -39,6 +39,7 @@ namespace Cardboard.Editor
                 foreach(var animator in instance.GetComponentsInChildren<Animator>(true))
                 {animator.enabled=false;PrefabUtility.RecordPrefabInstancePropertyModifications(animator);}
                 station.guardModel=instance.transform;station.guardClip=clip;station.RebindModels();
+                FactoryWebFixVerification.BakeGuard(station);
             }
         }
         public static void ApplyCurrent()

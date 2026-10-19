@@ -20,7 +20,13 @@ namespace Cardboard
         Collider[] trayShapes;
         Quaternion targetRotation;
         Vector3 targetPosition,supportVelocity;
-        void Awake(){if(!body)body=GetComponent<Rigidbody>();trayShapes=GetComponentsInChildren<Collider>(true);}
+        Vector3 previousSupportVelocity;
+        void Awake()
+        {
+            if(!body)body=GetComponent<Rigidbody>();trayShapes=GetComponentsInChildren<Collider>(true);
+            body.solverIterations=16;body.solverVelocityIterations=8;
+            foreach(var item in contents)if(item){item.solverIterations=16;item.solverVelocityIterations=8;}
+        }
         static void Freeze(Rigidbody item)
         {
             if(!item)return;
@@ -40,7 +46,7 @@ namespace Cardboard
         public void Begin(Vector3 position,Quaternion rotation)
         {
             Freeze(body);transform.SetPositionAndRotation(position,rotation);body.position=position;body.rotation=rotation;
-            targetPosition=position;targetRotation=rotation;supportVelocity=Vector3.zero;Active=Carrying=true;OutsideTime=0;
+            targetPosition=position;targetRotation=rotation;supportVelocity=previousSupportVelocity=Vector3.zero;Active=Carrying=true;OutsideTime=0;
             // Detach once. From here gravity, contact and inertia move the dishes.
             foreach(var item in contents)
             {
@@ -59,7 +65,7 @@ namespace Cardboard
         public void StepSupport()
         {
             if(!Carrying || !body)return;
-            body.MovePosition(Vector3.SmoothDamp(body.position,targetPosition,ref supportVelocity,.10f,5,Time.fixedDeltaTime));
+            body.MovePosition(Vector3.SmoothDamp(body.position,targetPosition,ref supportVelocity,.16f,3,Time.fixedDeltaTime));
             body.MoveRotation(Quaternion.RotateTowards(body.rotation,targetRotation,140*Time.fixedDeltaTime));
         }
         void FixedUpdate(){TickSupport(Time.fixedDeltaTime);}
@@ -69,17 +75,26 @@ namespace Cardboard
             if(Carrying)
             {
                 StepSupport();
+                var acceleration=Vector3.ClampMagnitude((supportVelocity-previousSupportVelocity)/Mathf.Max(dt,.001f),20);
+                previousSupportVelocity=supportVelocity;
                 bool outside=false;
                 foreach(var item in contents)
                 {
                     if(!item)continue;
-                    Vector3 local=transform.InverseTransformPoint(item.worldCenterOfMass);
+                    // Use physics poses, not the previous interpolated render pose.
+                    Vector3 local=Quaternion.Inverse(body.rotation)*(item.worldCenterOfMass-body.position);
                     if(Mathf.Abs(local.x)<halfSize.x+.04f && Mathf.Abs(local.z)<halfSize.y+.04f && local.y>-.05f && local.y<.4f)
-                        item.AddForce(-transform.forward*Vector3.Dot(Physics.gravity,transform.forward)*.80f,ForceMode.Acceleration);
+                    {
+                        float assistance=1-Mathf.InverseLerp(18,42,Vector3.Angle(body.rotation*Vector3.up,Vector3.up));
+                        Vector3 up=body.rotation*Vector3.up;
+                        var relative=Vector3.ProjectOnPlane(supportVelocity-item.linearVelocity,up);
+                        item.AddForce((acceleration*.85f+Vector3.ClampMagnitude(relative*8,12)
+                            -Vector3.ProjectOnPlane(Physics.gravity,up)*.75f)*assistance,ForceMode.Acceleration);
+                    }
                     if(Mathf.Abs(local.x)>halfSize.x+.065f || Mathf.Abs(local.z)>halfSize.y+.065f || local.y<-.12f)outside=true;
                 }
                 OutsideTime=outside?OutsideTime+dt:0;
-                if(OutsideTime>.35f && lunch)lunch.Spill();
+                if(OutsideTime>.65f && lunch)lunch.Spill();
             }
             else if(playerShapes!=null)
             {

@@ -50,7 +50,7 @@ namespace Cardboard
                 CardboardRunner.Player.JumpHeight>.01f || Vector3.Distance(CardboardRunner.Player.transform.position,pickup.position)>3.5f || !physicsTray)return false;
             if(game.station)game.station.EndGrip(false);
             if(CardboardMarker.Instance)CardboardMarker.Instance.SetDrawingMode(false);
-            State=LunchState.Carrying;Tilt=.06f;AngularSpeed=0;PitchTilt=0;CarryTime=0;
+            State=LunchState.Carrying;Tilt=0;AngularSpeed=0;PitchTilt=0;CarryTime=0;
             tray.SetParent(transform,true);
             HoldingPose(out var position,out var rotation);physicsTray.Begin(position,rotation);RefreshWorld();
             Cursor.lockState=CursorLockMode.Locked;FactoryVolumeCursor.SetSystemVisible(false);
@@ -65,9 +65,11 @@ namespace Cardboard
         public void TickBalance(float dt,bool leftClick,bool rightClick)
         {
             if(!Gameplay || !Carrying || dt<=0)return;
-            CarryTime+=Mathf.Min(dt,.25f);
-            AngularSpeed+=((rightClick?1:0)-(leftClick?1:0))*.55f;
-            AngularSpeed+=(.16f*Mathf.Sin(CarryTime*1.7f)+Tilt*.4f-AngularSpeed*1.1f)*dt;
+            dt=Mathf.Min(dt,.1f);CarryTime+=dt;
+            AngularSpeed+=((rightClick?1:0)-(leftClick?1:0))*.28f;
+            // Give the player time to leave the counter; mild sway does not amplify itself.
+            float difficulty=Mathf.SmoothStep(0,1,(CarryTime-2)/6);
+            AngularSpeed+=(.10f*difficulty*Mathf.Sin(CarryTime*1.4f)-Tilt*.20f-AngularSpeed*1.8f)*dt;
             Tilt=Mathf.Clamp(Tilt+AngularSpeed*dt,-1.6f,1.6f);
             // Pitch follows looking up/down, so the near and far edges can spill too.
             float pitch=Camera.main?Mathf.DeltaAngle(0,Camera.main.transform.eulerAngles.x):0;
@@ -76,7 +78,8 @@ namespace Cardboard
         void HoldingPose(out Vector3 position,out Quaternion rotation)
         {
             var camera=Camera.main.transform;
-            position=camera.TransformPoint(new Vector3(Mathf.Sin(CarryTime*2)*.009f,-.39f,.72f));
+            // Looking down must not drive the tray through the counter or floor.
+            position=camera.position+Quaternion.Euler(0,camera.eulerAngles.y,0)*new Vector3(Mathf.Sin(CarryTime*2)*.009f,-.50f,.72f);
             float pitch=Mathf.Clamp(Mathf.DeltaAngle(0,camera.eulerAngles.x)*.15f,-10,10);
             rotation=Quaternion.Euler(pitch+2+Mathf.Sin(CarryTime*2.6f)*.4f,camera.eulerAngles.y,-Tilt*42);
         }

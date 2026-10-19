@@ -64,6 +64,7 @@ namespace Cardboard
         Vector2 pointer;
         GameObject dippingVisual;
         FactoryWorkbenchSound sound;
+        FactoryGuardAnimation guardAnimation;
 
         void Awake() { Initialize(); }
         void Initialize()
@@ -74,6 +75,7 @@ namespace Cardboard
             wheelHome = wheel.localRotation;
             wheelAxis = wheel.parent.InverseTransformDirection(transform.forward).normalized;
             sound = GetComponent<FactoryWorkbenchSound>();
+            guardAnimation=guardModel?guardModel.GetComponent<FactoryGuardAnimation>():null;
         }
         public void RebindModels() {initialized=false;Initialize();ResetMachine();}
         public void ResetMachine()
@@ -327,7 +329,7 @@ namespace Cardboard
             Initialize();EndGrip(false);ExecutionControlled=true;
             GuardClosed=false;GuardBlend=0;
             sheet.gameObject.SetActive(false);cutPart.gameObject.SetActive(false);
-            if(guardClip) guardClip.SampleAnimation(guardModel.gameObject,0);
+            PoseGuard();
             if(guardHit) {guardHit.transform.localPosition=new Vector3(-.05f,.45f,-.05f);guardHit.size=new Vector3(.9f,.15f,.95f);}
             SetExecutionPose(0,0);
         }
@@ -351,7 +353,7 @@ namespace Cardboard
             sheet.localRotation = Quaternion.Euler(0, -wheelAngle, 0);
             cutPart.localRotation = Quaternion.Euler(90, 0, wheelAngle);
             press.localPosition = pressHome + Vector3.down * (pressBlend * .65f);
-            if (guardClip && guardModel) guardClip.SampleAnimation(guardModel.gameObject, GuardBlend * guardClip.length);
+            PoseGuard();
             if (guardHit)
             {
                 guardHit.transform.localPosition = Vector3.Lerp(new Vector3(-.05f,.45f,-.05f),new Vector3(-.05f,1.18f,-.48f),GuardBlend);
@@ -370,6 +372,11 @@ namespace Cardboard
             if (operatorHand) operatorHand.SyncPose();
         }
         void OnApplicationFocus(bool focused) { if (!focused && Manipulating) EndGrip(false); }
+        void PoseGuard()
+        {
+            if(guardAnimation)guardAnimation.Evaluate(GuardBlend);
+            else if(guardClip && guardModel)guardClip.SampleAnimation(guardModel.gameObject,GuardBlend*guardClip.length);
+        }
         void OnDisable() { EndGrip(false); }
     }
 }

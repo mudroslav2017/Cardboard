@@ -15,6 +15,13 @@ namespace Cardboard.Editor
         const string Pending="Cardboard.WebGLBuild.Pending",Destination="Cardboard.WebGLBuild.Destination";
         const string Report="Library/FactoryWebGLBuildReport.txt";
         static FactoryWebGLBuilder(){EditorApplication.update+=Tick;}
+        // Unity -batchmode -buildTarget WebGL -executeMethod Cardboard.Editor.FactoryWebGLBuilder.BuildBatch
+        public static void BuildBatch()
+        {
+            Build(Path.GetFullPath("Builds/WebGL"));
+            if(!File.ReadAllText(Report).StartsWith("RESULT: Succeeded"))
+                throw new InvalidOperationException("WebGL build failed. See "+Report);
+        }
         public static void Request(string output)
         {
             if(EditorApplication.isPlayingOrWillChangePlaymode || BuildPipeline.isBuildingPlayer)throw new InvalidOperationException("Stop Play Mode before building WebGL.");

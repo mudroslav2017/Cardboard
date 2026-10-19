@@ -3,7 +3,7 @@ using UnityEngine.InputSystem;
 
 namespace Cardboard
 {
-    [DefaultExecutionOrder(50)]
+    [DefaultExecutionOrder(-20)]
     public class CardboardCamera : MonoBehaviour
     {
         public const float GameplayFov=80;
@@ -17,7 +17,8 @@ namespace Cardboard
         void Start()
         {
             #if UNITY_WEBGL && !UNITY_EDITOR
-            Application.targetFrameRate=60;QualitySettings.vSyncCount=0;
+            // Let requestAnimationFrame follow the display refresh rate (including 120/144 Hz).
+            Application.targetFrameRate=-1;QualitySettings.vSyncCount=0;
 #endif
             yaw=transform.eulerAngles.y;pitch=Mathf.DeltaAngle(0,transform.eulerAngles.x);
             if(player){controller=player.GetComponent<CardboardRunner>();previousPosition=player.position;}
