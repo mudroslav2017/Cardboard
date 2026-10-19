@@ -6,9 +6,9 @@ namespace Cardboard
     // Shared floor grid for capture and lunch routes through the canteen doorway.
     public sealed class FactoryCaptureNavigation
     {
-        const float Step=.6f, MinX=-28.5f, MinZ=CardboardFactoryWorld.CanteenSouth-.6f;
+        const float Step=.6f, MinX=CardboardFactoryWorld.CanteenWest-.6f, MinZ=CardboardFactoryWorld.CanteenSouth-.6f;
         readonly int width=Mathf.CeilToInt((CardboardFactoryWorld.WorkshopEast-MinX+1)/Step);
-        readonly int depth=Mathf.CeilToInt((14.5f-MinZ)/Step)+1;
+        readonly int depth=Mathf.CeilToInt((CardboardFactoryWorld.WorkshopNorth+.5f-MinZ)/Step)+1;
         readonly bool[] walkable;
         static readonly Collider[] overlaps=new Collider[48];
         public FactoryCaptureNavigation(float clearance=.30f,Vector3[] occupied=null)

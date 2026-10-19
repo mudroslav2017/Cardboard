@@ -30,7 +30,8 @@ namespace Cardboard.Editor
             {
                 mouse=InputSystem.AddDevice<Mouse>("Factory menu verification pointer");
                 originalVolume=menu.Volume;initialClock=game.ShiftRemaining;workerBefore=game.crowd.runners[8].transform.position;
-                check(game.MenuActive && game.PlayerBlocked && game.CameraOverride && Cursor.visible,"Main menu owns camera and pointer, with player controls blocked");
+                menu.pointer.SendMessage("OnApplicationFocus",true);menu.pointer.Refresh(.02f);
+                check(game.MenuActive && game.PlayerBlocked && game.CameraOverride && !Cursor.visible && menu.pointer.model.gameObject.activeSelf,"Main menu owns camera and volumetric pointer, with the native cursor hidden and player controls blocked");
                 check(menu.buttons.Length==3 && !menu.settingsPanel.gameObject.activeSelf && menu.shiftHud.alpha==0,"Three imported menu buttons replace shift HUD at startup");
                 CardboardFactorySceneBuilder.Capture("FactoryMainMenu");
                 Pointer(menu,menu.buttons[0].hit.bounds.center+menu.buttons[0].transform.right*.35f,false);Next(1);

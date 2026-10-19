@@ -74,10 +74,10 @@ namespace Cardboard.Editor
                     "Guard texture is untinted, fully rough and double-sided: "+station.name);
             }
             var lamps=game.GetComponentsInChildren<Light>(true).Where(light=>light.name=="Practical workshop lamp").ToArray();
-            check(lamps.Length==20 && lamps.All(light=>light.enabled && light.gameObject.activeInHierarchy && light.intensity>=8 && light.shadows!=LightShadows.None),
-                "All twenty factory lamps are on, bright and shadowed");
+            check(lamps.Length==9 && lamps.All(light=>light.enabled && light.gameObject.activeInHierarchy && light.intensity>=8 && light.shadows!=LightShadows.None),
+                "All nine compact workshop lamps are on, bright and shadowed");
             var fittings=game.GetComponentsInChildren<Renderer>(true).Where(renderer=>renderer.name=="Folded light fitting").ToArray();
-            check(fittings.Length==20 && fittings.All(renderer=>renderer.enabled && renderer.sharedMaterial.IsKeywordEnabled("_EMISSION") &&
+            check(fittings.Length==lamps.Length && fittings.All(renderer=>renderer.enabled && renderer.sharedMaterial.IsKeywordEnabled("_EMISSION") &&
                 renderer.sharedMaterial.GetColor("_EmissionColor").maxColorComponent>1),"All factory fixtures visibly glow");
         }
         static void Preview(CardboardFactoryGame game)

@@ -70,7 +70,7 @@ namespace Cardboard
             if(CardboardMarker.Instance) CardboardMarker.Instance.SetDrawingMode(false);
             State=LunchState.Carrying;Tilt=.12f;AngularSpeed=.16f;CarryTime=0;
             tray.SetParent(Camera.main.transform,false);RefreshWorld();PoseTray();
-            Cursor.lockState=CursorLockMode.Locked;Cursor.visible=false;
+            Cursor.lockState=CursorLockMode.Locked;FactoryVolumeCursor.SetSystemVisible(false);
             game.Toast("Донесите обед до отмеченного стола. ЛКМ — наклон влево, ПКМ — вправо.",6);
             return true;
         }

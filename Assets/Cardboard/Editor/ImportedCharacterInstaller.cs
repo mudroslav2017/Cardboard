@@ -165,7 +165,8 @@ namespace Cardboard.Editor
                 int oldColor=marker.colorIndex;
                 try
                 {
-                    runner.transform.SetPositionAndRotation(new Vector3(0,0,5),Quaternion.identity);Physics.SyncTransforms();
+                    // Keep the drawing probe clear of factory furniture after floor-plan changes.
+                    runner.transform.SetPositionAndRotation(new Vector3(200,0,200),Quaternion.identity);Physics.SyncTransforms();
                     var renderer=surface.GetComponent<MeshRenderer>();var atlas=(Texture2D)renderer.sharedMaterial.mainTexture;
                     Vector2 frontUV=Vector2.zero;Color frontColor=default;bool frontHit=false;
                     for(int side=0;side<2;side++)
@@ -183,7 +184,7 @@ namespace Cardboard.Editor
                         Vector2 uv=contact.textureCoord;Color before=atlas.GetPixelBilinear(uv.x,uv.y);
                         camera.transform.SetPositionAndRotation(origin+direction,Quaternion.LookRotation(direction,surface.transform.up));
                         marker.SetDrawingMode(true);marker.colorIndex=side==0?4:2;
-                        marker.TracePointer(new Vector2(Screen.width*.5f,Screen.height*.5f),true);
+                        marker.TracePointer((Vector2)camera.WorldToScreenPoint(contact.point),true);
                         check(marker.Target==surface && marker.IsTouching,"Real marker pointer paints the visible character face");
                         check(Vector3.Dot(marker.ContactNormal,direction)<-.9f,"Marker nib stays outside the visible face despite inward normals");
                         var painted=side==0?surface.DrawingTexture:surface.BackDrawingTexture;

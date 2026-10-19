@@ -49,6 +49,17 @@ namespace Cardboard.Editor
             else if(command=="floor-texture") FactoryFloorInstaller.ApplyCurrentScene();
             else if(command=="presentation-update") FactoryPresentationInstaller.ApplyCurrentScene();
             else if(command=="menu-rebuild") FactoryMenuBuilder.RebuildCurrent();
+            else if(command=="station-inspect") FactoryWorkstationUpgrade.Inspect();
+            else if(command=="station-update") FactoryWorkstationUpgrade.ApplyCurrent();
+            else if(command=="clean-menu-shot") FactoryWorkstationUpgrade.CaptureCleanMenu();
+            else if(command=="people-restore") FactoryWorkstationUpgrade.RestorePeopleCurrent();
+            else if(command=="station-upgrade-audit") FactoryWorkstationUpgrade.AuditCurrent();
+            else if(command=="physics-update") FactoryPhysicsInstaller.ApplyCurrent();
+            else if(command=="physics-verify") FactoryPhysicsVerification.Run();
+            else if(command=="cursor-verify") FactoryPhysicsVerification.RunCursor();
+            else if(command=="storage-install") FactoryStorageInstaller.InstallCurrent();
+            else if(command=="compact-audit") FactoryStorageInstaller.AuditCurrent();
+            else if(command=="compact-preview") FactoryStorageInstaller.PreviewCurrent();
             else if(command=="new-assets") FactoryNewAssetsInstaller.ApplyCurrent();
             else if(command=="lunch-install") FactoryLunchInstaller.InstallCurrent();
             else if(command=="surfaces") FactorySurfaceInstaller.ApplyCurrent();
@@ -128,6 +139,10 @@ namespace Cardboard.Editor
                 FactoryAtmosphereInstaller.Apply(root.transform);
                 FactoryInventoryInstaller.Apply(root.transform);
                 FactoryFeelInstaller.Apply(root.transform);
+                root.GetComponent<CardboardFactoryWorld>().LayoutStations(root.GetComponent<CardboardFactoryGame>());
+                FactoryStorageInstaller.Create(root.transform);
+                FactoryPhysicsInstaller.Apply(root.transform);
+                FactoryWorkstationUpgrade.Apply(root.transform);
                 var container=AssetDatabase.LoadAssetAtPath<CardboardGeneratedAssets>(ArtPath);
                 if(!container) { container=ScriptableObject.CreateInstance<CardboardGeneratedAssets>();AssetDatabase.CreateAsset(container,ArtPath); }
                 else foreach(var old in AssetDatabase.LoadAllAssetsAtPath(ArtPath)) if(old && old!=container) UnityEngine.Object.DestroyImmediate(old,true);
@@ -136,7 +151,7 @@ namespace Cardboard.Editor
                 EditorBuildSettings.scenes=new[] {new EditorBuildSettingsScene(ScenePath,true),new EditorBuildSettingsScene("Assets/Scenes/CardboardPlayground.unity",false)};
                 Selection.activeGameObject=root;
                 if(SceneView.lastActiveSceneView) SceneView.lastActiveSceneView.LookAt(new Vector3(0,1,-5),Quaternion.Euler(55,0,0),44);
-                File.WriteAllText("Library/FactoryBuildReport.txt","SUCCESS: imported workstation models, animated guard, conveyor, numbered types, jump pump, wheel cutting, 3 finishing baths, punchcard orders; HUD, wall text and disguise locker removed.\n");
+                File.WriteAllText("Library/FactoryBuildReport.txt","SUCCESS: compact workshop "+CardboardFactoryWorld.WorkshopLength+" x "+CardboardFactoryWorld.WorkshopWidth+" metres, four workstations with left-side baths, 34 barrels and 18 empty boxes; authored models, textures and gameplay preserved.\n");
                 Capture("FactoryPreview");
             }
             catch(Exception error) { File.WriteAllText("Library/FactoryBuildReport.txt",error.ToString());Debug.LogException(error); }

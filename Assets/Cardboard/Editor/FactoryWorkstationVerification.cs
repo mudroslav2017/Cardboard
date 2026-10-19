@@ -122,7 +122,9 @@ namespace Cardboard.Editor
             foreach(float z in new[]{-13f,-15f,-17f,-24f}) Check(Physics.Raycast(new Vector3(-13,1,z),Vector3.down,2,1<<8),"Canteen route has solid floor at "+z);
             Check(station.sheet.localScale.y==.07f,"Cardboard blank thickness doubled");
             Vector3 gauge=station.transform.InverseTransformPoint(station.pressureNeedle.parent.position);
-            Check(gauge.z>.70f && gauge.y>2,"Pressure gauge mounted on wall behind table");
+            var board=station.transform.Find("Workstation backboard").GetComponent<Renderer>().bounds;
+            float gaugeDepth=station.pressureNeedle.parent.position.z;
+            Check(gauge.y>2 && gaugeDepth<board.min.z && board.min.z-gaugeDepth<.2f,"Pressure gauge is mounted in front of the workstation backboard");
             var guardControl=Array.Find(station.GetComponentsInChildren<FactoryStationControl>(),c=>c.part==StationPart.Guard);
             Vector3 button=station.transform.InverseTransformPoint(guardControl.transform.position);
             Check(button.x<-.5f && button.y>1 && button.y<1.2f && guardControl.GetComponent<BoxCollider>()!=station.guardHit,"Separate grille button sits left of press");
@@ -181,7 +183,8 @@ namespace Cardboard.Editor
                 foreach (var control in station.GetComponentsInChildren<FactoryStationControl>())
                 {
                     var collider = control.GetComponent<BoxCollider>(); Vector3 target = control.transform.TransformPoint(collider.center);
-                    Vector3 origin = target + station.transform.TransformDirection(Vector3.back) * 1.8f;
+                    Vector3 approach=control.part==StationPart.Bath?control.transform.TransformDirection(Vector3.back):station.transform.TransformDirection(Vector3.back);
+                    Vector3 origin = target + approach * 1.8f;
                     var hit = game.TargetForRay(new Ray(origin, target - origin));
                     Check(hit && hit.GetComponent<FactoryStationControl>() == control, "E ray reaches " + control.part + " " + control.number);
                 }

@@ -38,9 +38,9 @@ namespace Cardboard.Editor
                 report.Add("Right wall gap="+M(gaps[gaps.Count-1])+" m.");
                 float min=Mathf.Min(gaps.ToArray()),max=Mathf.Max(gaps.ToArray());
                 bool equal=min>0 && max-min<.005f;
-                bool resized=Mathf.Abs(floor.size.x-56*.8f)<.005f && Mathf.Abs(floor.size.z-28)<.005f;
+                bool resized=Mathf.Abs(floor.size.x-44.8f/1.45f)<.005f && Mathf.Abs(floor.size.z-28f/1.5f)<.005f;
                 report.Add((equal?"PASS ":"FAIL ")+"All five clear gaps are equal; difference="+M(max-min)+" m.");
-                report.Add((resized?"PASS ":"FAIL ")+"Long side reduced by exactly 20%; short side unchanged.");
+                report.Add((resized?"PASS ":"FAIL ")+"Workshop shortened about 1.5 times on both sides, with room for the complete workstation models.");
                 report.Add((game.station==game.stations[1]?"PASS ":"FAIL ")+"Player retains second workstation.");
                 var foundation=GameObject.Find("Machine foundation").GetComponent<Renderer>().bounds;
                 report.Add((foundation.max.x<east.min.x && foundation.min.x>west.max.x?"PASS ":"FAIL ")+"Main mechanism remains inside shortened room.");

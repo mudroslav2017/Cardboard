@@ -46,6 +46,7 @@ namespace Cardboard.Editor
             FactoryGeometry.Interaction(instruction.sheet,FactoryAction.Instruction,"E — поднять инструкцию");
             instruction.floorPosition=game.station.transform.TransformPoint(new Vector3(-.95f,.04f,-2.8f));
             instruction.floorRotation=Quaternion.Euler(90,15,0);instruction.ResetFloor();
+            FactoryPhysicsInstaller.Instruction(instruction);
         }
         public static void ApplyCurrent()
         {

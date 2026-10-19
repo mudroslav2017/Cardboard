@@ -11,6 +11,7 @@ namespace Cardboard
     {
         public CardboardFactoryGame game;
         public Camera lens,uiCamera;
+        public FactoryVolumeCursor pointer;
         public Transform visuals,settingsPanel,volumeKnob;
         public FactoryHangingButton[] buttons;
         public FactoryHangingButton back;
@@ -20,6 +21,8 @@ namespace Cardboard
         public CanvasGroup shiftHud;
         public Vector3 viewPosition;
         public Quaternion viewRotation=Quaternion.identity;
+        [Min(0)] public float settingsEnterDelay=.9f;
+        const float SettingsEnterDuration=.8f;
         public FactoryMenuPhase Phase {get;private set;}=FactoryMenuPhase.Opening;
         public float PhaseTime {get;private set;}
         public float Volume {get;private set;}
@@ -49,19 +52,19 @@ namespace Cardboard
             visuals.gameObject.SetActive(true);settingsPanel.gameObject.SetActive(false);
             foreach(var button in buttons)button.ResetMotion();back.ResetMotion();
             if(shiftHud)shiftHud.alpha=0;
-            lens.fieldOfView=60;if(uiCamera){uiCamera.enabled=true;uiCamera.fieldOfView=60;uiCamera.aspect=lens.aspect;}SetFade(0);Cursor.lockState=CursorLockMode.None;Cursor.visible=true;
+            lens.fieldOfView=60;if(uiCamera){uiCamera.enabled=true;uiCamera.fieldOfView=60;uiCamera.aspect=lens.aspect;}SetFade(0);Cursor.lockState=CursorLockMode.None;FactoryVolumeCursor.SetSystemVisible(true);
         }
         void Update()
         {
             if(!BlocksGameplay)return;
-            Cursor.lockState=CursorLockMode.None;Cursor.visible=true;
+            Cursor.lockState=CursorLockMode.None;FactoryVolumeCursor.SetSystemVisible(true);
             if(OwnsCamera)lens.fieldOfView=60;
             if(uiCamera){uiCamera.fieldOfView=lens.fieldOfView;uiCamera.aspect=lens.aspect;}
             Tick(Time.unscaledDeltaTime);
             if(Phase!=FactoryMenuPhase.Main && Phase!=FactoryMenuPhase.Settings)return;
             var mouse=Mouse.current;
             if(mouse==null)return;
-            Ray ray=lens.ScreenPointToRay(mouse.position.ReadValue());
+            Ray ray=this.pointer?this.pointer.PointerRay:lens.ScreenPointToRay(mouse.position.ReadValue());
             Physics.SyncTransforms();
             FactoryHangingButton hover=null;
             if(Physics.Raycast(ray,out var hit,15,1<<10,QueryTriggerInteraction.Collide))
@@ -105,9 +108,10 @@ namespace Cardboard
             else if(Phase==FactoryMenuPhase.ToMain)lift=7*(1-OutBack(Mathf.Clamp01(PhaseTime/.85f)));
             if(Phase==FactoryMenuPhase.Settings || (Phase==FactoryMenuPhase.Pressing && pending==FactoryMenuAction.Back))lift=7;
             foreach(var button in buttons)button.Pose(dt,lift,Phase==FactoryMenuPhase.Main?1:0);
+            if(Phase==FactoryMenuPhase.ToSettings)settingsPanel.gameObject.SetActive(PhaseTime>=settingsEnterDelay);
             if(settingsPanel.gameObject.activeSelf)
             {
-                float travel=Phase==FactoryMenuPhase.ToSettings?7*(1-OutBack(Mathf.Clamp01((PhaseTime-.25f)/.8f))):
+                float travel=Phase==FactoryMenuPhase.ToSettings?7*(1-OutBack(Mathf.Clamp01((PhaseTime-settingsEnterDelay)/SettingsEnterDuration))):
                     Phase==FactoryMenuPhase.ToMain?7*InBack(Mathf.Clamp01(PhaseTime/.65f)):0;
                 settingsPanel.localPosition=new Vector3(0,-.05f+travel,5);
                 var aim=Phase==FactoryMenuPhase.Settings?settingsAim:Vector2.zero;
@@ -117,11 +121,11 @@ namespace Cardboard
             if(Phase==FactoryMenuPhase.Opening && PhaseTime>=.85f)Change(FactoryMenuPhase.Main);
             else if(Phase==FactoryMenuPhase.Pressing && PhaseTime>=.28f)
             {
-                if(pending==FactoryMenuAction.Settings){settingsPanel.gameObject.SetActive(true);Change(FactoryMenuPhase.ToSettings);}
+                if(pending==FactoryMenuAction.Settings)Change(FactoryMenuPhase.ToSettings);
                 else if(pending==FactoryMenuAction.Back){SaveVolume();Change(FactoryMenuPhase.ToMain);}
                 else Change(FactoryMenuPhase.Leaving);
             }
-            else if(Phase==FactoryMenuPhase.ToSettings && PhaseTime>=1.05f)Change(FactoryMenuPhase.Settings);
+            else if(Phase==FactoryMenuPhase.ToSettings && PhaseTime>=settingsEnterDelay+SettingsEnterDuration)Change(FactoryMenuPhase.Settings);
             else if(Phase==FactoryMenuPhase.ToMain && PhaseTime>=.9f){settingsPanel.gameObject.SetActive(false);Change(FactoryMenuPhase.Main);}
             else if(Phase==FactoryMenuPhase.Leaving)
             {
@@ -168,7 +172,7 @@ namespace Cardboard
             for(int i=0;i<buttons.Length;i++)
             {
                 buttons[i].scale=scale;
-                buttons[i].home=new Vector3((i-1)*2.95f*scale,halfHeight*.76f+.65f*scale,5);
+                buttons[i].home=new Vector3((i-1)*2.95f*scale,halfHeight*.52f+.65f*scale,5);
             }
         }
         public void SetVolume(float value,bool save=true)

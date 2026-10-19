@@ -6,7 +6,7 @@ namespace Cardboard
     public enum FactoryHub { Square, Hexagon, Round }
     public enum FactoryDeath { Buttons, Pins, Press }
     public enum FactoryState { Working, Chased, Captured, Dead, Escaped }
-    public enum FactoryAction { Gear, Blueprint, Bench, Reserved, Exit, Station, Lunch, Instruction, Door }
+    public enum FactoryAction { Gear, Blueprint, Bench, Reserved, Exit, Station, Lunch, Instruction, Door, PhysicsProp }
 
     [Serializable]
     public struct FactoryRecipe : IEquatable<FactoryRecipe>

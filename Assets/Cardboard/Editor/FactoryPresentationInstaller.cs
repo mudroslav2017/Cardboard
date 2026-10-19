@@ -173,6 +173,7 @@ namespace Cardboard.Editor
         {
             var root=station.transform;
             var conveyor=Imported("Static conveyor","Conveer/Model/Conveer.fbx",root,90,conveyorMaterial);
+            FactoryWorkstationUpgrade.PaintConveyor(conveyor);
             var table=In(root.Find("Table"),root);var b=In(conveyor,root);
             var roller=Array.Find(conveyor.GetComponentsInChildren<Renderer>(),item=>item.name=="Cylinder");
             float top=In(roller.transform,root).max.y;

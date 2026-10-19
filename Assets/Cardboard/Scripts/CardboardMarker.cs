@@ -85,14 +85,14 @@ namespace Cardboard
             if(active && CardboardFactoryGame.Instance && CardboardFactoryGame.Instance.HandsBusy) return;
             drawing=active;Target=null;IsTouching=false;IsPressed=false;BreakStroke();
             Cursor.lockState=active || !captureOnExit?CursorLockMode.None:CursorLockMode.Locked;
-            Cursor.visible=active || !captureOnExit;
+            FactoryVolumeCursor.SetSystemVisible(active || !captureOnExit);
         }
         void OnApplicationFocus(bool focused) { if(!focused && drawing) SetDrawingMode(false,false); }
         void OnDisable()
         {
             drawing=false;Target=null;IsTouching=false;BreakStroke();
             if(Instance==this) Instance=null;
-            Cursor.lockState=CursorLockMode.None;Cursor.visible=true;
+            Cursor.lockState=CursorLockMode.None;FactoryVolumeCursor.SetSystemVisible(true);
         }
     }
 }

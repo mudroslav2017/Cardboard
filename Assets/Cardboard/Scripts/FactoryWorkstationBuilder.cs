@@ -32,6 +32,7 @@ namespace Cardboard
             bool first = true; Bounds bounds = default;
             foreach (var renderer in model.GetComponentsInChildren<Renderer>())
             {
+                if(renderer is ParticleSystemRenderer || renderer.GetComponent<TextMesh>())continue;
                 Bounds local = renderer.localBounds;
                 for (int x = -1; x <= 1; x += 2)
                 for (int y = -1; y <= 1; y += 2)
@@ -162,7 +163,8 @@ namespace Cardboard
             station.baths = new Transform[3]; game.finishMaterials = new[] {Teal, Gold, Coral};
             for (int i = 0; i < 3; i++)
             {
-                var bath = Group("Finishing bath " + (i + 1), root, new Vector3(3.45f + i * 1.02f, 0, 0)); station.baths[i] = bath;
+                var bath = Group("Finishing bath " + (i + 1), root, new Vector3(-3.15f, 0, -1.5f-i*1.10f)); station.baths[i] = bath;
+                bath.localRotation=Quaternion.Euler(0,-90,0);
                 var importedBox = Model("Imported Box vessel", "Box/Model/Box.fbx", bath, Teal, 0);
                 importedBox.localPosition += new Vector3(0, .367f, 0) - BoundsIn(importedBox, bath).center;
                 var collision = Group("Vessel collision", bath, new Vector3(0, .35f, 0)); collision.gameObject.layer = 8;

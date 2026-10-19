@@ -10,6 +10,7 @@ namespace Cardboard.Editor
     public static class FactoryNewAssetsVerification
     {
         static Keyboard keyboard;
+        static Mouse mouse,previousMouse;
         static CardboardCamera view;
         static Vector3 playerHome;
         static Quaternion cameraHome;
@@ -17,11 +18,14 @@ namespace Cardboard.Editor
         static int step,lastFrame;
         static float since,started;
         static void Send(params Key[] keys)=>InputSystem.QueueStateEvent(keyboard,new KeyboardState(keys));
+        static void RightMouse(bool pressed)=>InputSystem.QueueStateEvent(mouse,new MouseState().WithButton(MouseButton.Right,pressed));
         static void Next(int value){step=value;since=Time.unscaledTime;}
         public static void Reset(){Cleanup();step=lastFrame=0;since=started=0;}
         public static void Cleanup()
         {
             if(keyboard!=null && keyboard.added)InputSystem.RemoveDevice(keyboard);keyboard=null;
+            if(mouse!=null && mouse.added)InputSystem.RemoveDevice(mouse);mouse=null;
+            if(previousMouse!=null && previousMouse.added)previousMouse.MakeCurrent();previousMouse=null;
             if(view)view.enabled=cameraEnabled;view=null;
         }
         static void CheckUV(string source,string generated,Action<bool,string> check)
@@ -67,6 +71,7 @@ namespace Cardboard.Editor
             {
                 CheckAssets(game,check);
                 keyboard=InputSystem.AddDevice<Keyboard>("Instruction verification keyboard");
+                previousMouse=Mouse.current;mouse=InputSystem.AddDevice<Mouse>("Instruction verification mouse");
                 view=Camera.main.GetComponent<CardboardCamera>();cameraEnabled=view.enabled;view.enabled=false;
                 playerHome=CardboardRunner.Player.transform.position;cameraHome=Camera.main.transform.rotation;
                 var body=CardboardRunner.Player.GetComponent<CharacterController>();body.enabled=false;
@@ -82,10 +87,10 @@ namespace Cardboard.Editor
             else if(step==1 && Time.unscaledTime-since>.12f){Send();Next(2);}
             else if(step==2 && Time.unscaledTime-since>.5f)
             {
-                check(paper.Held && !paper.Reverse && !paper.Animating && paper.sheet.parent==Camera.main.transform,
+                check(paper.Held && !paper.Reverse && !paper.Animating && paper.sheet.parent==paper.transform,
                     "Real E picks up instruction on its main side without flipping in same frame");
-                check(game.HandsBusy && !game.PlayerBlocked && !paper.pickup.enabled,
-                    "Held instruction blocks machine and drawing, allows walking and disables pickup collider");
+                check(game.HandsBusy && !game.PlayerBlocked && paper.pickup.enabled && !paper.physical.Body.useGravity,
+                    "Held instruction blocks machine and drawing, allows walking and keeps physical collision");
                 check(!game.station.Operate(StationPart.Feed),"Reading paper cannot operate feed lever");
                 CardboardFactorySceneBuilder.Capture("InstructionFront");
                 Send(Key.E);Next(3);
@@ -93,23 +98,23 @@ namespace Cardboard.Editor
             else if(step==3 && Time.unscaledTime-since>.12f){Send();Next(4);}
             else if(step==4 && Time.unscaledTime-since>.5f)
             {
-                check(paper.Reverse && !paper.Animating && Quaternion.Angle(paper.sheet.localRotation,Quaternion.Euler(0,180,0))<.1f,
-                    "Real second E smoothly turns instruction to reverse");
+                check(paper.Reverse && !paper.Animating && Quaternion.Angle(paper.physical.Body.rotation,Camera.main.transform.rotation*Quaternion.Euler(0,180,0))<4,
+                    "Real E physically turns instruction to reverse");
                 CardboardFactorySceneBuilder.Capture("InstructionBack");
                 Send(Key.E);Next(5);
             }
             else if(step==5 && Time.unscaledTime-since>.12f){Send();Next(6);}
             else if(step==6 && Time.unscaledTime-since>.5f)
             {
-                check(!paper.Reverse && Quaternion.Angle(paper.sheet.localRotation,Quaternion.identity)<.1f,
+                check(!paper.Reverse && Quaternion.Angle(paper.physical.Body.rotation,Camera.main.transform.rotation)<4,
                     "Next E returns to main side");
-                Send(Key.Q);Next(7);
+                RightMouse(true);Next(7);
             }
-            else if(step==7 && Time.unscaledTime-since>.12f){Send();Next(8);}
+            else if(step==7 && Time.unscaledTime-since>.12f){RightMouse(false);Next(8);}
             else if(step==8 && Time.unscaledTime-since>.2f)
             {
-                check(!paper.Held && !game.HandsBusy && paper.pickup.enabled && paper.sheet.parent==paper.transform,
-                    "Real Q puts instruction down and restores normal interactions");
+                check(!paper.Held && !game.HandsBusy && paper.pickup.enabled && paper.physical.Body.useGravity && paper.sheet.parent==paper.transform,
+                    "Real RMB releases instruction to gravity and restores normal interactions");
                 var body=CardboardRunner.Player.GetComponent<CharacterController>();body.enabled=false;
                 CardboardRunner.Player.transform.position=playerHome;body.enabled=true;
                 Camera.main.transform.rotation=cameraHome;

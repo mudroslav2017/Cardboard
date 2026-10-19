@@ -9,12 +9,12 @@ namespace Cardboard.Editor
 {
     public static class FactoryMenuBuilder
     {
-        static Material paper,ink,rope,gold,lettering;
+        static Material paper,ink,gold,lettering;
         static Transform BoxPart(string name,Transform parent,Vector3 position,Vector3 size,Material material)
         {
             var part=Box(name,parent,position,size,material);part.gameObject.layer=10;return part;
         }
-        static TextMesh Text(string value,Transform parent,Vector3 position,float size,float maxWidth)
+        static TextMesh Text(string value,Transform parent,Vector3 position,float size,float maxWidth,float maxHeight=0)
         {
             var root=Group(value,parent,position);
             var text=root.gameObject.AddComponent<TextMesh>();text.font=CardboardTypography.DefaultFont;text.fontSize=48;
@@ -22,8 +22,40 @@ namespace Cardboard.Editor
             text.color=Hex("2B2116");text.font.RequestCharactersInTexture(value,48,FontStyle.Normal);
             var label=root.gameObject.AddComponent<CardboardWorldLabel>();label.ink=lettering;label.Refresh();
             var renderer=root.GetComponent<MeshRenderer>();
-            if(renderer.bounds.size.x>maxWidth)text.characterSize*=maxWidth/renderer.bounds.size.x;
-            root.position+=parent.TransformPoint(position)-renderer.bounds.center;
+            if(maxHeight>0)
+            {
+                // TextMesh line bounds include padding; align the visible glyphs instead.
+                var settings=new TextGenerationSettings
+                {
+                    font=text.font,fontSize=text.fontSize,fontStyle=FontStyle.Normal,color=Color.white,
+                    scaleFactor=1,lineSpacing=1,textAnchor=TextAnchor.MiddleCenter,
+                    horizontalOverflow=HorizontalWrapMode.Overflow,verticalOverflow=VerticalWrapMode.Overflow,
+                    generationExtents=Vector2.zero,generateOutOfBounds=true
+                };
+                using(var generator=new TextGenerator())
+                {
+                    generator.Populate(value,settings);
+                    var vertices=generator.verts;
+                    Bounds inkBounds=default;bool first=true;
+                    for(int quad=0;quad+3<vertices.Count;quad+=4)
+                    {
+                        if((vertices[quad].position-vertices[quad+2].position).sqrMagnitude<.001f)continue;
+                        for(int corner=0;corner<4;corner++)
+                        {
+                            var point=vertices[quad+corner].position;
+                            if(first){inkBounds=new Bounds(point,Vector3.zero);first=false;}else inkBounds.Encapsulate(point);
+                        }
+                    }
+                    float units=Mathf.Min(maxWidth/inkBounds.size.x,maxHeight/inkBounds.size.y);
+                    text.characterSize=units*10;
+                    root.localPosition=position-new Vector3(inkBounds.center.x,inkBounds.center.y,0)*units;
+                }
+            }
+            else
+            {
+                if(renderer.bounds.size.x>maxWidth)text.characterSize*=maxWidth/renderer.bounds.size.x;
+                root.position+=parent.TransformPoint(position)-renderer.bounds.center;
+            }
             root.gameObject.layer=10;return text;
         }
         static Transform ImportedCard(string name,Transform parent,string model,string texture,string generated,float width,Vector3 position)
@@ -54,7 +86,7 @@ namespace Cardboard.Editor
             }
             var oldLight=camera.transform.Find("Menu button fill light");if(oldLight)Object.DestroyImmediate(oldLight.gameObject);
             paper=Paper("MenuPaper",Hex("D8B378"));ink=Paper("MenuInk",Hex("392819"));
-            rope=Paper("MenuSuspension",Hex("665039"));gold=Paper("MenuGold",Hex("E3B84F"));
+            gold=Paper("MenuGold",Hex("E3B84F"));
             lettering=Paper("MenuLettering",Color.white,null,true);
             var menu=Group("Factory main menu",world,Vector3.zero).gameObject.AddComponent<FactoryMainMenu>();
             menu.game=game;menu.lens=camera;game.mainMenu=menu;
@@ -77,15 +109,22 @@ namespace Cardboard.Editor
                 var texture=AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Game_Assets/Buttons/"+textures[i]);
                 var material=Paper("MenuButton"+(i+1),Color.white,texture);
                 var mesh=Bake("Assets/Game_Assets/Buttons/"+(i+1)+"/"+(i+1)+".fbx","MenuButton"+(i+1),-90,Vector3.zero,true,2.6f);
-                var face=MeshObject("Imported button "+(i+1),pivot,mesh,material,Vector3.down*.65f);
+                var card=Group("Cardboard button",pivot,Vector3.zero);
+                var face=MeshObject("Imported button "+(i+1),card,mesh,material,Vector3.down*.65f);
                 face.gameObject.layer=10;
-                var hit=Group("Button pointer target",pivot,Vector3.down*.65f);hit.gameObject.layer=10;
+                var hit=Group("Button pointer target",card,Vector3.down*.65f);hit.gameObject.layer=10;
                 button.hit=hit.gameObject.AddComponent<BoxCollider>();button.hit.size=new Vector3(2.6f,.76f,.25f);
-                Text(words[i],pivot,new Vector3(0,-.83f,-.10f),.13f,2.05f);
+                Text(words[i],card,new Vector3(0,-.65f,mesh.bounds.min.z-.015f),.13f,2.12f,.28f);
                 for(int side=-1;side<=1;side+=2)
                 {
-                    var cord=FactoryGeometry.Rod("Temporary suspension • Unity cylinder",pivot,new Vector3(side*.94f,.55f,.02f),new Vector3(side*.94f,-.30f,.02f),.027f,rope);
-                    cord.gameObject.layer=10;
+                    int variant=side<0?1:2;
+                    var chainMesh=Bake("Assets/Game_Assets/Buttons/Chain/Chain_"+variant+".fbx","MenuChain"+variant,-90,Vector3.zero,true,.30f);
+                    var chainMaterial=Paper("MenuChain"+variant,Color.white,AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Game_Assets/Buttons/Chain/Chain_"+variant+".png"));
+                    float bottom=-.65f+mesh.bounds.max.y-.22f;
+                    float length=chainMesh.bounds.size.y;
+                    float depth=mesh.bounds.max.z+chainMesh.bounds.extents.z+.02f;
+                    var chain=MeshObject("Imported chain "+variant,pivot,chainMesh,chainMaterial,new Vector3(side*.94f,bottom+length*.5f,depth));
+                    chain.gameObject.layer=10;
                 }
             }
             menu.settingsPanel=Group("Settings • cardboard volume panel",camera.transform,new Vector3(0,-.05f,5));
@@ -112,6 +151,7 @@ namespace Cardboard.Editor
             var light=Group("Menu button fill light",camera.transform,new Vector3(-1,2,-.5f)).gameObject.AddComponent<Light>();
             light.type=LightType.Point;light.range=10;light.intensity=1.6f;light.color=Hex("FFE8C2");light.cullingMask=1<<10;
             menu.visuals.gameObject.SetActive(false);menu.settingsPanel.gameObject.SetActive(false);
+            FactoryPhysicsInstaller.Cursor(menu);
         }
     }
 }

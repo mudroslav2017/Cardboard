@@ -7,10 +7,13 @@ namespace Cardboard
 {
     public class CardboardFactoryWorld : MonoBehaviour
     {
-        public const float WorkshopLength=44.8f, WorkshopWidth=28f, WallHeight=5.8f;
-        public const float WorkshopWest=-28f, WorkshopEast=WorkshopWest+WorkshopLength;
-        public const float WorkshopCenterX=(WorkshopWest+WorkshopEast)*.5f;
-        public const float CanteenWidth=26f, CanteenDepth=18f, CanteenSouth=-34f;
+        public const float WorkshopLength=44.8f/1.45f, WorkshopWidth=28f/1.5f, WallHeight=5.8f;
+        public const float WorkshopCenterX=-5.6f;
+        public const float WorkshopWest=WorkshopCenterX-WorkshopLength*.5f, WorkshopEast=WorkshopCenterX+WorkshopLength*.5f;
+        public const float WorkshopNorth=WorkshopWidth*.5f, WorkshopSouth=-WorkshopWidth*.5f;
+        public const float StationZ=WorkshopNorth-2.8f, PlayerSpawnZ=StationZ-2.7f;
+        public const float CanteenWidth=26f, CanteenDepth=18f, CanteenSouth=-34f, CanteenNorth=-16f;
+        public const float CanteenWest=-26f, CanteenEast=0;
         public void Build()
         {
             Initialize();
@@ -26,12 +29,12 @@ namespace Cardboard
             sun.type=LightType.Directional;sun.intensity=1.2f;sun.color=Hex("FFE9BD");sun.shadows=LightShadows.Soft;
             sun.transform.rotation=Quaternion.Euler(57,-28,0);sun.shadowStrength=.65f;
             Floor("Main workshop",new Vector3(WorkshopCenterX,0,0),new Vector2(WorkshopLength,WorkshopWidth));
-            Solid("North workstation wall",transform,new Vector3(WorkshopCenterX,2.7f,14),new Vector3(WorkshopLength,WallHeight,.5f),DarkLeaf);
-            Solid("West workshop wall",transform,new Vector3(-28,2.7f,0),new Vector3(.5f,5.8f,28),Leaf);
-            Solid("East wall above exit",transform,new Vector3(WorkshopEast,2.7f,6.8f),new Vector3(.5f,5.8f,14.4f),Leaf);
-            Solid("East wall below exit",transform,new Vector3(WorkshopEast,2.7f,-8.8f),new Vector3(.5f,5.8f,10.4f),Leaf);
-            Solid("South wall west of canteen door",transform,new Vector3(-21.25f,2.7f,-14),new Vector3(13.5f,5.8f,.5f),DarkLeaf);
-            Solid("South mechanism wall",transform,new Vector3((WorkshopEast-11.5f)*.5f,2.7f,-14),new Vector3(WorkshopEast+11.5f,WallHeight,.5f),DarkLeaf);
+            Solid("North workstation wall",transform,new Vector3(WorkshopCenterX,2.7f,WorkshopNorth),new Vector3(WorkshopLength,WallHeight,.5f),DarkLeaf);
+            Solid("West workshop wall",transform,new Vector3(WorkshopWest,2.7f,0),new Vector3(.5f,WallHeight,WorkshopWidth),Leaf);
+            Solid("East wall above exit",transform,new Vector3(WorkshopEast,2.7f,(WorkshopNorth-.4f)*.5f),new Vector3(.5f,WallHeight,WorkshopNorth+.4f),Leaf);
+            Solid("East wall below exit",transform,new Vector3(WorkshopEast,2.7f,(WorkshopSouth-3.6f)*.5f),new Vector3(.5f,WallHeight,-3.6f-WorkshopSouth),Leaf);
+            Solid("South wall west of canteen door",transform,new Vector3((WorkshopWest-14.5f)*.5f,2.7f,WorkshopSouth),new Vector3(-14.5f-WorkshopWest,WallHeight,.5f),DarkLeaf);
+            Solid("South mechanism wall",transform,new Vector3((WorkshopEast-11.5f)*.5f,2.7f,WorkshopSouth),new Vector3(WorkshopEast+11.5f,WallHeight,.5f),DarkLeaf);
             // Shared dining room, with a clear central aisle from the workshop.
             var canteen=Group("Empty canteen",transform,Vector3.zero);
             Solid("Canteen floor",canteen,new Vector3(-13,-.32f,-25),new Vector3(CanteenWidth,.3f,CanteenDepth),Kraft);
@@ -41,19 +44,24 @@ namespace Cardboard
             Solid("Canteen east wall",canteen,new Vector3(0,2.7f,-25),new Vector3(.4f,5.8f,CanteenDepth),Leaf);
             for(int side=-1;side<=1;side+=2)
                 Solid("Canteen north wall",canteen,new Vector3(-13+side*7.25f,2.7f,-16),new Vector3(11.5f,5.8f,.4f),Leaf);
-            Solid("Canteen doorway floor",canteen,new Vector3(-13,-.32f,-15),new Vector3(3,.3f,2.4f),Path);
+            float passageLength=WorkshopSouth-CanteenNorth;
+            float passageZ=(WorkshopSouth+CanteenNorth)*.5f;
+            Solid("Canteen doorway floor",canteen,new Vector3(-13,-.32f,passageZ),new Vector3(3,.3f,passageLength+.4f),Path);
+            foreach(int side in new[]{-1,1})
+                Solid("Canteen passage side wall",canteen,new Vector3(-13+side*1.65f,2.7f,passageZ),new Vector3(.30f,WallHeight,passageLength+.5f),Leaf);
+            Box("Canteen passage ceiling",canteen,new Vector3(-13,5.64f,passageZ),new Vector3(3.6f,.08f,passageLength+.5f),Kraft);
             for(int side=-1;side<=1;side+=2)
                 Solid("Canteen door jamb",canteen,new Vector3(-13+side*1.5f,1.6f,-15),new Vector3(.18f,3.5f,2.4f),Edge);
             Box("Canteen doorway lintel",canteen,new Vector3(-13,3.5f,-15),new Vector3(3.2f,.2f,2.4f),Edge);
             for(float x=WorkshopWest+2;x<=WorkshopEast-2;x+=4)
             {
-                Box("Wall corrugation",transform,new Vector3(x,2.8f,13.68f),new Vector3(.10f,5.7f,.12f),Edge);
-                Box("Roof truss",transform,new Vector3(x,5.6f,0),new Vector3(.15f,.28f,28),Edge);
+                Box("Wall corrugation",transform,new Vector3(x,2.8f,WorkshopNorth-.32f),new Vector3(.10f,5.7f,.12f),Edge);
+                Box("Roof truss",transform,new Vector3(x,5.6f,0),new Vector3(.15f,.28f,WorkshopWidth),Edge);
             }
-            for(int z=-10;z<=10;z+=5)
+            for(float z=WorkshopSouth+3;z<=WorkshopNorth-2;z+=5)
             {
                 Box("Overhead beam",transform,new Vector3(WorkshopCenterX,5.5f,z),new Vector3(WorkshopLength,.22f,.18f),Kraft);
-                for(float x=WorkshopWest+8;x<=WorkshopEast-3;x+=11)
+                for(float x=WorkshopWest+5;x<=WorkshopEast-3;x+=8)
                 {
                     Box("Folded light fitting",transform,new Vector3(x,4.8f,z),new Vector3(2,.15f,.65f),Cream);
                     var light=Group("Practical workshop lamp",transform,new Vector3(x,4.5f,z)).gameObject.AddComponent<Light>();
@@ -65,16 +73,16 @@ namespace Cardboard
             game.stations=new FactoryWorkstation[4];game.workerPosts=new Vector3[3];
             for(int i=0;i<4;i++)
             {
-                game.stations[i]=FactoryWorkstationBuilder.Build(transform,game,new Vector3(0,0,11.2f),i==1);
+                game.stations[i]=FactoryWorkstationBuilder.Build(transform,game,new Vector3(0,0,StationZ),i==1);
                 if(i==1) game.station=game.stations[i];
             }
             LayoutStations(game);
             Exit(game);ExecutionTools(game);
-            game.patrol=new[] {new Vector3(-20,0,4),new Vector3(-7,0,3),new Vector3(7,0,3),new Vector3(WorkshopEast-6,0,0),new Vector3(WorkshopEast-12,0,-8),new Vector3(-17,0,-8)};
+            game.patrol=new[] {new Vector3(WorkshopWest+4,0,0),new Vector3(WorkshopCenterX,0,1),new Vector3(WorkshopEast-4,0,0),new Vector3(WorkshopEast-4,0,-4),new Vector3(WorkshopCenterX,0,-4.5f),new Vector3(WorkshopWest+5,0,-4)};
             for(int i=0;i<12;i++)
             {
-                Vector3 pos=i==0?new Vector3(game.station.transform.localPosition.x,0,8.5f):
-                    i>=2 && i<=4?game.workerPosts[i-2]:new Vector3(WorkshopWest+6+(i%6)*5.5f,0,-4+(i/6)*7);
+                Vector3 pos=i==0?new Vector3(game.station.transform.localPosition.x,0,PlayerSpawnZ):
+                    i>=2 && i<=4?game.workerPosts[i-2]:new Vector3(Mathf.Lerp(WorkshopWest+2,WorkshopEast-3.2f,(i%6)/5f),0,-2+(i/6)*3);
                 var root=Group(i==0?"YOU • disguised worker 017":i==1?"Inspector • cardboard shift supervisor":"Cardboard factory worker "+i,transform,pos);
                 var runner=root.gameObject.AddComponent<CardboardRunner>();runner.isPlayer=i==0;runner.personality=i;
                 var pivot=Group("Whole-sheet sway pivot",root,new Vector3(0,-.16f,0));runner.puppet=pivot;
@@ -90,7 +98,7 @@ namespace Cardboard
                 }
                 crowd.runners.Add(runner);runner.Pose(i*1.79f,i==0?0:.6f);
             }
-            var cameraObject=Group("Main Camera",transform,new Vector3(game.station.transform.localPosition.x,1.62f,8.5f)).gameObject;cameraObject.tag="MainCamera";
+            var cameraObject=Group("Main Camera",transform,new Vector3(game.station.transform.localPosition.x,1.62f,PlayerSpawnZ)).gameObject;cameraObject.tag="MainCamera";
             var cam=cameraObject.AddComponent<Camera>();cam.nearClipPlane=.05f;cam.farClipPlane=120;cam.fieldOfView=CardboardCamera.GameplayFov;
             cam.clearFlags=CameraClearFlags.SolidColor;cam.backgroundColor=Hex("3E4E45");cam.transform.rotation=Quaternion.identity;
             cameraObject.AddComponent<AudioListener>();cameraObject.AddComponent<CardboardCamera>().player=crowd.runners[0].transform;
@@ -99,8 +107,9 @@ namespace Cardboard
             var grade=FactoryDeathGrade.Create(hud.transform);
             game.captureSequence=FactoryCaptureSequence.Create(transform,game,grade);
         }
-        void LayoutStations(CardboardFactoryGame game)
+        public void LayoutStations(CardboardFactoryGame game)
         {
+            Vector3 oldPlayerStation=game.station.transform.position;
             Bounds footprint=FactoryWorkstationBuilder.Footprint(game.stations[0].transform);
             float left=WorkshopWest+.25f, right=WorkshopEast-.25f;
             float gap=(right-left-footprint.size.x*game.stations.Length)/(game.stations.Length+1);
@@ -109,9 +118,20 @@ namespace Cardboard
             for(int i=0;i<game.stations.Length;i++)
             {
                 var station=game.stations[i].transform;
-                station.localPosition=new Vector3(cursor-footprint.min.x,0,11.2f);
-                if(i!=1) game.workerPosts[post++]=new Vector3(station.localPosition.x,0,9.55f);
+                station.localPosition=new Vector3(cursor-footprint.min.x,station.localPosition.y,StationZ);
+                if(i!=1) game.workerPosts[post++]=new Vector3(station.localPosition.x,0,StationZ-1.65f);
                 cursor+=footprint.size.x+gap;
+            }
+            if(game.crowd.runners.Count>0)
+            {
+                foreach(var runner in game.crowd.runners)
+                {
+                    if(runner.isPlayer)runner.transform.localPosition=new Vector3(game.station.transform.localPosition.x,0,PlayerSpawnZ);
+                    else if(runner.personality>=2 && runner.personality<=4)runner.transform.localPosition=game.workerPosts[runner.personality-2];
+                }
+                var camera=GetComponentInChildren<Camera>();
+                if(camera)camera.transform.localPosition=new Vector3(game.station.transform.localPosition.x,1.62f,PlayerSpawnZ);
+                if(game.instruction){game.instruction.floorPosition+=game.station.transform.position-oldPlayerStation;game.instruction.ResetFloor();}
             }
         }
         void Floor(string name,Vector3 center,Vector2 size)
@@ -125,7 +145,8 @@ namespace Cardboard
         }
         void Machine(CardboardFactoryGame game)
         {
-            var machine=Group("THE GREAT MECHANISM • giant cardboard press drive",transform,new Vector3(WorkshopEast-12,0,-13.2f));
+            var machine=Group("THE GREAT MECHANISM • giant cardboard press drive",transform,new Vector3(WorkshopEast-9.9f,0,WorkshopSouth+.8f));
+            machine.localScale=Vector3.one*.8f;
             Solid("Machine chassis",machine,new Vector3(0,2.35f,0),new Vector3(21,4.8f,.7f),Teal);
             Solid("Machine foundation",machine,new Vector3(0,.22f,.1f),new Vector3(22,.7f,1.5f),Ink);
             for(int i=0;i<35;i++)

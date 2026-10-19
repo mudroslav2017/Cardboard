@@ -103,7 +103,7 @@ namespace Cardboard.Editor
                         }
             Check(reservedOnlyOnBoards,"Reserved backboard texture is absent from all other surfaces");
             Check(used.Count==8,"All five illustrated and three new plain textures are used on walls");
-            Check(Mathf.Abs(BoundsOf(game.instruction.sheet).min.y-floor)<.003f,"Instruction rests on floor");
+            Check(Mathf.Abs(BoundsOf(game.instruction.sheet).min.y-floor)<.04f,"Physical instruction rests within contact distance of floor");
         }
         static void Manufacture(CardboardFactoryGame game)
         {

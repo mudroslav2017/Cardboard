@@ -94,7 +94,7 @@ namespace Cardboard
                     GUI.Label(new Rect(w/2-344,h-154,688,42),game.Message,wrapped);
                 }
                 Fill(20,h-94,w-40,74,panel);
-                GUI.Label(new Rect(35,h-80,w-70,23),"WASD  ходить     SHIFT  бежать     E  взаимодействовать     C  притвориться картонкой     Q  выбросить деталь",text);
+                GUI.Label(new Rect(35,h-80,w-70,23),"WASD  ходить     SHIFT  бежать     E  взаимодействовать     C  притвориться картонкой     ПКМ  положить предмет     ЛКМ  удержать и бросить",text);
                 GUI.Label(new Rect(35,h-52,w-70,23),drawing?"ЛКМ  рисовать вблизи     Мышь  двигать рукой     Колесо  толщина     F  убрать фломастер":"F  фломастер     Мышь  обзор     ESC  освободить курсор     Маски восстанавливаются в шкафчике у входа",small);
                 if(Cursor.lockState!=CursorLockMode.Locked && !drawing)
                     GUI.Label(new Rect(w/2-220,h/2+78,440,32),"Нажмите в игровое окно, чтобы осмотреться",center);

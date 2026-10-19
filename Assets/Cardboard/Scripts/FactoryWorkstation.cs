@@ -93,7 +93,7 @@ namespace Cardboard
                 else if (mouse == null || !mouse.leftButton.isPressed) EndGrip();
                 else { pointer += mouse.delta.ReadValue(); DragWheel(pointer); }
             }
-            else if (!LeverAnimating && !Manipulating && mouse != null && mouse.leftButton.wasPressedThisFrame && !CardboardMarker.DrawingMode)
+            else if (!LeverAnimating && !Manipulating && !Game.HasPart && mouse != null && mouse.leftButton.wasPressedThisFrame && !CardboardMarker.DrawingMode)
             {
                 var camera = Camera.main;
                 Ray ray = Cursor.lockState == CursorLockMode.Locked ? camera.ViewportPointToRay(new Vector3(.5f, .5f)) : camera.ScreenPointToRay(mouse.position.ReadValue());
@@ -280,7 +280,7 @@ namespace Cardboard
             if (!Available || Manipulating || LeverAnimating) return false;
             Manipulating = true;wheelAttemptFault=false; hasAngle = false; pointer = screenPointer; autoTurnRemaining = 0;
             returnToLook = Cursor.lockState == CursorLockMode.Locked;
-            Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false;
+            Cursor.lockState = CursorLockMode.Locked; FactoryVolumeCursor.SetSystemVisible(false);
             if (operatorHand) operatorHand.Attach(wheelGrip);
             DragWheel(pointer); return true;
         }
@@ -304,7 +304,7 @@ namespace Cardboard
             if (!wasManipulating) return;
             releasedFrame = Time.frameCount;
             bool lockLook = capture && returnToLook;
-            Cursor.lockState = lockLook ? CursorLockMode.Locked : CursorLockMode.None; Cursor.visible = !lockLook;
+            Cursor.lockState = lockLook ? CursorLockMode.Locked : CursorLockMode.None; FactoryVolumeCursor.SetSystemVisible(!lockLook);
         }
         public void BeginExecution()
         {

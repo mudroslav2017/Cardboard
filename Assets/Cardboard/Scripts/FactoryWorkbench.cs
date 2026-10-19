@@ -79,7 +79,7 @@ namespace Cardboard
             bool state=GrippedPart==WorkbenchPart.Feed?FeedRaised:GrippedPart==WorkbenchPart.Clamp?Clamped:GuardClosed;
             gripFromState=state?1:0;
             strokeDirection=GrippedPart==WorkbenchPart.Feed || GrippedPart==WorkbenchPart.Guard?(state?-1:1):GrippedPart==WorkbenchPart.Clamp?(state?1:-1):-1;
-            Cursor.lockState=CursorLockMode.Locked;Cursor.visible=false;
+            Cursor.lockState=CursorLockMode.Locked;FactoryVolumeCursor.SetSystemVisible(false);
             if(GrippedPart==WorkbenchPart.Feed || GrippedPart==WorkbenchPart.Clamp || GrippedPart==WorkbenchPart.Guard)
                 Status("КЛИК — ПЕРЕКЛЮЧИТЬ / ТЯНИТЕ "+(strokeDirection>0?"ВВЕРХ":"ВНИЗ"));
             else if(GrippedPart==WorkbenchPart.Cutter || GrippedPart==WorkbenchPart.Reject || GrippedPart==WorkbenchPart.Output)
@@ -181,7 +181,7 @@ namespace Cardboard
             if(held)
             {
                 releasedFrame=Time.frameCount;Refresh();bool lockLook=capture && returnToLook;
-                Cursor.lockState=lockLook?CursorLockMode.Locked:CursorLockMode.None;Cursor.visible=!lockLook;
+                Cursor.lockState=lockLook?CursorLockMode.Locked:CursorLockMode.None;FactoryVolumeCursor.SetSystemVisible(!lockLook);
                 if(!lockLook && Mouse.current!=null)
                     Mouse.current.WarpCursorPosition(new Vector2(Mathf.Clamp(gripStart.x,0,Screen.width-1),Mathf.Clamp(gripStart.y,0,Screen.height-1)));
             }

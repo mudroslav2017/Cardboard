@@ -21,8 +21,9 @@ namespace Cardboard
         public FactoryMainMenu mainMenu;
         public FactoryLunch lunch;
         public FactoryInstruction instruction;
+        public FactoryObjectCarry objectCarry;
         public FactoryDoor exitDoor;
-        public bool HandsBusy => (lunch && lunch.Carrying) || (instruction && instruction.Held);
+        public bool HandsBusy => (lunch && lunch.Carrying) || (objectCarry && objectCarry.Held);
         public bool MenuActive => mainMenu && mainMenu.BlocksGameplay;
         public bool CaptureActive => captureSequence && captureSequence.Active;
         public FactoryWorkstation[] stations;
@@ -75,6 +76,10 @@ namespace Cardboard
             HasPart=false;Pretending=false;Memorized=null;
             DippingPart=false;
             if(lunch) lunch.ResetLunch();
+            if(objectCarry)objectCarry.Clear();
+            foreach(var prop in GetComponentsInChildren<FactoryPhysicsProp>(true))
+            {if(prop.workbenchPart)Destroy(prop.gameObject);else prop.ResetHome();}
+            foreach(var reaction in GetComponentsInChildren<FactoryWorkerImpact>())reaction.ResetReaction();
             if(instruction) instruction.ResetFloor();
             if(workbench) workbench.ResetMachine();
             if(station) station.ResetMachine();
@@ -104,8 +109,7 @@ namespace Cardboard
             if(keyboard!=null)
             {
                 if(keyboard.eKey.wasPressedThisFrame && !PlayerBlocked && !CardboardMarker.DrawingMode) Interact();
-                if(keyboard.qKey.wasPressedThisFrame && !PlayerBlocked)
-                {if(instruction && instruction.Held) instruction.PutDown();else if(HasPart) DropPart();}
+                // Mouse pickup release and charged throws are routed through FactoryObjectCarry.
             }
             if(ReadyToLeave && !exitDoor) exitGate.localPosition=Vector3.Lerp(exitGate.localPosition,gateHome+Vector3.right*2.5f,dt*2);
             bool watched=IsWatched();
@@ -178,9 +182,12 @@ namespace Cardboard
         }
         public FactoryInteractable TargetForRay(Ray ray)
         {
-            if(Physics.Raycast(ray,out var hit,3.5f,~(1<<9),QueryTriggerInteraction.Ignore))
+            var hits=Physics.RaycastAll(ray,3.5f,~(1<<9),QueryTriggerInteraction.Collide);
+            System.Array.Sort(hits,(a,b)=>a.distance.CompareTo(b.distance));
+            foreach(var hit in hits)
             {
                 var target=hit.collider.GetComponentInParent<FactoryInteractable>();
+                if(hit.collider.isTrigger && !target)continue;
                 return HandsBusy && target && target.action!=FactoryAction.Lunch && target.action!=FactoryAction.Door?null:target;
             }
             return null;
@@ -189,7 +196,8 @@ namespace Cardboard
         {
             get
             {
-                if(!Focus) return "";
+                if(objectCarry && objectCarry.Held)return objectCarry.Prompt;
+                if(!Focus) return HasPart && objectCarry?objectCarry.Prompt:"";
                 if(Focus.action==FactoryAction.Lunch)
                 {
                     var lunchControl=Focus.GetComponent<FactoryLunchControl>();
@@ -204,8 +212,9 @@ namespace Cardboard
         }
         public void Interact()
         {
+            if(Ended)return;
             if(instruction && instruction.Held){instruction.Flip();return;}
-            if(!Focus || Ended) return;
+            if(!Focus)return;
             if(HandsBusy && Focus.action!=FactoryAction.Lunch && Focus.action!=FactoryAction.Door) return;
             switch(Focus.action)
             {
@@ -213,6 +222,8 @@ namespace Cardboard
                     var door=Focus.GetComponentInParent<FactoryDoor>();if(door)door.Toggle();break;
                 case FactoryAction.Instruction:
                     if(instruction) instruction.Take();break;
+                case FactoryAction.PhysicsProp:
+                    var prop=Focus.GetComponentInParent<FactoryPhysicsProp>();if(prop)prop.Take(this);break;
                 case FactoryAction.Gear:
                     if(HasPart && Focus.gear.broken) TryInstall(Focus.gear);else ReadBlueprint(Focus.gear);break;
                 case FactoryAction.Blueprint: ReadBlueprint(Focus.gear);break;
@@ -230,7 +241,7 @@ namespace Cardboard
         {
             if(CaptureActive || HandsBusy) return false;
             if(!ReadyToLeave || Ended) { Toast("Сначала почините все 3 шестерёнки главного механизма.");return false; }
-            State=FactoryState.Escaped;Cursor.lockState=CursorLockMode.None;Cursor.visible=true;
+            State=FactoryState.Escaped;Cursor.lockState=CursorLockMode.None;FactoryVolumeCursor.SetSystemVisible(true);
             if(sound) sound.Play("good");return true;
         }
         public void ReadBlueprint(FactoryGear gear)
@@ -246,7 +257,7 @@ namespace Cardboard
         }
         public void ReceiveWorkbenchPart(FactoryRecipe recipe)
         {
-            HeldRecipe=recipe;HasPart=true;
+            HeldRecipe=recipe;HasPart=true;if(objectCarry)objectCarry.ItemReceived();
             if(carried){carried.SetActive(false);Destroy(carried);carried=null;}
             carried=new GameObject("Assembled cardboard gear in left hand");
             carried.transform.SetParent(Camera.main.transform,false);
@@ -254,6 +265,9 @@ namespace Cardboard
             carried.transform.localRotation=Quaternion.Euler(12,10,0);carried.transform.localScale=Vector3.one*.24f;
             FactoryGeometry.GearVisual(carried.transform,HeldRecipe,gearMeshes,hubMeshes,gearPaper,gearEdge,gearInk);
             carried.AddComponent<FactoryHeldGearMotion>().Initialize(this,Camera.main);
+            if(recipe.finish>0 && finishMaterials!=null && recipe.finish<=finishMaterials.Length)
+                foreach(var renderer in carried.GetComponentsInChildren<Renderer>())
+                {var materials=renderer.sharedMaterials;for(int i=0;i<materials.Length;i++)if(materials[i]==gearPaper)materials[i]=finishMaterials[recipe.finish-1];renderer.sharedMaterials=materials;}
             Toast("Деталь снята со станка: "+HeldRecipe+". Найдите подходящий узел.",6);if(sound) sound.Play("good");
         }
         public bool BeginDip()
@@ -295,7 +309,26 @@ namespace Cardboard
             Toast(ReadyToLeave?"Наряд выполнен. Все механизмы работают. Идите к выходу!":"Узел "+(char)('A'+gear.index)+" запущен. Ремонтов: "+Repairs+" / "+gears.Length+".",6);
             if(sound) sound.Play("good");return true;
         }
-        public void DropPart() { HasPart=false;if(carried){carried.SetActive(false);Destroy(carried);carried=null;}Toast("Неподходящая деталь отправлена в обрезки."); }
+        public void DropPart(){ReleasePart(false);}
+        public void ReleasePart(bool thrown,float strength=1)
+        {
+            if(!HasPart || !carried || DippingPart)return;
+            HasPart=false;var loose=carried;carried=null;
+            var position=loose.transform.position;var rotation=loose.transform.rotation;
+            var motion=loose.GetComponent<FactoryHeldGearMotion>();if(motion){motion.enabled=false;Destroy(motion);}
+            loose.transform.SetParent(transform,true);loose.transform.SetPositionAndRotation(position,rotation);
+            Bounds bounds=default;bool first=true;
+            foreach(var renderer in loose.GetComponentsInChildren<MeshRenderer>())
+            {if(first){bounds=renderer.bounds;first=false;}else bounds.Encapsulate(renderer.bounds);}
+            var collider=loose.AddComponent<BoxCollider>();
+            collider.center=loose.transform.InverseTransformPoint(bounds.center);
+            collider.size=new Vector3(bounds.size.x/loose.transform.lossyScale.x,bounds.size.y/loose.transform.lossyScale.y,Mathf.Max(.15f,bounds.size.z/loose.transform.lossyScale.z));
+            var body=loose.AddComponent<Rigidbody>();body.mass=.65f;
+            var prop=loose.AddComponent<FactoryPhysicsProp>();prop.itemName="деталь";prop.workbenchPart=true;prop.recipe=HeldRecipe;prop.Initialize();
+            var target=loose.AddComponent<FactoryInteractable>();target.action=FactoryAction.PhysicsProp;target.prompt="E — поднять деталь";
+            if(objectCarry)objectCarry.CancelThrow();
+            prop.BeginCarry();prop.Release(thrown?Camera.main.transform.forward*FactoryObjectCarry.ThrowSpeed(strength,body.mass):Vector3.zero,thrown);
+        }
         public void Toast(string message,float seconds=4) { Message=message;MessageUntil=Time.time+seconds; }
         public void Capture(FactoryDeath death)
         {

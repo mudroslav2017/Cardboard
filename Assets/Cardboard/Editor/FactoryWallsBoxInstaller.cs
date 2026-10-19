@@ -20,7 +20,7 @@ namespace Cardboard.Editor
         {
             "North workstation wall","West workshop wall","East wall above exit","East wall below exit",
             "South wall west of canteen door","South mechanism wall","Canteen south wall",
-            "Canteen west wall","Canteen east wall","Canteen north wall"
+            "Canteen west wall","Canteen east wall","Canteen north wall","Canteen passage side wall"
         };
 
         static Texture2D Texture(string path,TextureWrapMode wrap)

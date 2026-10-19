@@ -247,7 +247,7 @@ namespace Cardboard.Editor
                 var table=BoundsOf(station.transform.Find("Table"));
                 board.localScale=Vector3.Scale(board.localScale,new Vector3(BoardWidth/before.size.x,BoardHeight/before.size.y,1));
                 var after=renderer.bounds;
-                float depthShift=table.max.z+.003f-after.min.z;
+                float depthShift=table.max.z+FactoryWorkstationUpgrade.BackboardGap-after.min.z;
                 board.position+=new Vector3(table.center.x-after.center.x,bottom-after.min.y,depthShift);
                 // These controls are mounted on the board, so retain their distance from its face.
                 foreach(Transform child in station.transform)

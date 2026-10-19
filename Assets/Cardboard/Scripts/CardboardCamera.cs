@@ -19,7 +19,7 @@ namespace Cardboard
             yaw=transform.eulerAngles.y;pitch=Mathf.DeltaAngle(0,transform.eulerAngles.x);
             if(player){controller=player.GetComponent<CardboardRunner>();previousPosition=player.position;}
             var lens=GetComponent<Camera>();lens.orthographic=false;lens.fieldOfView=GameplayFov;lens.nearClipPlane=.05f;
-            Cursor.lockState=CursorLockMode.None;Cursor.visible=true;
+            Cursor.lockState=CursorLockMode.None;FactoryVolumeCursor.SetSystemVisible(true);
         }
         void Update()
         {
@@ -31,7 +31,7 @@ namespace Cardboard
             if(CardboardMarker.DrawingMode)return;
             if(keyboard!=null && keyboard.escapeKey.wasPressedThisFrame)Release();
             else if(mouse!=null && mouse.leftButton.wasPressedThisFrame && Application.isFocused)
-            {Cursor.lockState=CursorLockMode.Locked;Cursor.visible=false;}
+            {Cursor.lockState=CursorLockMode.Locked;FactoryVolumeCursor.SetSystemVisible(false);}
             if(mouse!=null && Cursor.lockState==CursorLockMode.Locked)
             {
                 Vector2 delta=mouse.delta.ReadValue();yaw+=delta.x*sensitivity;
@@ -72,6 +72,6 @@ namespace Cardboard
         {yaw=direction;pitch=0;ResetWalkingMotion();transform.rotation=Quaternion.Euler(0,yaw,0);}
         void OnDisable(){Release();}
         void OnApplicationFocus(bool focused){if(!focused)Release();}
-        static void Release(){Cursor.lockState=CursorLockMode.None;Cursor.visible=true;}
+        static void Release(){Cursor.lockState=CursorLockMode.None;FactoryVolumeCursor.SetSystemVisible(true);}
     }
 }

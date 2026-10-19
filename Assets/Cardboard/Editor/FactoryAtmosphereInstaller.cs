@@ -228,7 +228,10 @@ namespace Cardboard.Editor
             float Range(float a,float b)=>Mathf.Lerp(a,b,(float)random.NextDouble());
             void Patch(Vector3 point,float size)
             {
-                if(point.x<CardboardFactoryWorld.WorkshopWest+.8f || point.x>CardboardFactoryWorld.WorkshopEast-.8f)return;
+                bool kitchen=point.z<CardboardFactoryWorld.CanteenNorth;
+                float west=kitchen?CardboardFactoryWorld.CanteenWest:CardboardFactoryWorld.WorkshopWest;
+                float east=kitchen?CardboardFactoryWorld.CanteenEast:CardboardFactoryWorld.WorkshopEast;
+                if(point.x<west+.8f || point.x>east-.8f || (!kitchen && (point.z<CardboardFactoryWorld.WorkshopSouth+.5f || point.z>CardboardFactoryWorld.WorkshopNorth-.5f)))return;
                 if(Mathf.Abs(point.x+13)<1.8f && point.z<-12.3f && point.z>-18.5f)return;
                 foreach(var station in world.GetComponentsInChildren<FactoryWorkstation>())
                 {var p=point-station.pumpPlate.position;if(Mathf.Abs(p.x)<1 && Mathf.Abs(p.z)<.85f)return;}
@@ -242,8 +245,8 @@ namespace Cardboard.Editor
                 for(int i=0;i<26;i++)Patch(station.transform.TransformPoint(new Vector3(Range(-3.8f,5.5f),0,Range(-2.1f,.5f))),Range(.30f,1.05f));
             for(int i=0;i<105;i++)
             {
-                float x=Range(CardboardFactoryWorld.WorkshopWest+1.2f,CardboardFactoryWorld.WorkshopEast-1.2f),z=Range(-12.5f,12.5f);
-                if(i<44)z=i%2==0?Range(-13,-11):Range(11,13);
+                float x=Range(CardboardFactoryWorld.WorkshopWest+1.2f,CardboardFactoryWorld.WorkshopEast-1.2f),z=Range(CardboardFactoryWorld.WorkshopSouth+1.5f,CardboardFactoryWorld.WorkshopNorth-1.5f);
+                if(i<44)z=i%2==0?Range(CardboardFactoryWorld.WorkshopSouth+1,CardboardFactoryWorld.WorkshopSouth+3):Range(CardboardFactoryWorld.WorkshopNorth-3,CardboardFactoryWorld.WorkshopNorth-1);
                 Patch(new Vector3(x,0,z),Range(.3f,1.3f));
             }
             for(int i=0;i<45;i++)Patch(new Vector3(Range(-24.7f,-1.3f),0,Range(-32.7f,-17.5f)),Range(.25f,.8f));
@@ -302,7 +305,7 @@ namespace Cardboard.Editor
             try
             {
                 AO();Grading(root);var material=MoteMaterial();
-                Air(root,"Workshop • slow beige airborne dust",new Vector3(CardboardFactoryWorld.WorkshopCenterX,2.5f,0),new Vector3(42,4,25),3600,95,material);
+                Air(root,"Workshop • slow beige airborne dust",new Vector3(CardboardFactoryWorld.WorkshopCenterX,2.5f,0),new Vector3(CardboardFactoryWorld.WorkshopLength-2.8f,4,CardboardFactoryWorld.WorkshopWidth-3),3600,95,material);
                 Air(root,"Canteen • slow beige airborne dust",new Vector3(-13,2.4f,-25),new Vector3(23,3.8f,15),1100,28,material);
                 Shavings(world,root);FloorDust(world,root);Haze(world,root);
             }

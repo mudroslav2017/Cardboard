@@ -44,6 +44,8 @@ namespace Cardboard
             if (dt<=0) return;
             var factory=CardboardFactoryGame.Instance;
             if(factory && factory.captureSequence && factory.captureSequence.ControlsWorkers && !isPlayer) return;
+            var impact=!isPlayer?GetComponent<FactoryWorkerImpact>():null;
+            if(impact && impact.TickReaction(dt)){velocity=Vector3.zero;speed=0;return;}
             if(factory && (factory.Ended || (isPlayer && factory.PlayerBlocked)))
             { velocity=Vector3.zero;speed=0;Pose(cycle,0);return; }
             bool chasing=factory && factory.State==FactoryState.Chased;
@@ -98,7 +100,14 @@ namespace Cardboard
             if(factory && !isPlayer)FactoryDoor.OpenForWorker(transform.position,wish);
             velocity=Vector3.Lerp(velocity,wish,1-Mathf.Exp(-9*dt)); speed=velocity.magnitude;
             Vector3 position=transform.position+velocity*dt;
-            if(factory) { position.x=Mathf.Clamp(position.x,CardboardFactoryWorld.WorkshopWest+.4f,CardboardFactoryWorld.WorkshopEast-.4f);position.z=Mathf.Clamp(position.z,CardboardFactoryWorld.CanteenSouth+.4f,13.6f); }
+            if(factory)
+            {
+                bool inCanteen=position.z<CardboardFactoryWorld.CanteenNorth+.25f;
+                float west=inCanteen?CardboardFactoryWorld.CanteenWest:CardboardFactoryWorld.WorkshopWest;
+                float east=inCanteen?CardboardFactoryWorld.CanteenEast:CardboardFactoryWorld.WorkshopEast;
+                position.x=Mathf.Clamp(position.x,west+.4f,east-.4f);
+                position.z=Mathf.Clamp(position.z,CardboardFactoryWorld.CanteenSouth+.4f,CardboardFactoryWorld.WorkshopNorth-.4f);
+            }
             else
             {
                 float boundary=position.x*position.x/(10.7f*10.7f)+position.z*position.z/(7.2f*7.2f);
@@ -143,6 +152,14 @@ namespace Cardboard
             restUntil=Time.time+seconds;
             nextRest=restUntil+7+(restRandom!=null?(float)restRandom.NextDouble()*7:7);
             velocity=Vector3.zero;speed=0;
+        }
+        void OnControllerColliderHit(ControllerColliderHit hit)
+        {
+            var body=hit.rigidbody;
+            if(!body || body.isKinematic || hit.moveDirection.y<-.4f)return;
+            var prop=body.GetComponent<FactoryPhysicsProp>();if(!prop || prop.IsHeld)return;
+            var push=hit.moveDirection;push.y=0;
+            body.AddForceAtPosition(push*Mathf.Min(speed,3)*1.8f,hit.point,ForceMode.Force);
         }
         public void HoldForDrawing() { paintHoldUntil=Time.time+.35f; }
         public static void Whistle() { FollowUntil=Time.time+12; Mood="Все картонки идут за тобой."; }

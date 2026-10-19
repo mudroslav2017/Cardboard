@@ -66,7 +66,7 @@ namespace Cardboard
             {
                 var diner=diners[i];if(diner.done) continue;complete=false;
                 // Lunch owns the trip through the doorway; normal work AI resumes inside the workshop.
-                if(Returning && workers[i].transform.position.z>-13)
+                if(Returning && workers[i].transform.position.z>CardboardFactoryWorld.WorkshopSouth+1)
                 {diner.done=true;workers[i].PauseFor(0);continue;}
                 if(!diner.eating && (Returning || Elapsed>=i*.65f))
                 {
