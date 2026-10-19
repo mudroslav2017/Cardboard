@@ -20,7 +20,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: "HumanLera \u2022 base color, roughness 1"
+  m_Name: "HumanLera \u2022 Normal \u2022 both sides"
   m_Shader: {fileID: 4800000, guid: dedf4a4024076764f9b5434b5e5c3500, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0

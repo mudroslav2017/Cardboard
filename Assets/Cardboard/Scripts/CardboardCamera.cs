@@ -16,6 +16,9 @@ namespace Cardboard
         CardboardRunner controller;
         void Start()
         {
+            #if UNITY_WEBGL && !UNITY_EDITOR
+            Application.targetFrameRate=60;QualitySettings.vSyncCount=0;
+#endif
             yaw=transform.eulerAngles.y;pitch=Mathf.DeltaAngle(0,transform.eulerAngles.x);
             if(player){controller=player.GetComponent<CardboardRunner>();previousPosition=player.position;}
             var lens=GetComponent<Camera>();lens.orthographic=false;lens.fieldOfView=GameplayFov;lens.nearClipPlane=.05f;
@@ -68,6 +71,8 @@ namespace Cardboard
             transform.position=player.position+Vector3.up*(1.62f+(controller?controller.JumpHeight:0))+Quaternion.Euler(0,yaw,0)*WalkingOffset;
             transform.rotation=Quaternion.Euler(pitch,yaw,0)*WalkingRotation;
         }
+        public void AdoptCurrentView()
+        {yaw=transform.eulerAngles.y;pitch=Mathf.DeltaAngle(0,transform.eulerAngles.x);ResetWalkingMotion();}
         public void ResetView(float direction)
         {yaw=direction;pitch=0;ResetWalkingMotion();transform.rotation=Quaternion.Euler(0,yaw,0);}
         void OnDisable(){Release();}

@@ -13,7 +13,7 @@ namespace Cardboard
         Quaternion gripRotation;
         Vector3 localCenter;
         int pickupFrame;
-        public string Prompt => Held && Held.instructionSheet?"E — перевернуть · ЛКМ — бросить · ПКМ — положить":"ЛКМ — бросить · ПКМ — положить";
+        public string Prompt => Held && Held.instructionSheet?"E - FLIP · LMB - THROW · RMB - PUT DOWN":"LMB - THROW · RMB - PUT DOWN";
         public static float ThrowSpeed(float mass,bool instruction=false)
         {return instruction?12:Mathf.Lerp(11,8,Mathf.InverseLerp(.5f,5,mass));}
         public void ItemReceived(){pickupFrame=Time.frameCount;}

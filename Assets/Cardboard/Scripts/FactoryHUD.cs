@@ -42,15 +42,15 @@ namespace Cardboard
             }
             Color panel=new Color(.07f,.14f,.12f,.94f);
             Fill(20,20,372,95,panel);Fill(20,20,3,95,gold);
-            GUI.Label(new Rect(35,29,350,28),"НЕ СВОЙ  /  СМЕНА 017",title);
+            GUI.Label(new Rect(35,29,350,28),"OUTSIDER  /  SHIFT 017",title);
             int seconds=Mathf.CeilToInt(game.ShiftRemaining);
-            GUI.Label(new Rect(36,64,345,24),"Ремонты  "+game.Repairs+" / "+game.RepairGoal+"     Механизм  "+game.WorkingGears+" / "+game.gears.Length,text);
-            GUI.Label(new Rect(36,91,340,18),"ДО КОНЦА СМЕНЫ  "+seconds/60+":"+(seconds%60).ToString("00"),small);
+            GUI.Label(new Rect(36,64,345,24),"Repairs  "+game.Repairs+" / "+game.RepairGoal+"     Mechanism  "+game.WorkingGears+" / "+game.gears.Length,text);
+            GUI.Label(new Rect(36,91,340,18),"SHIFT TIME LEFT  "+seconds/60+":"+(seconds%60).ToString("00"),small);
             Fill(w-308,20,288,110,panel);
-            string suspicion=game.State==FactoryState.Chased?"ЧУЖОЙ В ЦЕХУ!":game.Suspicion>=65?"ОНИ ПОДОЗРЕВАЮТ":game.Suspicion>=30?"НА ВАС СМОТРЯТ":"ВАМ ПОКА ВЕРЯТ";
+            string suspicion=game.State==FactoryState.Chased?"INTRUDER IN THE WORKSHOP!":game.Suspicion>=65?"THEY ARE SUSPICIOUS":game.Suspicion>=30?"THEY ARE WATCHING":"THEY STILL TRUST YOU";
             GUI.Label(new Rect(w-292,32,260,20),suspicion,small);
             Meter(w-292,59,254,game.Suspicion/100,game.Suspicion>=65?red:gold);
-            GUI.Label(new Rect(w-292,76,260,21),"Маскировка рабочего  "+Mathf.RoundToInt(game.Disguise)+"%",text);
+            GUI.Label(new Rect(w-292,76,260,21),"Worker disguise  "+Mathf.RoundToInt(game.Disguise)+"%",text);
             Meter(w-292,105,254,game.Disguise/100,muted);
             if(game.Ended) Ending(game,w,h,panel);
             else
@@ -68,20 +68,20 @@ namespace Cardboard
                 if(game.Memorized)
                 {
                     Fill(20,132,310,91,panel);Fill(20,132,3,91,gold);
-                    GUI.Label(new Rect(35,144,280,20),"ЗАПИСАННЫЙ НАРЯД "+(char)('A'+game.Memorized.index),small);
-                    GUI.Label(new Rect(35,169,280,48),game.Memorized.recipe.teeth+" зубьев / "+FactoryRecipe.HubName(game.Memorized.recipe.hub)+"\nСлоёв картона: "+game.Memorized.recipe.layers,wrapped);
+                    GUI.Label(new Rect(35,144,280,20),"WORK ORDER "+(char)('A'+game.Memorized.index),small);
+                    GUI.Label(new Rect(35,169,280,48),game.Memorized.recipe.teeth+" teeth / "+FactoryRecipe.HubName(game.Memorized.recipe.hub)+"\nCardboard layers: "+game.Memorized.recipe.layers,wrapped);
                 }
                 if(game.HasPart)
                 {
                     Fill(20,h-177,350,65,panel);
-                    GUI.Label(new Rect(35,h-165,325,18),"В РУКЕ: ГОТОВАЯ ДЕТАЛЬ",small);
+                    GUI.Label(new Rect(35,h-165,325,18),"HOLDING: FINISHED GEAR",small);
                     GUI.Label(new Rect(35,h-141,325,24),game.HeldRecipe.ToString(),text);
                 }
                 if(drawing && CardboardMarker.Instance)
                 {
                     var marker=CardboardMarker.Instance;
                     Fill(w-278,h-184,258,78,panel);
-                    GUI.Label(new Rect(w-262,h-174,230,18),"ФЛОМАСТЕР / 1–5 ЦВЕТ / C ОЧИСТИТЬ",small);
+                    GUI.Label(new Rect(w-262,h-174,230,18),"MARKER / 1-5 COLOR / C CLEAR",small);
                     for(int i=0;i<marker.Colors.Length;i++)
                     {
                         float x=w-262+i*46;if(i==marker.colorIndex) Fill(x-2,h-145,34,27,paper);
@@ -94,10 +94,10 @@ namespace Cardboard
                     GUI.Label(new Rect(w/2-344,h-154,688,42),game.Message,wrapped);
                 }
                 Fill(20,h-94,w-40,74,panel);
-                GUI.Label(new Rect(35,h-80,w-70,23),"WASD  ходить     SHIFT  бежать     E  взаимодействовать     C  притвориться картонкой     ПКМ  положить предмет     ЛКМ  удержать и бросить",text);
-                GUI.Label(new Rect(35,h-52,w-70,23),drawing?"ЛКМ  рисовать вблизи     Мышь  двигать рукой     Колесо  толщина     F  убрать фломастер":"F  фломастер     Мышь  обзор     ESC  освободить курсор     Маски восстанавливаются в шкафчике у входа",small);
+                GUI.Label(new Rect(35,h-80,w-70,23),"WASD  move     SHIFT  run     E  interact     C  blend in     RMB  put down     LMB  throw",text);
+                GUI.Label(new Rect(35,h-52,w-70,23),drawing?"LMB  draw nearby     MOUSE  move hand     WHEEL  brush size     F  put marker away":"F  marker     MOUSE  look     ESC  release cursor",small);
                 if(Cursor.lockState!=CursorLockMode.Locked && !drawing)
-                    GUI.Label(new Rect(w/2-220,h/2+78,440,32),"Нажмите в игровое окно, чтобы осмотреться",center);
+                    GUI.Label(new Rect(w/2-220,h/2+78,440,32),"Click inside the game to look around",center);
             }
             GUI.matrix=previous;
         }
@@ -106,14 +106,14 @@ namespace Cardboard
             if(game.State==FactoryState.Captured)
             {
                 Fill(w/2-270,145,540,60,panel);
-                GUI.Label(new Rect(w/2-250,160,500,35),"ВАС РАСКРЫЛИ. «ЭТО НЕ КАРТОНКА».",title);return;
+                GUI.Label(new Rect(w/2-250,160,500,35),"EXPOSED. THAT IS NOT CARDBOARD.",title);return;
             }
             Fill(0,0,w,h,new Color(0,0,0,.52f));float x=w/2-330,y=h/2-170;Fill(x,y,660,340,panel);Fill(x,y,660,4,game.State==FactoryState.Escaped?gold:red);
-            GUI.Label(new Rect(x+30,y+28,600,45),game.State==FactoryState.Escaped?"СМЕНА ЗАКОНЧЕНА":"ВЫ ОКАЗАЛИСЬ СЛИШКОМ ЖИВЫМ",title);
-            string ending=game.State==FactoryState.Escaped?"Механизм работает. Наряд выполнен.\nНикто не догадался, что под картоном прячется человек.":game.Death==FactoryDeath.Press?"СМЕРТЬ: ПРЕСС\nРабочие положили чужака под заводской пресс.":game.Death==FactoryDeath.Pins?"СМЕРТЬ: БУЛАВКИ\nРабочие прикололи вас к доске длинными булавками.":"СМЕРТЬ: КАНЦЕЛЯРСКИЕ КНОПКИ\nКартонные рабочие заткнули чужака кнопками.";
+            GUI.Label(new Rect(x+30,y+28,600,45),game.State==FactoryState.Escaped?"SHIFT COMPLETE":"YOU WERE TOO ALIVE",title);
+            string ending=game.State==FactoryState.Escaped?"The mechanism works. All orders complete.\nNobody realized a human was hiding under the cardboard.":game.Death==FactoryDeath.Press?"DEATH: PRESS\nThe workers put the intruder under the factory press.":game.Death==FactoryDeath.Pins?"DEATH: PINS\nThe workers pinned you to the board.":"DEATH: THUMBTACKS\nThe cardboard workers silenced the intruder with tacks.";
             GUI.Label(new Rect(x+30,y+94,600,95),ending,wrapped);
-            GUI.Label(new Rect(x+30,y+205,600,25),"Ремонтов: "+game.Repairs+"   Ошибок: "+game.Mistakes+"   Подозрение: "+Mathf.RoundToInt(game.Suspicion)+"%",text);
-            if(Button(new Rect(x+30,y+263,600,48),"НОВАЯ СМЕНА / ENTER",true)) { game.Restart();GUIUtility.ExitGUI(); }
+            GUI.Label(new Rect(x+30,y+205,600,25),"Repairs: "+game.Repairs+"   Mistakes: "+game.Mistakes+"   Suspicion: "+Mathf.RoundToInt(game.Suspicion)+"%",text);
+            if(Button(new Rect(x+30,y+263,600,48),"NEW SHIFT / ENTER",true)) { game.Restart();GUIUtility.ExitGUI(); }
         }
 
     }

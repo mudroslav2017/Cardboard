@@ -48,7 +48,7 @@ namespace Cardboard
             EndGrip(false);Teeth=8;Hub=FactoryHub.Square;Layers=0;FeedRaised=false;
             Clamped=GuardClosed=Jammed=Finished=false;Winding=CutTravel=wheelAngle=0;
             GripTravel=selectorDrag=feedAngle=0;scrapAt=cutAt=-10;for(int i=0;i<fedAt.Length;i++) fedAt[i]=-10;
-            if(product) Destroy(product);Status("ПАКЕТ НЕ ПОДАН");Refresh();
+            if(product) Destroy(product);Status("NO SHEET LOADED");Refresh();
         }
         void Update()
         {
@@ -81,9 +81,9 @@ namespace Cardboard
             strokeDirection=GrippedPart==WorkbenchPart.Feed || GrippedPart==WorkbenchPart.Guard?(state?-1:1):GrippedPart==WorkbenchPart.Clamp?(state?1:-1):-1;
             Cursor.lockState=CursorLockMode.Locked;FactoryVolumeCursor.SetSystemVisible(false);
             if(GrippedPart==WorkbenchPart.Feed || GrippedPart==WorkbenchPart.Clamp || GrippedPart==WorkbenchPart.Guard)
-                Status("КЛИК — ПЕРЕКЛЮЧИТЬ / ТЯНИТЕ "+(strokeDirection>0?"ВВЕРХ":"ВНИЗ"));
+                Status("CLICK - SWITCH / DRAG "+(strokeDirection>0?"UP":"DOWN"));
             else if(GrippedPart==WorkbenchPart.Cutter || GrippedPart==WorkbenchPart.Reject || GrippedPart==WorkbenchPart.Output)
-                Status("КЛИК — ВЫПОЛНИТЬ / ТЯНИТЕ ВНИЗ");
+                Status("CLICK - OPERATE / DRAG DOWN");
             DragTo(pointer);return true;
         }
         public void DragTo(Vector2 pointer)
@@ -109,7 +109,7 @@ namespace Cardboard
                         {
                             selectorDrag+=step;
                             if(SelectorsLocked)
-                            { selectorDrag=Mathf.Clamp(selectorDrag,-7,7);Status("СЕЛЕКТОР ЗАПЕРТ ПРИЖИМОМ");Tick(true); }
+                            { selectorDrag=Mathf.Clamp(selectorDrag,-7,7);Status("SELECTOR LOCKED BY CLAMP");Tick(true); }
                             else while(Mathf.Abs(selectorDrag)>=120)
                             {
                                 int direction=selectorDrag>0?1:-1;
@@ -135,7 +135,7 @@ namespace Cardboard
                 GripTravel=Mathf.Clamp01((pointer.y-startY)*strokeDirection/LeverStrokePixels);
                 if(!CanStroke(GrippedPart))
                 {
-                    if(GripTravel>.08f) { Status("МЕХАНИЧЕСКИЙ СТОПОР / ХОД ЗАПЕРТ");Tick(true); }
+                    if(GripTravel>.08f) { Status("MECHANICAL STOP / STROKE LOCKED");Tick(true); }
                     GripTravel=Mathf.Min(.08f,GripTravel);Refresh();return;
                 }
                 if(GripTravel>=.98f)
@@ -151,9 +151,9 @@ namespace Cardboard
         {
             wheelAngle+=degrees;
             if(!Clamped || !GuardClosed || Layers==0 || Finished || Jammed)
-            { Status(Jammed?"ПОДАЧА ЗАКЛИНЕНА":!Clamped?"ХРАПОВИК: ХОЛОСТОЙ ХОД":!GuardClosed?"МУФТА РАЗОМКНУТА":"ПАКЕТ УЖЕ ВЫРУБЛЕН");Tick(false);Refresh();return; }
+            { Status(Jammed?"FEED JAMMED":!Clamped?"RATCHET: IDLE":!GuardClosed?"CLUTCH DISENGAGED":"SHEET ALREADY CUT");Tick(false);Refresh();return; }
             Winding=Mathf.Clamp(Winding+degrees,0,1080);
-            Status(Winding>=1080?"ПРУЖИНА ВЗВЕДЕНА":degrees<0?"ОБРАТНЫЙ ХОД — СБРОС":"ХРАПОВИК ЦЕПЛЯЕТ");
+            Status(Winding>=1080?"SPRING LOADED":degrees<0?"REVERSE - RESET":"RATCHET ENGAGED");
             Tick(false);Refresh();
         }
         void PullCutter(float amount)
@@ -161,14 +161,14 @@ namespace Cardboard
             if(Finished) return;
             bool armed=Clamped && GuardClosed && !Jammed && Layers>0 && Winding>=1079.9f;
             CutTravel=armed?amount:Mathf.Min(.14f,amount);
-            if(!armed && amount>.15f) { Status("РЕЗАК НА СТОПОРЕ");Tick(true); }
+            if(!armed && amount>.15f) { Status("CUTTER AT STOP");Tick(true); }
             if(armed && amount>=.98f)
             {
                 Finished=true;FinishedRecipe=new FactoryRecipe(Teeth,Hub,Layers);
                 product=new GameObject("Physical finished gear inside the cutting chamber");product.transform.SetParent(output,false);
                 product.transform.localScale=Vector3.one*.32f;
                 FactoryGeometry.GearVisual(product.transform,FinishedRecipe,Game.gearMeshes,Game.hubMeshes,Game.gearPaper,Game.gearEdge,Game.gearInk);
-                Winding=0;cutAt=Time.time;Status("ВЫРУБКА ГОТОВА / ПАКЕТ ЗАЖАТ");Tick(true);
+                Winding=0;cutAt=Time.time;Status("CUT COMPLETE / SHEET CLAMPED");Tick(true);
             }
             Refresh();
         }
@@ -201,14 +201,14 @@ namespace Cardboard
         }
         bool AdvanceSelector(WorkbenchPart part,int direction)
         {
-            if(SelectorsLocked) { Status("СЕЛЕКТОР ЗАПЕРТ ПРИЖИМОМ");return false; }
+            if(SelectorsLocked) { Status("SELECTOR LOCKED BY CLAMP");return false; }
             if(part==WorkbenchPart.Teeth)
             {
                 int index=Teeth==8?0:Teeth==12?1:2;
                 index=(index+direction+3)%3;Teeth=index==0?8:index==1?12:10;
             }
             else Hub=(FactoryHub)(((int)Hub+direction+3)%3);
-            Status("КУЛАЧОК ПЕРЕСТАВЛЕН");Tick(false);return true;
+            Status("CAM ADJUSTED");Tick(false);return true;
         }
         public bool Operate(WorkbenchPart part)
         {
@@ -220,39 +220,39 @@ namespace Cardboard
                 case WorkbenchPart.Hub:
                     done=AdvanceSelector(part,part==WorkbenchPart.Teeth?1:-1);break;
                 case WorkbenchPart.Feed:
-                    if(Clamped || GuardClosed || Finished || Jammed) { Status(Jammed?"ПОДАЧА ЗАКЛИНЕНА":"ПОДАЧА ЗАПЕРТА");break; }
+                    if(Clamped || GuardClosed || Finished || Jammed) { Status(Jammed?"FEED JAMMED":"FEED LOCKED");break; }
                     FeedRaised=!FeedRaised;
                     feedAngle+=180;
                     if(!FeedRaised)
                     {
-                        if(Layers==3) { Jammed=true;Game.AddSuspicion(6);Status("ДВОЙНАЯ ПОДАЧА / В ОБРЕЗКИ");break; }
-                        fedAt[Layers]=Time.time;Layers++;Status("ЛИСТ ПРОШЁЛ МЕЖДУ ВАЛКАМИ");
+                        if(Layers==3) { Jammed=true;Game.AddSuspicion(6);Status("DOUBLE FEED / DISCARD");break; }
+                        fedAt[Layers]=Time.time;Layers++;Status("SHEET PASSED THROUGH ROLLERS");
                     }
-                    else Status("ПОДАЧА: ВОЗВРАТНЫЙ ХОД");
+                    else Status("FEED: RETURN STROKE");
                     done=true;break;
                 case WorkbenchPart.Clamp:
-                    if(GuardClosed) { Status("КОЖУХ ПЕРЕКРЫВАЕТ ПРИЖИМ");break; }
-                    if(Jammed || Layers==0) { Status(Jammed?"ПЕРЕКОС ПАКЕТА":"ПРИЖИМ НЕ ДОСТАЁТ ДО ПАКЕТА");break; }
-                    Clamped=!Clamped;Status(Clamped?"ПАКЕТ ЗАЖАТ":"ПРИЖИМ ОТПУЩЕН");done=true;break;
+                    if(GuardClosed) { Status("GUARD BLOCKS CLAMP");break; }
+                    if(Jammed || Layers==0) { Status(Jammed?"SHEET MISALIGNED":"CLAMP CANNOT REACH SHEET");break; }
+                    Clamped=!Clamped;Status(Clamped?"SHEET CLAMPED":"CLAMP RELEASED");done=true;break;
                 case WorkbenchPart.Guard:
-                    if(!GuardClosed && (!Clamped || Jammed)) { Status("КОЖУХ УПЁРСЯ В ПРИЖИМ");break; }
+                    if(!GuardClosed && (!Clamped || Jammed)) { Status("GUARD HIT THE CLAMP");break; }
                     GuardClosed=!GuardClosed;
                     if(!GuardClosed) Winding=0;
-                    Status(GuardClosed?"МУФТА В ЗАЦЕПЛЕНИИ":"КОЖУХ СНЯТ / ПРУЖИНА СБРОШЕНА");done=true;break;
+                    Status(GuardClosed?"CLUTCH ENGAGED":"GUARD OPEN / SPRING RESET");done=true;break;
                 case WorkbenchPart.Reject:
-                    if(Clamped || GuardClosed) { Status("ВЫБРОС ЗАПЕРТ ПРИЖИМОМ");break; }
+                    if(Clamped || GuardClosed) { Status("OUTPUT LOCKED BY CLAMP");break; }
                     if(Layers>0 || Finished) scrapAt=Time.time;
                     Layers=0;Jammed=Finished=FeedRaised=false;Winding=0;if(product) Destroy(product);
-                    Status("ПАКЕТ УШЁЛ В ОБРЕЗКИ");done=true;break;
+                    Status("SHEET DISCARDED");done=true;break;
                 case WorkbenchPart.Output:
-                    if(!Finished) { Status("ПУСТАЯ ВЫЕМКА");break; }
-                    if(GuardClosed || Clamped) { Status("ДЕТАЛЬ ДЕРЖИТ ПРИЖИМ");break; }
-                    if(Game.HasPart) { Status("ЛЕВАЯ РУКА ЗАНЯТА");break; }
+                    if(!Finished) { Status("EMPTY SLOT");break; }
+                    if(GuardClosed || Clamped) { Status("PART HELD BY CLAMP");break; }
+                    if(Game.HasPart) { Status("LEFT HAND OCCUPIED");break; }
                     Game.ReceiveWorkbenchPart(FinishedRecipe);if(product) Destroy(product);
-                    Layers=0;Finished=FeedRaised=false;Status("ДЕТАЛЬ СНЯТА");done=true;break;
+                    Layers=0;Finished=FeedRaised=false;Status("PART COLLECTED");done=true;break;
                 case WorkbenchPart.Cutter:
                     PullCutter(1);done=Finished;break;
-                default: Status("РУКОЯТЬ: ЗАЖАТЬ И ТЯНУТЬ");break;
+                default: Status("HANDLE: HOLD AND PULL");break;
             }
             Tick(!done);Refresh();return done;
         }

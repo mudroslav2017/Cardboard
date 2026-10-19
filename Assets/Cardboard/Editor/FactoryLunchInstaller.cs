@@ -131,9 +131,9 @@ namespace Cardboard.Editor
             lunch.tray.position=lunch.pickup.position;
             Control(root,lunch,false,new Vector3(-19,1.08f,-19.2f),new Vector3(.85f,.28f,.6f));
             Control(root,lunch,true,new Vector3(-7,.98f,-23.55f),new Vector3(1.4f,.45f,.9f));lunch.destinationHit.SetActive(false);
-            lunch.counterSign=Sign("РАЗДАЧА\nОБЕД ПО ЗВОНКУ",root,new Vector3(-19,1.7f,-19.65f),ink);
-            lunch.tableSign=Sign("ОБЕДЕННЫЙ СТОЛ\nПОДНОС СЮДА",root,new Vector3(-7,1.55f,-24.2f),ink);
-            Sign("СТОЛОВАЯ\nОБЕД",root,new Vector3(-13,2.6f,CardboardFactoryWorld.WorkshopSouth+.35f),ink);
+            lunch.counterSign=Sign("LUNCH COUNTER\nWAIT FOR THE BELL",root,new Vector3(-19,1.7f,-19.65f),ink);
+            lunch.tableSign=Sign("DINING TABLE\nTRAYS HERE",root,new Vector3(-7,1.55f,-24.2f),ink);
+            Sign("CANTEEN\nLUNCH",root,new Vector3(-13,2.6f,CardboardFactoryWorld.WorkshopSouth+.35f),ink);
             CreateDiners(root,lunch);
             foreach(float x in new[]{-20f,-7f})
             {

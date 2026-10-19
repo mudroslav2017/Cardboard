@@ -49,6 +49,24 @@ namespace Cardboard.Editor
             else if(command=="floor-texture") FactoryFloorInstaller.ApplyCurrentScene();
             else if(command=="presentation-update") FactoryPresentationInstaller.ApplyCurrentScene();
             else if(command=="menu-rebuild") FactoryMenuBuilder.RebuildCurrent();
+            else if(command=="opening-verify") FactoryOpeningVerification.Run();
+            else if(command=="opening-update") FactoryOpeningInstaller.ApplyCurrent();
+            else if(command=="audio-update") FactoryAudioInstaller.ApplyCurrent();
+            else if(command=="audio-verify") FactoryAudioVerification.Run();
+            else if(command=="repair-audit") FactoryRepairInstaller.Audit();
+            else if(command=="repair-update") FactoryRepairInstaller.ApplyCurrent();
+            else if(command=="repair-verify") FactoryRepairVerification.Run();
+            else if(command=="lever-audit") FactoryLeverInstaller.Audit();
+            else if(command=="lever-update") FactoryLeverInstaller.ApplyCurrent();
+            else if(command=="lever-verify") FactoryLeverVerification.Run();
+            else if(command=="floor-audio") FactoryFloorAudioInstaller.ApplyCurrent();
+            else if(command=="floor-audio-verify") FactoryFloorAudioInstaller.Verify();
+            else if(command=="webgl-build") FactoryWebGLBuilder.Request(File.ReadAllText("Library/FactoryWebGLBuildPath.txt").Trim());
+            else if(command=="gear-placement-verify") FactoryGearPlacementVerification.Run();
+            else if(command=="gear-placement") FactoryGearPlacementInstaller.ApplyCurrent();
+            else if(command=="worker-visuals") FactoryWorkerVisualInstaller.ApplyCurrent();
+            else if(command=="masha-turn") ImportedCharacterInstaller.TurnMashaCurrent();
+            else if(command=="worker-verify") FactoryWorkerVisualVerification.Run();
             else if(command=="reaction-verify") FactoryReactionPresentationVerification.Run();
             else if(command=="reaction-presentation") FactoryReactionPresentationInstaller.ApplyCurrent();
             else if(command=="messages-height") FactoryShiftUpgrade.RaiseMessagesCurrent();
@@ -133,7 +151,7 @@ namespace Cardboard.Editor
                 FactoryGearImporter.Prepare();
                 Directory.CreateDirectory("Assets/Cardboard/Generated");Directory.CreateDirectory("Assets/Scenes");
                 var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
-                var root=new GameObject("НЕ СВОЙ • cardboard factory shift");
+                var root=new GameObject("OUTSIDER • cardboard factory shift");
                 root.AddComponent<CardboardWorld>();root.AddComponent<CardboardFactoryGame>();
                 root.AddComponent<CardboardFactoryWorld>().Build();
                 FactoryFloorInstaller.Apply(root.transform);
@@ -153,6 +171,10 @@ namespace Cardboard.Editor
                 FactoryPhysicsInstaller.Apply(root.transform);
                 FactoryWorkstationUpgrade.Apply(root.transform);
                 FactoryShiftUpgrade.Apply(root.transform);
+                FactoryWorkerVisualInstaller.Apply(root.transform);
+                FactoryAudioInstaller.Install(root.transform);
+                FactoryFloorAudioInstaller.Install(root.transform);
+                foreach(var station in root.GetComponentsInChildren<FactoryWorkstation>(true))FactoryLeverInstaller.Install(station);
 
                 var container=AssetDatabase.LoadAssetAtPath<CardboardGeneratedAssets>(ArtPath);
                 if(!container) { container=ScriptableObject.CreateInstance<CardboardGeneratedAssets>();AssetDatabase.CreateAsset(container,ArtPath); }

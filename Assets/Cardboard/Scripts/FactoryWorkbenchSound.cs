@@ -4,24 +4,50 @@ namespace Cardboard
 {
     public class FactoryWorkbenchSound : MonoBehaviour
     {
-        AudioSource source;
-        AudioClip light,heavy;
+        public AudioClip leverClip;
+        public AudioClip[] cuttingClips;
+        public AudioSource cuttingFirst,cuttingSecond,leverSpeaker;
+        public const float CuttingOffset=.12f;
+        float cutUntil=-1,secondAt;
         void Awake()
+        {if(cuttingFirst)cuttingFirst.volume=0;if(cuttingSecond)cuttingSecond.volume=0;}
+        // Legacy workbenches can call this without restoring synthetic clunks.
+        public void Clunk(bool weight){}
+        public void Lever(Vector3 position)
         {
-            source=gameObject.AddComponent<AudioSource>();source.spatialBlend=1;source.minDistance=1;source.maxDistance=9;source.volume=.32f;
-            light=Make("dry ratchet",.07f,440);heavy=Make("cardboard machine clunk",.18f,115);
+            if(!leverSpeaker || !leverClip)return;
+            leverSpeaker.transform.position=position;leverSpeaker.PlayOneShot(leverClip);
         }
-        AudioClip Make(string label,float duration,float pitch)
+        public void Cut(float progress)
         {
-            const int rate=22050;var samples=new float[(int)(rate*duration)];uint noise=17;
-            for(int i=0;i<samples.Length;i++)
+            if(progress<=0 || !cuttingFirst || !cuttingSecond || cuttingClips==null || cuttingClips.Length<2)return;
+            if(Time.time>=cutUntil)
             {
-                noise=1664525*noise+1013904223;float u=(float)i/samples.Length;
-                samples[i]=((noise%65536/32768f-1)*.3f+Mathf.Sin(i*pitch/rate*Mathf.PI*2)*.6f)*Mathf.Exp(-u*8);
+                cuttingFirst.clip=cuttingClips[0];cuttingSecond.clip=cuttingClips[1];
+                cuttingFirst.volume=cuttingSecond.volume=0;cuttingSecond.Stop();cuttingFirst.Play();secondAt=Time.time+CuttingOffset;
             }
-            var clip=AudioClip.Create(label,samples.Length,1,rate,false);clip.SetData(samples,0);return clip;
+            cutUntil=Time.time+.18f;
         }
-        public void Clunk(bool weight) { if(source) source.PlayOneShot(weight?heavy:light); }
-        void OnDestroy() { if(light) Destroy(light);if(heavy) Destroy(heavy); }
+        void Update()
+        {
+            var game=CardboardFactoryGame.Instance;
+            bool active=Time.time<cutUntil && game && !game.MenuActive && !game.Ended && !game.CaptureActive && !game.IntroBusy;
+            Layer(cuttingFirst,active,.30f);
+            Layer(cuttingSecond,active && Time.time>=secondAt,.25f);
+        }
+        static void Layer(AudioSource speaker,bool active,float volume)
+        {
+            if(!speaker)return;
+            if(active && !speaker.isPlaying)speaker.Play();
+            speaker.volume=Mathf.MoveTowards(speaker.volume,active?volume:0,Time.deltaTime*(active?6:3));
+            if(!active && speaker.volume<=0)speaker.Stop();
+        }
+        public void StopCutting()
+        {
+            cutUntil=-1;
+            if(cuttingFirst){cuttingFirst.Stop();cuttingFirst.volume=0;}
+            if(cuttingSecond){cuttingSecond.Stop();cuttingSecond.volume=0;}
+        }
+        void OnDisable(){StopCutting();if(leverSpeaker)leverSpeaker.Stop();}
     }
 }

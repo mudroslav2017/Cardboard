@@ -38,10 +38,10 @@ namespace Cardboard
         {
             if(!Gameplay || State!=LunchState.Waiting)return;
             Elapsed+=Mathf.Max(0,dt);
-            if(Elapsed>=lunchAfter)
+            if(Elapsed>=lunchAfter && game.Repairs>0 && !game.IntroActive)
             {
                 State=LunchState.Ready;RefreshWorld();if(diners)diners.Begin();
-                game.Toast("Обед! Возьмите поднос на раздаче в столовой.",8);game.PlayCaptureSound("good");
+                game.Toast("Lunch bell! Collect your tray from the canteen counter.",8);game.PlayCaptureSound("good");
             }
         }
         public bool TryTake()
@@ -54,7 +54,7 @@ namespace Cardboard
             tray.SetParent(transform,true);
             HoldingPose(out var position,out var rotation);physicsTray.Begin(position,rotation);RefreshWorld();
             Cursor.lockState=CursorLockMode.Locked;FactoryVolumeCursor.SetSystemVisible(false);
-            game.Toast("Донесите обед до стола. Двигайтесь и поворачивайтесь плавно: посуда может соскользнуть в любую сторону.",7);return true;
+            game.Toast("Carry lunch to the table. LMB / RMB balance the tray. Turn smoothly.",7);return true;
         }
         void Update()
         {
@@ -66,19 +66,19 @@ namespace Cardboard
         {
             if(!Gameplay || !Carrying || dt<=0)return;
             CarryTime+=Mathf.Min(dt,.25f);
-            AngularSpeed+=((rightClick?1:0)-(leftClick?1:0))*.42f;
-            AngularSpeed+=(.09f*Mathf.Sin(CarryTime*1.7f)-Tilt*.8f-AngularSpeed*1.1f)*dt;
+            AngularSpeed+=((rightClick?1:0)-(leftClick?1:0))*.55f;
+            AngularSpeed+=(.16f*Mathf.Sin(CarryTime*1.7f)+Tilt*.4f-AngularSpeed*1.1f)*dt;
             Tilt=Mathf.Clamp(Tilt+AngularSpeed*dt,-1.6f,1.6f);
             // Pitch follows looking up/down, so the near and far edges can spill too.
             float pitch=Camera.main?Mathf.DeltaAngle(0,Camera.main.transform.eulerAngles.x):0;
-            PitchTilt=Mathf.Clamp((pitch*.45f+3)/38,-1.7f,1.7f);PoseTray();
+            PitchTilt=Mathf.Clamp((Mathf.Clamp(pitch*.15f,-10,10)+2)/42,-1.7f,1.7f);PoseTray();
         }
         void HoldingPose(out Vector3 position,out Quaternion rotation)
         {
             var camera=Camera.main.transform;
             position=camera.TransformPoint(new Vector3(Mathf.Sin(CarryTime*2)*.009f,-.39f,.72f));
-            float pitch=Mathf.DeltaAngle(0,camera.eulerAngles.x)*.45f;
-            rotation=Quaternion.Euler(pitch+3+Mathf.Sin(CarryTime*2.6f)*.8f,camera.eulerAngles.y,-Tilt*38);
+            float pitch=Mathf.Clamp(Mathf.DeltaAngle(0,camera.eulerAngles.x)*.15f,-10,10);
+            rotation=Quaternion.Euler(pitch+2+Mathf.Sin(CarryTime*2.6f)*.4f,camera.eulerAngles.y,-Tilt*42);
         }
         void PoseTray(){if(!physicsTray || !Camera.main)return;HoldingPose(out var position,out var rotation);physicsTray.Aim(position,rotation);}
         void LateUpdate(){if(Carrying)PoseTray();}
@@ -86,13 +86,13 @@ namespace Cardboard
         {
             if(!Gameplay || !CanServe)return false;
             physicsTray.Park(destination);State=LunchState.Served;Tilt=AngularSpeed=PitchTilt=0;ResultUntil=Time.time+6;
-            RefreshWorld();game.Toast("Обед доставлен. Возвращайтесь к работе.",7);game.PlayCaptureSound("good");return true;
+            RefreshWorld();game.Toast("Lunch delivered. Return to work.",7);game.PlayCaptureSound("good");return true;
         }
         public void Spill()
         {
             if(!Carrying)return;
             State=LunchState.Spilled;ResultUntil=Time.time+6;if(physicsTray)physicsTray.ReleaseTray();
-            RefreshWorld();game.RegisterMistake("Уронил еду с подноса во время обеда.",emotion:FactoryWorkerEmotion.None);game.PlayCaptureSound("impact");
+            RefreshWorld();game.RegisterMistake("Lunch spilled in front of the workers.",emotion:FactoryWorkerEmotion.None);game.PlayCaptureSound("impact");
         }
         public void TickSpill(float dt){} // Unity physics owns the flight, impacts and resting pose.
         public void CancelCarry()
@@ -105,8 +105,8 @@ namespace Cardboard
         {
             if(pickupHit)pickupHit.SetActive(State==LunchState.Waiting || State==LunchState.Ready);
             if(destinationHit)destinationHit.SetActive(Carrying);
-            if(counterSign)counterSign.text=State==LunchState.Waiting?"РАЗДАЧА\nОБЕД ПО ЗВОНКУ":State==LunchState.Ready?"ОБЕД\nВОЗЬМИТЕ ПОДНОС":"РАЗДАЧА\nОБЕД ВЫДАН";
-            if(tableSign)tableSign.text=State==LunchState.Served?"ПРИЯТНОГО\nАППЕТИТА!":"ОБЕДЕННЫЙ СТОЛ\nПОДНОС СЮДА";
+            if(counterSign)counterSign.text=State==LunchState.Waiting?"LUNCH COUNTER\nWAIT FOR THE BELL":State==LunchState.Ready?"LUNCH\nTAKE A TRAY":"DINING TABLE\nLUNCH HERE";
+            if(tableSign)tableSign.text=State==LunchState.Served?"CANTEEN\nTAKE A BREAK!":"DINING TABLE\nTRAYS HERE";
         }
     }
 }

@@ -42,11 +42,11 @@ namespace Cardboard.Editor
         { if(type==LogType.Error || type==LogType.Exception || type==LogType.Assert) report.Add("FAIL Unity log: "+message+"\n"+trace); }
         static void Feed(FactoryWorkstation station)
         {
-            Quaternion home=station.feedLever.localRotation;
+            Quaternion home=station.FeedMotion.localRotation;
             Check(station.Operate(StationPart.Feed), "Feed lever starts stroke");
             Check(station.Stage==StationStage.Empty && station.LeverTravel==0 && station.operatorHand.Grip==station.feedGrip, "Feed waits for downstroke and hand attaches to handle");
             station.Tick(.175f);
-            Check(station.Stage==StationStage.Empty && station.LeverTravel>.4f && station.LeverTravel<.6f && Quaternion.Angle(home,station.feedLever.localRotation)>20, "Lever smoothly moves through midpoint");
+            Check(station.Stage==StationStage.Empty && station.LeverTravel>.4f && station.LeverTravel<.6f && Quaternion.Angle(home,station.FeedMotion.localRotation)>20, "Lever smoothly moves through midpoint");
             var cam=Camera.main.transform;
             cam.position=station.transform.TransformPoint(new Vector3(-2.7f,1.6f,-2.5f));
             cam.rotation=Quaternion.LookRotation(station.feedGrip.position-cam.position);
@@ -59,7 +59,7 @@ namespace Cardboard.Editor
             station.Tick(.45f);
             Check(station.Stage==StationStage.Conveying,"Cardboard falls onto static conveyor");
             station.Tick(.2f);
-            Check(!station.LeverAnimating && station.operatorHand.Grip==null && Quaternion.Angle(home,station.feedLever.localRotation)<.01f,"Lever smoothly returns and releases hand");
+            Check(!station.LeverAnimating && station.operatorHand.Grip==null && Quaternion.Angle(home,station.FeedMotion.localRotation)<.01f,"Lever smoothly returns and releases hand");
             station.Tick(2.3f);
             Check(station.Stage == StationStage.Loaded && Vector3.Distance(station.sheet.localPosition, station.cuttingPosition) < .01f, "Conveyor delivers cardboard to table center");
         }

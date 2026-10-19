@@ -20,13 +20,13 @@ namespace Cardboard
         public static CardboardRunner Player;
         public static float PartyUntil, FollowUntil;
         public static int Steps;
-        public static string Mood = "Просто картон. Просто идём.";
+        public static string Mood = "Just cardboard. Just walking.";
 
         void Start()
         {
             if (isPlayer)
             {
-                Player=this; Steps=0; PartyUntil=FollowUntil=0; Mood="Просто картон. Просто идём.";
+                Player=this; Steps=0; PartyUntil=FollowUntil=0; Mood="Just cardboard. Just walking.";
                 if (puppet) puppet.gameObject.SetActive(false);
             }
             cycle=personality*1.79f;
@@ -43,6 +43,7 @@ namespace Cardboard
         {
             if (dt<=0) return;
             var factory=CardboardFactoryGame.Instance;
+            if(factory && factory.intro && factory.intro.ControlsWorker(this))return;
             if(factory && factory.captureSequence && factory.captureSequence.ControlsWorkers && !isPlayer) return;
             var impact=!isPlayer?GetComponent<FactoryWorkerImpact>():null;
             if(impact && impact.TickReaction(dt)){velocity=Vector3.zero;speed=0;return;}
@@ -105,6 +106,7 @@ namespace Cardboard
                 bool inCanteen=position.z<CardboardFactoryWorld.CanteenNorth+.25f;
                 float west=inCanteen?CardboardFactoryWorld.CanteenWest:CardboardFactoryWorld.WorkshopWest;
                 float east=inCanteen?CardboardFactoryWorld.CanteenEast:CardboardFactoryWorld.WorkshopEast;
+                if(isPlayer && factory.intro && position.z> -3.45f && position.z< -.55f && (position.x>east-.8f || factory.exitDoor.IsOpen))east+=15;
                 position.x=Mathf.Clamp(position.x,west+.4f,east-.4f);
                 position.z=Mathf.Clamp(position.z,CardboardFactoryWorld.CanteenSouth+.4f,CardboardFactoryWorld.WorkshopNorth-.4f);
             }
@@ -162,7 +164,7 @@ namespace Cardboard
             body.AddForceAtPosition(push*Mathf.Min(speed,3)*1.8f,hit.point,ForceMode.Force);
         }
         public void HoldForDrawing() { paintHoldUntil=Time.time+.35f; }
-        public static void Whistle() { FollowUntil=Time.time+12; Mood="Все картонки идут за тобой."; }
-        public static void Party() { PartyUntil=Time.time+10; Mood="Картонный переполох!"; }
+        public static void Whistle() { FollowUntil=Time.time+12; Mood="The cardboard crowd is following you."; }
+        public static void Party() { PartyUntil=Time.time+10; Mood="Cardboard commotion!"; }
     }
 }

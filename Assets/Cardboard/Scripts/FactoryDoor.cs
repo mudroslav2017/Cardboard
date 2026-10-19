@@ -11,7 +11,7 @@ namespace Cardboard
         public bool IsOpen {get;private set;}
         public float Openness {get;private set;}
         static readonly List<FactoryDoor> active=new List<FactoryDoor>();
-        public string Prompt=>IsOpen?"E — закрыть дверь":"E — открыть дверь";
+        public string Prompt=>IsOpen?"E - CLOSE DOOR":"E - OPEN DOOR";
         void OnEnable(){if(!active.Contains(this))active.Add(this);}
         void OnDisable(){active.Remove(this);}
         void Update()
@@ -22,7 +22,7 @@ namespace Cardboard
         }
         public static bool IsLeaf(Collider collider)
         {var target=collider.GetComponent<FactoryInteractable>();return target && target.action==FactoryAction.Door;}
-        public void Toggle(){SetOpen(!IsOpen);}
+        public void Toggle(){var game=CardboardFactoryGame.Instance;if(game && game.exitDoor==this && !game.ReadyToLeave){game.Toast("Exit locked. Complete three repairs first.");return;}SetOpen(!IsOpen);}
         public void SetOpen(bool open,bool immediate=false)
         {
             IsOpen=open;

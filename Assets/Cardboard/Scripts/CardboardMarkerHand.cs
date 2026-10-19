@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace Cardboard
 {
@@ -12,6 +13,9 @@ namespace Cardboard
         public bool Visible => pen && pen.gameObject.activeSelf;
         Transform pen,palm,arm;
         Camera lens;
+        public Camera viewCamera;
+        public Material paperTemplate;
+        public const int HandLayer=13;
         CardboardMarker marker;
         Material ink;
         readonly List<Material> owned=new List<Material>();
@@ -20,16 +24,18 @@ namespace Cardboard
 
         Material Material(string name,string hex)
         {
-            var shader=Shader.Find("Universal Render Pipeline/Lit");if(!shader) shader=Shader.Find("Standard");
-            var mat=new Material(shader) {name=name,color=CardboardArt.Hex(hex)};
-            CardboardSurface.Configure(mat);owned.Add(mat);return mat;
+            var shader=paperTemplate?paperTemplate.shader:Shader.Find(CardboardSurface.ShaderName);
+            var mat=new Material(shader) {name=name};mat.SetColor("_BaseColor",CardboardArt.Hex(hex));
+            CardboardSurface.Configure(mat);mat.SetFloat("_Cull",(float)CullMode.Back);mat.SetFloat("_ReceiveShadows",0);mat.EnableKeyword("_RECEIVE_SHADOWS_OFF");owned.Add(mat);return mat;
         }
         Transform Part(string name,Transform parent,Vector3 pos,Vector3 size,Material mat,PrimitiveType shape=PrimitiveType.Cube)
         {
             var obj=GameObject.CreatePrimitive(shape);obj.name=name;obj.transform.SetParent(parent,false);
-            obj.transform.localPosition=pos;obj.transform.localScale=size;
+            obj.transform.localPosition=pos;obj.transform.localScale=size;obj.layer=HandLayer;
             var renderer=obj.GetComponent<MeshRenderer>();renderer.sharedMaterial=mat;
+
             renderer.shadowCastingMode=ShadowCastingMode.Off;renderer.receiveShadows=false;
+            var properties=new MaterialPropertyBlock();if(mat==ink)properties.SetFloat("_Cull",(float)CullMode.Back);else properties.SetColor("_BaseColor",mat.GetColor("_BaseColor"));renderer.SetPropertyBlock(properties);
             var collider=obj.GetComponent<Collider>();collider.enabled=false;Destroy(collider);
             return obj.transform;
         }
@@ -38,10 +44,28 @@ namespace Cardboard
             var part=Part(name,pen,new Vector3(0,0,z),new Vector3(radius*2,length*.5f,radius*2),mat,PrimitiveType.Cylinder);
             part.localRotation=Quaternion.Euler(90,0,0);return part;
         }
+        void EnsureViewCamera()
+        {
+            if(!viewCamera)
+            {
+                var node=new GameObject("Lit marker hand camera");node.transform.SetParent(transform,false);viewCamera=node.AddComponent<Camera>();
+            }
+            var data=viewCamera.GetUniversalAdditionalCameraData();data.renderType=CameraRenderType.Overlay;data.renderPostProcessing=false;
+            var stack=lens.GetUniversalAdditionalCameraData().cameraStack;if(!stack.Contains(viewCamera))stack.Insert(0,viewCamera);
+            UpdateViewCamera(false);
+        }
+        void UpdateViewCamera(bool show)
+        {
+            if(!viewCamera)return;
+            viewCamera.CopyFrom(lens);viewCamera.cullingMask=1<<HandLayer;viewCamera.clearFlags=CameraClearFlags.Depth;
+            viewCamera.nearClipPlane=.02f;viewCamera.farClipPlane=10;viewCamera.enabled=show;
+        }
         void EnsureModel()
         {
             if(pen) return;
             lens=GetComponent<Camera>();marker=GetComponent<CardboardMarker>();
+            lens.cullingMask &= ~((1<<FactoryDeathPresentation.Layer)|(1<<HandLayer));
+            EnsureViewCamera();
             var sleeve=Material("Cardboard sleeve","4F8075");
             var skin=Material("Hand cut from kraft","C39A69");
             var crease=Material("Hand fold lines","8E6746");
@@ -76,9 +100,10 @@ namespace Cardboard
         {
             EnsureModel();
             bool show=marker && CardboardMarker.DrawingMode;
-            pen.gameObject.SetActive(show);arm.gameObject.SetActive(show);
+            pen.gameObject.SetActive(show);arm.gameObject.SetActive(show);UpdateViewCamera(show);
             if(!show) { wasVisible=false;return; }
             Vector2 pointer=marker.Pointer;
+            if(!marker.Target && (pointer.x<0 || pointer.y<0 || pointer.x>Screen.width || pointer.y>Screen.height))pointer=new Vector2(Screen.width*.6f,Screen.height*.45f);
             if(!wasVisible) { previousPointer=pointer;mouseMotion=Vector2.zero; }
             Vector2 movement=(pointer-previousPointer)/Mathf.Max(1,Screen.height)*720;
             mouseMotion=Vector2.Lerp(mouseMotion,movement,1-Mathf.Exp(-18*Mathf.Max(deltaTime,.001f)));
@@ -94,13 +119,18 @@ namespace Cardboard
             // During a stroke the nib is attached to the very same point that receives ink.
             if(marker.IsTouching || !wasVisible) pen.position=target;
             else pen.position=Vector3.Lerp(pen.position,target,1-Mathf.Exp(-24*Mathf.Max(deltaTime,.001f)));
-            pen.rotation=rotation;ink.color=marker.Ink;
+            pen.rotation=rotation;ink.SetColor("_BaseColor",marker.Ink);
             Vector3 wrist=palm.TransformPoint(new Vector3(0,-.075f,-.01f));
             arm.position=(elbow+wrist)*.5f;
             arm.rotation=Quaternion.FromToRotation(Vector3.up,wrist-elbow);
             arm.localScale=new Vector3(.10f,Vector3.Distance(elbow,wrist),.105f);
             wasVisible=true;
         }
-        void OnDestroy() { foreach(var mat in owned) if(mat) Destroy(mat); }
+        void OnDisable(){if(viewCamera)viewCamera.enabled=false;}
+        void OnDestroy()
+        {
+            if(lens && viewCamera)lens.GetUniversalAdditionalCameraData().cameraStack.Remove(viewCamera);
+            foreach(var mat in owned)if(mat)Destroy(mat);
+        }
     }
 }

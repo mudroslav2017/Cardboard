@@ -149,7 +149,7 @@ namespace Cardboard
                     Close();return;
                 }
                 visuals.gameObject.SetActive(false);settingsPanel.gameObject.SetActive(false);
-                game.ResetShift();lens.GetComponent<CardboardCamera>().ResetView(0);
+                game.ResetShift();if(game.intro)game.intro.Begin();lens.GetComponent<CardboardCamera>().ResetView(0);
                 lens.transform.position=CardboardRunner.Player.transform.position+Vector3.up*1.62f;
                 lens.fieldOfView=CardboardCamera.GameplayFov;if(shiftHud)shiftHud.alpha=1;
                 Change(FactoryMenuPhase.Revealing);

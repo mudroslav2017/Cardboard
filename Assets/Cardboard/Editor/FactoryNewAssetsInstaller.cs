@@ -43,7 +43,7 @@ namespace Cardboard.Editor
             instruction.sheet=MeshObject("Instruction • two authored sides",holder,model,material,Vector3.zero);
             instruction.pickup=instruction.sheet.gameObject.AddComponent<BoxCollider>();
             instruction.pickup.center=model.bounds.center;instruction.pickup.size=new Vector3(model.bounds.size.x,model.bounds.size.y,Mathf.Max(.045f,model.bounds.size.z));
-            FactoryGeometry.Interaction(instruction.sheet,FactoryAction.Instruction,"E — поднять инструкцию");
+            FactoryGeometry.Interaction(instruction.sheet,FactoryAction.Instruction,"E - PICK UP INSTRUCTIONS");
             instruction.floorPosition=game.station.transform.TransformPoint(new Vector3(-.95f,.04f,-2.8f));
             instruction.floorRotation=Quaternion.Euler(90,15,0);instruction.ResetFloor();
             FactoryPhysicsInstaller.Instruction(instruction);

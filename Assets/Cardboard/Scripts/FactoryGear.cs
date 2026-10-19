@@ -20,8 +20,8 @@ namespace Cardboard
         public static FactoryRecipe ForType(int type,bool finished=true)
         { type=Mathf.Clamp(type,1,3);return new FactoryRecipe(6+type*2,(FactoryHub)(type-1),1) {finish=finished?type:0}; }
         public bool Equals(FactoryRecipe other) => teeth==other.teeth && hub==other.hub && layers==other.layers && finish==other.finish;
-        public static string HubName(FactoryHub hub) => hub==FactoryHub.Square?"квадрат":hub==FactoryHub.Hexagon?"шестигранник":"круг";
-        public override string ToString() => teeth+" зубьев · "+HubName(hub)+" · слоёв: "+layers;
+        public static string HubName(FactoryHub hub) => hub==FactoryHub.Square?"square":hub==FactoryHub.Hexagon?"hexagon":"round";
+        public override string ToString() => teeth+" teeth · "+HubName(hub)+" · layers: "+layers;
     }
 
     public class FactoryGear : MonoBehaviour
@@ -30,6 +30,7 @@ namespace Cardboard
         public FactoryRecipe recipe;
         public bool broken=true;
         public Transform healthy,damaged;
+        public Transform placementOutline;
         public Light indicator;
         public Transform punchcard;
         Vector3 cardHome=new Vector3(0,.20f,.14f);
@@ -40,6 +41,7 @@ namespace Cardboard
         public void SetBroken(bool value)
         {
             broken=value;
+            if(placementOutline)placementOutline.gameObject.SetActive(false);
             if(value && punchcard) {printCard=false;cardTravel=0;punchcard.localPosition=cardHome;punchcard.gameObject.SetActive(false);}
             if(healthy) healthy.gameObject.SetActive(!value);
             if(damaged) damaged.gameObject.SetActive(value);

@@ -23,7 +23,7 @@ namespace Cardboard
                 if(t<.16f)samples[i]=Mathf.Sin(2*Mathf.PI*880*t)*.22f*Mathf.Min(1,t/.01f,(.16f-t)/.015f);
             }
             tone=AudioClip.Create("Work order printer • warning beep",samples.Length,1,rate,false);tone.SetData(samples,0);
-            speaker.clip=ring?ring:tone;speaker.loop=true;speaker.playOnAwake=false;speaker.volume=.5f;
+            speaker.clip=ring?ring:tone;speaker.loop=true;speaker.playOnAwake=false;speaker.volume=.35f;
             speaker.spatialBlend=1;speaker.minDistance=2;speaker.maxDistance=17;speaker.rolloffMode=AudioRolloffMode.Linear;
             SetSignal(false);
         }

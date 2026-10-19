@@ -18,9 +18,9 @@ namespace Cardboard
             rect.anchorMin=Vector2.zero;rect.anchorMax=Vector2.one;rect.offsetMin=rect.offsetMax=Vector2.zero;
             root.GetComponent<Image>().color=Color.black;root.GetComponent<Image>().raycastTarget=false;
             var grade=root.AddComponent<FactoryDeathGrade>();
-            var word=new GameObject("ЛОХ • red paper grade",typeof(RectTransform),typeof(CanvasRenderer),typeof(Text),typeof(CanvasGroup),typeof(Shadow));
+            var word=new GameObject("FOOL • red paper grade",typeof(RectTransform),typeof(CanvasRenderer),typeof(Text),typeof(CanvasGroup),typeof(Shadow));
             grade.word=word.GetComponent<RectTransform>();grade.word.SetParent(rect,false);grade.word.sizeDelta=new Vector2(720,320);
-            grade.lettering=word.GetComponent<Text>();grade.lettering.text="ЛОХ";grade.lettering.font=CardboardTypography.DefaultFont;
+            grade.lettering=word.GetComponent<Text>();grade.lettering.text="FOOL";grade.lettering.font=CardboardTypography.DefaultFont;
             grade.lettering.fontSize=150;grade.lettering.color=new Color(.86f,.025f,.015f);grade.lettering.alignment=TextAnchor.MiddleCenter;
             grade.lettering.raycastTarget=false;grade.lettering.horizontalOverflow=HorizontalWrapMode.Overflow;grade.lettering.verticalOverflow=VerticalWrapMode.Overflow;
             word.GetComponent<Shadow>().effectColor=new Color(.24f,0,0);word.GetComponent<Shadow>().effectDistance=new Vector2(4,-5);

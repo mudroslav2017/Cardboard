@@ -17,13 +17,13 @@ namespace Cardboard
             panel.SetActive(visible);if(!visible) return;
             aim.SetActive(!CardboardMarker.DrawingMode && (lunch.Carrying || lunch.State==LunchState.Ready));
             balance.SetActive(lunch.Carrying);
-            title.text=lunch.Carrying?"НЕ УРОНИТЕ ОБЕД":lunch.State==LunchState.Served?"ОБЕД ДОСТАВЛЕН":
-                lunch.State==LunchState.Spilled?"ОБЕД НА ПОЛУ: +1 ЗВЕЗДА":"ВРЕМЯ ОБЕДА";
+            title.text=lunch.Carrying?"KEEP YOUR LUNCH ON THE TRAY":lunch.State==LunchState.Served?"LUNCH DELIVERED":
+                lunch.State==LunchState.Spilled?"LUNCH SPILLED: +1 MARK":"LUNCH TIME";
             var focus=game.Focus?game.Focus.GetComponent<FactoryLunchControl>():null;
-            hint.text=lunch.State==LunchState.Served?"Поднос на столе, еда на месте.\nМожно возвращаться к работе.":
-                lunch.State==LunchState.Spilled?"Картонки заметили упавшую еду.\nПродолжайте смену и будьте осторожнее.":focus?focus.Prompt:lunch.Carrying?
-                "WASD — к столу. Двигайте мышью плавно.\nЕда и посуда могут упасть в любую сторону.":
-                "Возьмите поднос на раздаче в столовой.\nВход — в южной стене цеха.";
+            hint.text=lunch.State==LunchState.Served?"Tray delivered, lunch intact.\nYou can return to work.":
+                lunch.State==LunchState.Spilled?"The workers noticed the spilled food.\nContinue your shift carefully.":focus?focus.Prompt:lunch.Carrying?
+                "WASD - walk to the table. LMB / RMB - balance.\nTurn smoothly to keep your lunch on the tray.":
+                "Collect your tray from the canteen counter.\nThe entrance is in the workshop south wall.";
             needle.anchoredPosition=new Vector2(Mathf.Clamp(lunch.Tilt,-1,1)*190,0);
         }
     }

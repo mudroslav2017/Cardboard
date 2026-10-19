@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Linq;
 
 namespace Cardboard
 {
@@ -18,7 +19,7 @@ namespace Cardboard
         Collider[] playerShapes;
         Collider[] trayShapes;
         Quaternion targetRotation;
-        Vector3 targetPosition;
+        Vector3 targetPosition,supportVelocity;
         void Awake(){if(!body)body=GetComponent<Rigidbody>();trayShapes=GetComponentsInChildren<Collider>(true);}
         static void Freeze(Rigidbody item)
         {
@@ -39,14 +40,14 @@ namespace Cardboard
         public void Begin(Vector3 position,Quaternion rotation)
         {
             Freeze(body);transform.SetPositionAndRotation(position,rotation);body.position=position;body.rotation=rotation;
-            targetPosition=position;targetRotation=rotation;Active=Carrying=true;OutsideTime=0;
+            targetPosition=position;targetRotation=rotation;supportVelocity=Vector3.zero;Active=Carrying=true;OutsideTime=0;
             // Detach once. From here gravity, contact and inertia move the dishes.
             foreach(var item in contents)
             {
                 item.transform.SetParent(lunch.transform,true);item.isKinematic=false;item.useGravity=true;item.collisionDetectionMode=CollisionDetectionMode.ContinuousDynamic;
                 item.linearVelocity=Vector3.zero;item.angularVelocity=Vector3.zero;item.WakeUp();
             }
-            trayShapes=GetComponentsInChildren<Collider>();
+            trayShapes=GetComponentsInChildren<Collider>().Concat(contents.SelectMany(item=>item.GetComponentsInChildren<Collider>())).ToArray();
             if(CardboardRunner.Player)
             {
                 playerShapes=CardboardRunner.Player.GetComponentsInChildren<Collider>();
@@ -58,7 +59,8 @@ namespace Cardboard
         public void StepSupport()
         {
             if(!Carrying || !body)return;
-            body.MovePosition(targetPosition);body.MoveRotation(targetRotation);
+            body.MovePosition(Vector3.SmoothDamp(body.position,targetPosition,ref supportVelocity,.10f,5,Time.fixedDeltaTime));
+            body.MoveRotation(Quaternion.RotateTowards(body.rotation,targetRotation,140*Time.fixedDeltaTime));
         }
         void FixedUpdate(){TickSupport(Time.fixedDeltaTime);}
         public void TickSupport(float dt)
@@ -72,10 +74,12 @@ namespace Cardboard
                 {
                     if(!item)continue;
                     Vector3 local=transform.InverseTransformPoint(item.worldCenterOfMass);
+                    if(Mathf.Abs(local.x)<halfSize.x+.04f && Mathf.Abs(local.z)<halfSize.y+.04f && local.y>-.05f && local.y<.4f)
+                        item.AddForce(-transform.forward*Vector3.Dot(Physics.gravity,transform.forward)*.80f,ForceMode.Acceleration);
                     if(Mathf.Abs(local.x)>halfSize.x+.065f || Mathf.Abs(local.z)>halfSize.y+.065f || local.y<-.12f)outside=true;
                 }
                 OutsideTime=outside?OutsideTime+dt:0;
-                if(OutsideTime>.14f && lunch)lunch.Spill();
+                if(OutsideTime>.35f && lunch)lunch.Spill();
             }
             else if(playerShapes!=null)
             {

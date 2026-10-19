@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 1154376563953713653}
   - component: {fileID: 2999831085993099422}
   - component: {fileID: 2534848478203349563}
+  - component: {fileID: 8367280910962801147}
   m_Layer: 0
   m_Name: HumanNastya
   m_TagString: Untagged
@@ -49,7 +50,7 @@ MeshRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 137904286753187462}
   m_Enabled: 1
-  m_CastShadows: 1
+  m_CastShadows: 2
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
@@ -90,3 +91,18 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &8367280910962801147
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 137904286753187462}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e491035713134d4c918336c2d4bf404, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.FactoryWorkerAppearance
+  normal: {fileID: 2100000, guid: 0b6db88440db26f4284f41a596c32e1a, type: 2}
+  suspicious: {fileID: 2100000, guid: 4c6af4e25cf61c84398ac4565e889c47, type: 2}
+  angry: {fileID: 2100000, guid: e082f36da34c63848ae57610dc5c6f17, type: 2}

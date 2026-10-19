@@ -34,7 +34,7 @@ namespace Cardboard.Editor
             float leafWidth=width-.28f;
             door.hinge=Group("Door hinge pivot",root,new Vector3(-leafWidth*.5f,.015f,0));
             var leaf=Cube("Cardboard door leaf",door.hinge,new Vector3(leafWidth*.5f,1.51f,0),new Vector3(leafWidth,3.02f,.14f),sheet);
-            FactoryGeometry.Interaction(leaf,FactoryAction.Door,"E — открыть дверь");
+            FactoryGeometry.Interaction(leaf,FactoryAction.Door,"E - OPEN DOOR");
             FactoryWallsBoxInstaller.Paint(leaf,workers?"CanteenDoorPanel":"FactoryExitDoorPanel",new[]{sheet},0,3.02f);
             foreach(int side in new[]{-1,1})
             {
@@ -70,11 +70,11 @@ namespace Cardboard.Editor
             Cube("Doorway infill",exit,new Vector3(0,3.08f+headHeight*.5f,0),new Vector3(3.2f,headHeight,.5f),sheet);
             // Keep finishing the shift separate from opening and closing the physical door.
             var control=Cube("Exit control",exit,new Vector3(2.1f,1.55f,-.34f),new Vector3(.85f,.60f,.12f),handle);
-            FactoryGeometry.Interaction(control,FactoryAction.Exit,"E — закончить смену");
+            FactoryGeometry.Interaction(control,FactoryAction.Exit,"E - END SHIFT");
             var doorway=world.GetComponentsInChildren<Transform>(true).First(t=>t.name=="Canteen doorway floor");
             doorway.position+=Vector3.up*(floor-doorway.GetComponent<Renderer>().bounds.max.y);
             foreach(var sign in world.GetComponentsInChildren<TextMesh>(true))
-                if(sign.text.StartsWith("СТОЛОВАЯ"))Move(sign.transform,3.65f-sign.transform.position.y);
+                if(sign.text.StartsWith("CANTEEN"))Move(sign.transform,3.65f-sign.transform.position.y);
             EditorUtility.SetDirty(game);
         }
         static Bounds BoundsOf(Transform root)

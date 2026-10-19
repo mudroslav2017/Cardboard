@@ -11,6 +11,10 @@ namespace Cardboard
         public static CardboardFactoryGame Instance {get;private set;}
         public FactoryGear[] gears;
         public CardboardWorld crowd;
+        public FactoryWorkerExpressions expressions;
+        public FactoryIntro intro;
+        public bool IntroBusy=>intro && intro.BlocksControls;
+        public bool IntroActive=>intro && intro.Active;
         public Mesh[] gearMeshes,hubMeshes;
         public Material gearPaper,gearEdge,gearInk;
         public Transform victim,buttons,pins,pressHead,exitGate,captureStage;
@@ -54,10 +58,10 @@ namespace Cardboard
         public float MessageUntil {get;private set;}
         public bool Pretending {get;private set;}
         public bool Ended => State==FactoryState.Captured || State==FactoryState.Dead || State==FactoryState.Escaped;
-        public bool PlayerBlocked => MenuActive || Ended || (!CaptureActive && (DippingPart || (workbench && workbench.ConsumesMouse) || (station && station.ConsumesMouse)));
-        public bool CameraOverride => (mainMenu && mainMenu.OwnsCamera) || (captureSequence && captureSequence.CameraControlled);
-        public Vector3 CameraPosition => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraPosition:captureSequence.CameraPosition;
-        public Quaternion CameraRotation => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraRotation:captureSequence.CameraRotation;
+        public bool PlayerBlocked => MenuActive || Ended || IntroBusy || (!CaptureActive && (DippingPart || (workbench && workbench.ConsumesMouse) || (station && station.ConsumesMouse)));
+        public bool CameraOverride => (mainMenu && mainMenu.OwnsCamera) || (captureSequence && captureSequence.CameraControlled) || IntroBusy;
+        public Vector3 CameraPosition => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraPosition:IntroBusy?intro.CameraPosition:captureSequence.CameraPosition;
+        public Quaternion CameraRotation => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraRotation:IntroBusy?intro.CameraRotation:captureSequence.CameraRotation;
         public bool ReadyToLeave => RepairGoal>0 && Repairs>=RepairGoal && WorkingGears==gears.Length;
         public int WorkingGears {get { int count=0;foreach(var gear in gears) if(!gear.broken) count++;return count; } }
         float jumpWatch,runSeen,runGrace;
@@ -75,6 +79,7 @@ namespace Cardboard
         }
         public void ResetShift()
         {
+            if(intro)intro.Cancel();
             if(captureSequence) captureSequence.Cancel();
             State=FactoryState.Working;Suspicion=0;Disguise=100;Repairs=0;Mistakes=0;ShiftRemaining=240;
             mistakeReasons.Clear();LastMistakeReason="";runSeen=runGrace=0;runCharged=false;
@@ -95,19 +100,20 @@ namespace Cardboard
             victim.gameObject.SetActive(false);buttons.gameObject.SetActive(false);pins.gameObject.SetActive(false);
             pressHead.localPosition=pressHome;exitGate.localPosition=gateHome;
             foreach(var door in GetComponentsInChildren<FactoryDoor>(true))door.SetOpen(false,true);
-            Toast("Заказ на перфокарте у вашего рабочего места.",9);
+            if(expressions)expressions.ResetShift();
+            Toast("Your work order is printing at your workstation.",9);
         }
         void Update()
         {
             var keyboard=Keyboard.current;
-            if(MenuActive || CaptureActive) return;
+            if(MenuActive || CaptureActive || IntroBusy) return;
             if(Ended)
             {
                 if((State==FactoryState.Dead || State==FactoryState.Escaped) && keyboard!=null && keyboard.enterKey.wasPressedThisFrame) Restart();
                 return;
             }
             if(!CardboardRunner.Player) return;
-            float dt=Time.deltaTime;TickShiftClock(dt);if(Ended || CaptureActive) return;
+            float dt=Time.deltaTime;if(IntroActive){UpdateFocus();if(keyboard!=null && keyboard.eKey.wasPressedThisFrame && !CardboardMarker.DrawingMode)Interact();return;}TickShiftClock(dt);if(Ended || CaptureActive) return;
             TickFaults(dt);if(lunch) lunch.TickSchedule(dt);
             Pretending=keyboard!=null && keyboard.cKey.isPressed && !CardboardMarker.DrawingMode && !PlayerBlocked;
             UpdateFocus();
@@ -149,7 +155,7 @@ namespace Cardboard
         }
         public void TickFaults(float dt)
         {
-            if(MenuActive || Ended || CaptureActive || CurrentOrder!=0 || Repairs>=RepairGoal)return;
+            if(MenuActive || Ended || CaptureActive || IntroActive || CurrentOrder!=0 || Repairs>=RepairGoal)return;
             nextFault-=Mathf.Max(0,dt);if(nextFault<=0)BreakRandomGear();
         }
         public bool BreakRandomGear()
@@ -175,7 +181,7 @@ namespace Cardboard
         public bool RegisterMistake(string reason,float stars=1f,CardboardRunner witness=null,FactoryWorkerEmotion emotion=FactoryWorkerEmotion.Machine)
         {
             if(MenuActive || Ended || CaptureActive || Mistakes>=MistakeLimit || stars<=0 || float.IsNaN(stars) || float.IsInfinity(stars)) return false;
-            LastMistakeReason=string.IsNullOrWhiteSpace(reason)?"Нарушение правил смены.":reason;
+            LastMistakeReason=string.IsNullOrWhiteSpace(reason)?"Shift rules violation.":reason;
             mistakeReasons.Add(LastMistakeReason);Mistakes=Mathf.Min(MistakeLimit,Mistakes+stars);
             Suspicion=100f*Mistakes/MistakeLimit;Disguise=100-Mistakes*25;
             Toast(LastMistakeReason,7);
@@ -192,7 +198,7 @@ namespace Cardboard
             {
                 runSeen+=Mathf.Max(0,dt);runGrace=0;
                 if(!runCharged && runSeen>=.75f)
-                { runCharged=true;RegisterMistake("Рабочие заметили бег.",.5f,FindWitness(),FactoryWorkerEmotion.Run); }
+                { runCharged=true;RegisterMistake("Workers noticed you running.",.5f,FindWitness(),FactoryWorkerEmotion.Run); }
             }
             else
             {
@@ -200,35 +206,48 @@ namespace Cardboard
                 if(runGrace>=.5f) {runSeen=0;runCharged=false;}
             }
             if(watched && jump>.3f && jumpWatch<=.3f && !pumping)
-                RegisterMistake("Рабочие заметили прыжок вне панели насоса.",.5f,FindWitness(),FactoryWorkerEmotion.Jump);
+                RegisterMistake("Workers noticed you jumping away from the pump.",.5f,FindWitness(),FactoryWorkerEmotion.Jump);
             jumpWatch=jump;
         }
         public void TickShiftClock(float dt)
         {
-            if(MenuActive || Ended) return;
+            if(MenuActive || Ended || IntroActive) return;
             ShiftRemaining=Mathf.Max(0,ShiftRemaining-Mathf.Max(0,dt));
         }
         // Compatibility for the preserved legacy machine's discrete jam event.
         public void AddSuspicion(float amount)
-        { if(amount>0) RegisterMistake("Нарушение работы станка."); }
+        { if(amount>0) RegisterMistake("Incorrect machine operation."); }
+        readonly RaycastHit[] focusHits=new RaycastHit[128];
+        static readonly IComparer<RaycastHit> hitOrder=Comparer<RaycastHit>.Create((a,b)=>a.distance.CompareTo(b.distance));
         void UpdateFocus()
         {
             Focus=null;var cam=Camera.main;if(!cam || PlayerBlocked || CardboardMarker.DrawingMode) return;
-            Physics.SyncTransforms();
             Focus=TargetForRay(cam.ViewportPointToRay(new Vector3(.5f,.5f)));
         }
         public FactoryInteractable TargetForRay(Ray ray)
         {
-            var hits=Physics.RaycastAll(ray,3.5f,~(1<<9),QueryTriggerInteraction.Collide);
-            System.Array.Sort(hits,(a,b)=>a.distance.CompareTo(b.distance));
-            foreach(var hit in hits)
+            var hits=focusHits;int count=Physics.RaycastNonAlloc(ray,hits,3.5f,~((1<<9)|(1<<CardboardMarkerHand.HandLayer)),QueryTriggerInteraction.Collide);
+            System.Array.Sort(hits,0,count,hitOrder);
+            for(int i=0;i<count;i++)
             {
+                var hit=hits[i];
+                if(hit.collider.isTrigger && !hit.collider.GetComponentInParent<FactoryInteractable>())continue;
+                var station=hit.collider.GetComponentInParent<FactoryWorkstation>();
+                if(station && !hit.collider.GetComponentInParent<FactoryInteractable>())
+                {
+                    for(int j=i+1;j<count;j++)
+                    {
+                        var control=hits[j].collider.GetComponent<FactoryStationControl>();
+                        if(control && control.station==station && hits[j].distance-hit.distance<=.45f)
+                            return !HandsBusy?control.GetComponent<FactoryInteractable>():null;
+                    }
+                }
                 var target=hit.collider.GetComponentInParent<FactoryInteractable>();
-                if(hit.collider.isTrigger && !target)continue;
                 return HandsBusy && target && target.action!=FactoryAction.Lunch && target.action!=FactoryAction.Door?null:target;
             }
             return null;
         }
+
         public string FocusPrompt
         {
             get
@@ -242,8 +261,8 @@ namespace Cardboard
                 }
                 if(Focus.action==FactoryAction.Door) return Focus.GetComponentInParent<FactoryDoor>().Prompt;
                 if(Focus.action==FactoryAction.Bench) return "";
-                if(Focus.action==FactoryAction.Gear) return Focus.gear.broken && HasPart?"E — установить деталь":"";
-                if(Focus.action==FactoryAction.Exit) return ReadyToLeave?"E — закончить смену и уйти":"Выход после устранения трёх поломок";
+                if(Focus.action==FactoryAction.Gear) return Focus.gear.broken && HasPart?"E - INSTALL GEAR":"";
+                if(Focus.action==FactoryAction.Exit) return ReadyToLeave?"E - FINISH SHIFT AND LEAVE":"Exit unlocks after three repairs";
                 return Focus.prompt;
             }
         }
@@ -274,10 +293,11 @@ namespace Cardboard
                     var lunchControl=Focus.GetComponent<FactoryLunchControl>();if(lunchControl) lunchControl.Use();break;
             }
         }
-        public bool TryExit()
+        public bool TryExit(bool atCorridorEnd=false)
         {
             if(CaptureActive || HandsBusy) return false;
-            if(!ReadyToLeave || Ended) { Toast("Сначала устраните три поломки главного механизма.");return false; }
+            if(!ReadyToLeave || Ended) { Toast("Repair three faults in the main mechanism first.");return false; }
+            if(intro && !atCorridorEnd){exitDoor.SetOpen(true);Toast("The way out is open. Follow the corridor.",6);return true;}
             State=FactoryState.Escaped;Cursor.lockState=CursorLockMode.None;FactoryVolumeCursor.SetSystemVisible(true);
             if(sound) sound.Play("good");return true;
         }
@@ -285,6 +305,16 @@ namespace Cardboard
         {
             if(Ended || CurrentOrder==0) return;
             if(station) station.PrintOrder(CurrentOrder);
+        }
+        public void PrepareTutorial(FactoryGear target)
+        {
+            foreach(var gear in gears)gear.SetBroken(gear==target);
+            Repairs=0;faultHistory.Clear();nextFault=float.PositiveInfinity;SetOrder(0);
+            CurrentOrder=target.index+1;Memorized=target;
+        }
+        public void StartShiftAfterTutorial(FactoryGear repaired)
+        {
+            Repairs=0;faultHistory.Clear();faultHistory.Add(repaired.index);nextFault=0;SetOrder(0);BreakRandomGear();
         }
         void SetOrder(int number)
         {
@@ -305,7 +335,7 @@ namespace Cardboard
             if(recipe.finish>0 && finishMaterials!=null && recipe.finish<=finishMaterials.Length)
                 foreach(var renderer in carried.GetComponentsInChildren<Renderer>())
                 {var materials=renderer.sharedMaterials;for(int i=0;i<materials.Length;i++)if(materials[i]==gearPaper)materials[i]=finishMaterials[recipe.finish-1];renderer.sharedMaterials=materials;}
-            Toast("Деталь снята со станка: "+HeldRecipe+". Найдите подходящий узел.",6);if(sound) sound.Play("good");
+            Toast("Part collected: "+HeldRecipe+". Find the matching socket.",6);if(sound) sound.Play("good");
         }
         public bool BeginDip()
         {
@@ -334,16 +364,17 @@ namespace Cardboard
             if(!HasPart || !gear || !gear.broken || Ended || HandsBusy) return false;
             if(gear.index+1!=CurrentOrder || !HeldRecipe.Equals(gear.recipe))
             {
-                string reason=gear.index+1!=CurrentOrder?"Попытка установить шестерёнку не в узел текущего заказа.":
-                    HeldRecipe.Type!=gear.recipe.Type?"Установлен неверный тип шестерёнки.":
-                    HeldRecipe.finish==0?"Попытка установить шестерёнку без обработки в жидкости.":
-                    "Шестерёнка обработана в неверной жидкости: "+HeldRecipe.finish+" вместо "+gear.recipe.finish+".";
+                string reason=gear.index+1!=CurrentOrder?"Tried to install a gear in the wrong socket.":
+                    HeldRecipe.Type!=gear.recipe.Type?"Installed the wrong gear type.":
+                    HeldRecipe.finish==0?"Tried to install an untreated gear.":
+                    "Wrong finishing liquid: "+HeldRecipe.finish+" instead of "+gear.recipe.finish+".";
                 RegisterMistake(reason);return false;
             }
             gear.SetBroken(false);HasPart=false;if(carried){carried.SetActive(false);Destroy(carried);carried=null;}
+            if(intro && intro.OnRepair(gear))return true;
             Repairs++;
             SetOrder(0);nextFault=Random.Range(4f,8f);
-            Toast(ReadyToLeave?"Наряд выполнен. Все механизмы работают. Идите к выходу!":"Узел восстановлен. Ремонтов: "+Repairs+" / "+RepairGoal+".",6);
+            Toast(ReadyToLeave?"All orders complete. The mechanism is working. Head for the exit!":"Socket repaired. Repairs: "+Repairs+" / "+RepairGoal+".",6);
             if(sound) sound.Play("good");return true;
         }
         public void DropPart(){ReleasePart(false);}
@@ -361,8 +392,8 @@ namespace Cardboard
             collider.center=loose.transform.InverseTransformPoint(bounds.center);
             collider.size=new Vector3(bounds.size.x/loose.transform.lossyScale.x,bounds.size.y/loose.transform.lossyScale.y,Mathf.Max(.15f,bounds.size.z/loose.transform.lossyScale.z));
             var body=loose.AddComponent<Rigidbody>();body.mass=.65f;
-            var prop=loose.AddComponent<FactoryPhysicsProp>();prop.itemName="деталь";prop.workbenchPart=true;prop.recipe=HeldRecipe;prop.Initialize();
-            var target=loose.AddComponent<FactoryInteractable>();target.action=FactoryAction.PhysicsProp;target.prompt="E — поднять деталь";
+            var prop=loose.AddComponent<FactoryPhysicsProp>();prop.itemName="gear";prop.workbenchPart=true;prop.recipe=HeldRecipe;prop.Initialize();
+            var target=loose.AddComponent<FactoryInteractable>();target.action=FactoryAction.PhysicsProp;target.prompt="E - PICK UP GEAR";
             prop.BeginCarry();prop.Release(thrown?Camera.main.transform.forward*FactoryObjectCarry.ThrowSpeed(body.mass):Vector3.zero,thrown);
         }
         public void Toast(string message,float seconds=4) { Message=message;MessageUntil=Time.time+seconds; }

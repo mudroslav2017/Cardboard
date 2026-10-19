@@ -11,115 +11,126 @@ namespace Cardboard.Editor
     public static class ImportedCharacterInstaller
     {
         const string Root = "Assets/Cardboard/Resources/CardboardCharacters";
-        static readonly string[] Names = {"HumanLera", "HumanNastya"};
-        static readonly string[] Sources = {"Human Lera/Model/Human_Lera_1.fbx", "Human Nastya/Model/Human_Nastya_1.fbx"};
-        static readonly string[] Textures = {"Human Lera/Texture/Human_Lera_1.png", "Human Nastya/Texture/Human_Nastya_1.png"};
+        static readonly string[] Names = {"HumanLera", "HumanKolya", "HumanNastya", "HumanMasha"};
+        static readonly string[] Sources = {"Human Lera/Model/Human_Lera_1.fbx", "Human_Kolya/Human_Kolya.fbx", "Human Nastya/Model/Human_Nastya_1.fbx", "chel_masha/Model/chel.fbx"};
+        static readonly string[] Textures = {"Human Lera/Texture/Human_Lera_Normal.png", "Human_Kolya/Kolya_Normal.png", "Human Nastya/Texture/Human_Nastya_Normal.png", "chel_masha/Texture/Masha_Normal.png"};
         const string SourceRoot = "Assets/Game_Assets/Cardboard/";
+
+        static Quaternion Facing(int variant)=>Quaternion.Euler(0,variant%Names.Length==3?0:180,0);
 
         public static void Prepare()
         {
-            Directory.CreateDirectory(Root); AssetDatabase.Refresh();
-            for (int index = 0; index < Names.Length; index++)
+            Directory.CreateDirectory(Root);AssetDatabase.Refresh();
+            for(int index=0;index<Names.Length;index++)
             {
-                string modelPath = SourceRoot + Sources[index], texturePath = SourceRoot + Textures[index];
-                var importer = AssetImporter.GetAtPath(modelPath) as ModelImporter;
-                if (importer == null) throw new InvalidOperationException("Missing character model: " + modelPath);
-                if (!importer.isReadable) { importer.isReadable = true; importer.SaveAndReimport(); }
-                var textureImporter = AssetImporter.GetAtPath(texturePath) as TextureImporter;
-                if (textureImporter == null) throw new InvalidOperationException("Missing character texture: " + texturePath);
-                if (!textureImporter.isReadable || !textureImporter.sRGBTexture || textureImporter.textureCompression != TextureImporterCompression.Uncompressed || textureImporter.npotScale != TextureImporterNPOTScale.None)
+                string modelPath=SourceRoot+Sources[index];var importer=AssetImporter.GetAtPath(modelPath) as ModelImporter;
+                if(!importer)throw new InvalidOperationException("Missing character model: "+modelPath);
+                if(!importer.isReadable){importer.isReadable=true;importer.SaveAndReimport();}
+                var materials=new Material[3];var states=new[]{"Normal","Suspicious","Angry"};
+                for(int state=0;state<states.Length;state++)
                 {
-                    textureImporter.textureType = TextureImporterType.Default; textureImporter.isReadable = true;
-                    textureImporter.sRGBTexture = true; textureImporter.textureCompression = TextureImporterCompression.Uncompressed;
-                    textureImporter.npotScale = TextureImporterNPOTScale.None; textureImporter.mipmapEnabled = true;
-                    textureImporter.filterMode = FilterMode.Bilinear; textureImporter.wrapMode = TextureWrapMode.Clamp;
-                    textureImporter.SaveAndReimport();
+                    string texturePath=(SourceRoot+Textures[index]).Replace("_Normal","_"+states[state]);
+                    var textureImporter=AssetImporter.GetAtPath(texturePath) as TextureImporter;
+                    if(!textureImporter)throw new InvalidOperationException("Missing character texture: "+texturePath);
+                    textureImporter.textureType=TextureImporterType.Default;textureImporter.isReadable=true;textureImporter.sRGBTexture=true;
+                    textureImporter.textureCompression=TextureImporterCompression.Uncompressed;textureImporter.npotScale=TextureImporterNPOTScale.None;
+                    textureImporter.mipmapEnabled=true;textureImporter.filterMode=FilterMode.Bilinear;textureImporter.wrapMode=TextureWrapMode.Clamp;textureImporter.SaveAndReimport();
+                    string path=Root+"/"+Names[index]+(state==0?"":"_"+states[state])+".mat";
+                    var material=AssetDatabase.LoadAssetAtPath<Material>(path);
+                    if(!material){material=new Material(Shader.Find("Universal Render Pipeline/Lit"));AssetDatabase.CreateAsset(material,path);}
+                    material.name=Names[index]+" • "+states[state]+" • both sides";material.color=Color.white;
+                    material.SetTexture("_BaseMap",AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath));material.mainTexture=material.GetTexture("_BaseMap");
+                    CardboardSurface.Configure(material);EditorUtility.SetDirty(material);materials[state]=material;
                 }
-                var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
-                string materialPath = Root + "/" + Names[index] + ".mat";
-                var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
-                if (!material) { material = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(material, materialPath); }
-                material.name = Names[index] + " • base color, roughness 1";
-                material.SetColor("_BaseColor", Color.white); material.color = Color.white;
-                material.SetTexture("_BaseMap", texture); material.mainTexture = texture;
-                material.SetFloat("_Smoothness", 0); material.SetFloat("_Metallic", 0);
-                material.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off); material.doubleSidedGI = true;
-                material.SetFloat("_SmoothnessTextureChannel", 0); material.DisableKeyword("_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A");
-                CardboardSurface.Configure(material);EditorUtility.SetDirty(material);
-                var model = AssetDatabase.LoadAssetAtPath<GameObject>(modelPath);
-                var instance = UnityEngine.Object.Instantiate(model);
+                var instance=UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(modelPath));
                 try
                 {
-                    var filters = instance.GetComponentsInChildren<MeshFilter>();
-                    if (filters.Length != 1) throw new InvalidOperationException("Expected a single cardboard mesh in " + modelPath);
-                    Mesh mesh = CanonicalMesh(filters[0]); mesh.name = Names[index] + " • original UV";
-                    string meshPath = Root + "/" + Names[index] + ".asset";
-                    var existing = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
-                    if (existing) { EditorUtility.CopySerialized(mesh, existing); UnityEngine.Object.DestroyImmediate(mesh); mesh = existing; }
-                    else AssetDatabase.CreateAsset(mesh, meshPath);
-                    var root = new GameObject(Names[index]);
-                    root.transform.localRotation = Quaternion.Euler(0, 180, 0);
+                    var filters=instance.GetComponentsInChildren<MeshFilter>();
+                    if(filters.Length!=1)throw new InvalidOperationException("Expected a single cardboard mesh in "+modelPath+", found "+filters.Length);
+                    Mesh mesh=CanonicalMesh(filters[0]);mesh.name=Names[index]+" • original UV";
+                    string meshPath=Root+"/"+Names[index]+".asset";var existing=AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
+                    if(existing){EditorUtility.CopySerialized(mesh,existing);UnityEngine.Object.DestroyImmediate(mesh);mesh=existing;}else AssetDatabase.CreateAsset(mesh,meshPath);
+                    var root=new GameObject(Names[index]);root.transform.localRotation=Facing(index);
                     try
                     {
-                        root.AddComponent<MeshFilter>().sharedMesh = mesh;
-                        root.AddComponent<MeshRenderer>().sharedMaterial = material;
-                        PrefabUtility.SaveAsPrefabAsset(root, Root + "/" + Names[index] + ".prefab");
+                        root.AddComponent<MeshFilter>().sharedMesh=mesh;var renderer=root.AddComponent<MeshRenderer>();renderer.sharedMaterial=materials[0];CardboardSurface.Configure(renderer);
+                        var face=root.AddComponent<FactoryWorkerAppearance>();face.normal=materials[0];face.suspicious=materials[1];face.angry=materials[2];
+                        PrefabUtility.SaveAsPrefabAsset(root,Root+"/"+Names[index]+".prefab");
                     }
-                    finally { UnityEngine.Object.DestroyImmediate(root); }
+                    finally{UnityEngine.Object.DestroyImmediate(root);}
                 }
-                finally { UnityEngine.Object.DestroyImmediate(instance); }
+                finally{UnityEngine.Object.DestroyImmediate(instance);}
             }
-            AssetDatabase.SaveAssets(); AssetDatabase.Refresh();
+            AssetDatabase.SaveAssets();AssetDatabase.Refresh();
+        }
+        public static void TurnMashaCurrent()
+        {
+            if(EditorApplication.isPlayingOrWillChangePlaymode)
+            {EditorApplication.isPlaying=false;EditorApplication.delayCall+=TurnMashaCurrent;return;}
+            string path=Root+"/HumanMasha.prefab";
+            var prefab=PrefabUtility.LoadPrefabContents(path);
+            try{prefab.transform.localRotation=Facing(3);PrefabUtility.SaveAsPrefabAsset(prefab,path);}
+            finally{PrefabUtility.UnloadPrefabContents(prefab);}
+            var scene=SceneManager.GetActiveScene();var meshAsset=AssetDatabase.LoadAssetAtPath<Mesh>(Root+"/HumanMasha.asset");int count=0;
+            foreach(var root in scene.GetRootGameObjects())
+            foreach(var filter in root.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if(filter.sharedMesh!=meshAsset)continue;
+                filter.transform.localRotation=Facing(3);EditorUtility.SetDirty(filter.transform);PrefabUtility.RecordPrefabInstancePropertyModifications(filter.transform);count++;
+            }
+            AssetDatabase.SaveAssets();EditorSceneManager.MarkSceneDirty(scene);EditorSceneManager.SaveScene(scene);
+            File.WriteAllText("Library/FactoryMashaTurn.txt","SUCCESS: HumanMasha visual turned 180 degrees on "+count+" scene characters; prefab saved for future instances. Other character types unchanged.");
         }
         static Mesh CanonicalMesh(MeshFilter source)
         {
-            // Apply the FBX pose, face the walking direction and match the existing
-            // whole-sheet character height. UVs and the authored silhouette stay intact.
-            var mesh = UnityEngine.Object.Instantiate(source.sharedMesh);
-            var vertices = mesh.vertices; var normals = mesh.normals; var uv = mesh.uv;
-            Matrix4x4 pose = Matrix4x4.Rotate(Quaternion.Euler(0, 90, 0)) * source.transform.localToWorldMatrix;
-            Matrix4x4 normalPose = pose.inverse.transpose;
-            float frontU = 0, backU = 0, frontWeight = 0, backWeight = 0;
-            for (int i = 0; i < vertices.Length; i++)
+            var mesh=UnityEngine.Object.Instantiate(source.sharedMesh);var vertices=mesh.vertices;var normals=mesh.normals;var uv=mesh.uv;
+            Bounds raw=new Bounds(source.transform.TransformPoint(vertices[0]),Vector3.zero);
+            foreach(var vertex in vertices)raw.Encapsulate(source.transform.TransformPoint(vertex));
+            Quaternion turn=raw.size.y<Mathf.Min(raw.size.x,raw.size.z)?Quaternion.Euler(90,0,0):Quaternion.identity;
+            Bounds stood=new Bounds(turn*source.transform.TransformPoint(vertices[0]),Vector3.zero);
+            foreach(var vertex in vertices)stood.Encapsulate(turn*source.transform.TransformPoint(vertex));
+            if(stood.size.x<stood.size.z)turn=Quaternion.Euler(0,90,0)*turn;
+            Matrix4x4 pose=Matrix4x4.Rotate(turn)*source.transform.localToWorldMatrix;var normalPose=pose.inverse.transpose;
+            Bounds bounds=default;
+            for(int i=0;i<vertices.Length;i++)
             {
-                vertices[i] = pose.MultiplyPoint3x4(vertices[i]);
-                if (normals.Length != vertices.Length) continue;
-                normals[i] = normalPose.MultiplyVector(normals[i]).normalized;
-                if (normals[i].z > .9f) { frontU += uv[i].x; frontWeight++; }
-                if (normals[i].z < -.9f) { backU += uv[i].x; backWeight++; }
+                vertices[i]=pose.MultiplyPoint3x4(vertices[i]);if(i==0)bounds=new Bounds(vertices[i],Vector3.zero);else bounds.Encapsulate(vertices[i]);
+                if(normals.Length==vertices.Length)normals[i]=normalPose.MultiplyVector(normals[i]).normalized;
             }
-            bool reverse = frontWeight > 0 && backWeight > 0 && frontU / frontWeight > backU / backWeight;
-            Bounds bounds = new Bounds(vertices[0], Vector3.zero);
-            for (int i = 1; i < vertices.Length; i++) bounds.Encapsulate(vertices[i]);
-            float scale = 2.31f / bounds.size.y;
-            Vector3 origin = new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
-            for (int i = 0; i < vertices.Length; i++)
+            // The face drawing is on the left UV island. Orient that island toward the walking direction,
+            // using geometry rather than normal signs (the supplied sheets can have inward normals).
+            float positiveU=0,negativeU=0;int positive=0,negative=0;
+            for(int i=0;i<vertices.Length;i++)
             {
-                vertices[i] = (vertices[i] - origin) * scale;
-                if (reverse) { vertices[i].x = -vertices[i].x; vertices[i].z = -vertices[i].z; if (normals.Length == vertices.Length) normals[i] = Quaternion.Euler(0, 180, 0) * normals[i]; }
+                if(normals.Length==vertices.Length && Mathf.Abs(normals[i].z)<.9f)continue;
+                if(vertices[i].z>bounds.center.z){positiveU+=uv[i].x;positive++;}else{negativeU+=uv[i].x;negative++;}
             }
-            mesh.vertices = vertices;
-            if (normals.Length == vertices.Length) mesh.normals = normals; else mesh.RecalculateNormals();
-            if (pose.determinant < 0)
-                for (int submesh = 0; submesh < mesh.subMeshCount; submesh++)
-                {
-                    var triangles = mesh.GetTriangles(submesh);
-                    for (int i = 0; i < triangles.Length; i += 3) { int first = triangles[i]; triangles[i] = triangles[i + 1]; triangles[i + 1] = first; }
-                    mesh.SetTriangles(triangles, submesh);
-                }
-            mesh.RecalculateBounds(); mesh.RecalculateTangents(); return mesh;
+            bool reverse=positive>0 && negative>0 && positiveU/positive<negativeU/negative;
+            float scale=2.31f/bounds.size.y;Vector3 origin=new Vector3(bounds.center.x,bounds.min.y,bounds.center.z);
+            for(int i=0;i<vertices.Length;i++)
+            {
+                vertices[i]=(vertices[i]-origin)*scale;
+                if(reverse){vertices[i].x=-vertices[i].x;vertices[i].z=-vertices[i].z;if(normals.Length==vertices.Length)normals[i]=Quaternion.Euler(0,180,0)*normals[i];}
+            }
+            mesh.vertices=vertices;if(normals.Length==vertices.Length)mesh.normals=normals;else mesh.RecalculateNormals();
+            if(pose.determinant<0)for(int submesh=0;submesh<mesh.subMeshCount;submesh++)
+            {var triangles=mesh.GetTriangles(submesh);for(int i=0;i<triangles.Length;i+=3){int first=triangles[i];triangles[i]=triangles[i+1];triangles[i+1]=first;}mesh.SetTriangles(triangles,submesh);}
+            mesh.RecalculateBounds();mesh.RecalculateTangents();return mesh;
         }
         static void Replace(MeshFilter target, int variant)
         {
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Root + "/" + Names[variant % 2] + ".prefab");
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Root + "/" + Names[variant % Names.Length] + ".prefab");
             target.sharedMesh = prefab.GetComponent<MeshFilter>().sharedMesh;
             target.GetComponent<MeshRenderer>().sharedMaterials = prefab.GetComponent<MeshRenderer>().sharedMaterials;
-            target.name = Names[variant % 2]; target.transform.localPosition = Vector3.zero;
+            target.name = Names[variant % Names.Length]; target.transform.localPosition = Vector3.zero;
             target.transform.localRotation = prefab.transform.localRotation; target.transform.localScale = Vector3.one;
+            var config=prefab.GetComponent<FactoryWorkerAppearance>();var appearance=target.GetComponent<FactoryWorkerAppearance>();
+            if(!appearance)appearance=target.gameObject.AddComponent<FactoryWorkerAppearance>();
+            appearance.normal=config.normal;appearance.suspicious=config.suspicious;appearance.angry=config.angry;EditorUtility.SetDirty(appearance);
             var collider = target.GetComponent<MeshCollider>(); if (collider) collider.sharedMesh = target.sharedMesh;
             EditorUtility.SetDirty(target); EditorUtility.SetDirty(target.GetComponent<MeshRenderer>());
         }
-        static int ReplaceInScene(Scene scene)
+        public static int ReplaceInScene(Scene scene)
         {
             int count = 0;
             foreach (var root in scene.GetRootGameObjects())
@@ -145,12 +156,12 @@ namespace Cardboard.Editor
             {
                 var mesh=runner.puppet.GetComponentInChildren<MeshFilter>(true);
                 var material=mesh.GetComponent<MeshRenderer>().sharedMaterial;
-                int variant=runner.personality%2;
-                check(mesh.sharedMesh==AssetDatabase.LoadAssetAtPath<Mesh>(Root+"/"+Names[variant]+".asset") && Quaternion.Angle(mesh.transform.localRotation,Quaternion.Euler(0,180,0))<.1f,"Imported character and forward orientation assigned to "+runner.name);
+                int variant=runner.personality%Names.Length;
+                check(mesh.sharedMesh==AssetDatabase.LoadAssetAtPath<Mesh>(Root+"/"+Names[variant]+".asset") && Quaternion.Angle(mesh.transform.localRotation,Facing(variant))<.1f,"Imported character and forward orientation assigned to "+runner.name);
                 check(material.GetTexture("_BaseMap")==AssetDatabase.LoadAssetAtPath<Texture2D>(SourceRoot+Textures[variant]) && material.color==Color.white && material.GetFloat("_Smoothness")==0 && material.GetFloat("_Metallic")==0,"Original base color and maximum roughness: "+mesh.name);
                 check(material.GetFloat("_Cull")==0 && material.doubleSidedGI,"Both polygon sides are visible: "+mesh.name);
             }
-            for(int variant=0;variant<2;variant++)
+            for(int variant=0;variant<Names.Length;variant++)
             {
                 var source=AssetDatabase.LoadAssetAtPath<GameObject>(SourceRoot+Sources[variant]).GetComponentInChildren<MeshFilter>().sharedMesh;
                 var actual=AssetDatabase.LoadAssetAtPath<Mesh>(Root+"/"+Names[variant]+".asset");
@@ -176,7 +187,7 @@ namespace Cardboard.Editor
                         bool previousBackfaces=Physics.queriesHitBackfaces;
                         bool hit=CardboardDrawingSurface.RaycastForDrawing(new Ray(origin,direction),3,out var contact) && contact.collider==surface.GetComponent<MeshCollider>();
                         check(Physics.queriesHitBackfaces==previousBackfaces,"Drawing query restores global physics settings");
-                        check(hit,"Imported mesh raycast reaches "+Names[runner.personality%2]+" side "+side);
+                        check(hit,"Imported mesh raycast reaches "+Names[runner.personality%Names.Length]+" side "+side);
                         if(!hit) continue;
                         check(CardboardDrawingSurface.SideOf(contact)==side,"Marker identifies imported face "+side);
                         float localZ=surface.transform.InverseTransformPoint(contact.point).z;
@@ -192,7 +203,7 @@ namespace Cardboard.Editor
                         if(side==0) {frontUV=uv;frontColor=painted.GetPixelBilinear(uv.x,uv.y);frontHit=true;}
                         else if(frontHit) check(Vector4.Distance(frontColor,painted.GetPixelBilinear(frontUV.x,frontUV.y))<.01f,"Painting the back preserves front drawing");
                     }
-                    check(renderer.sharedMaterial.mainTexture!=atlas && AssetDatabase.LoadAssetAtPath<Material>(Root+"/"+Names[runner.personality%2]+".mat").mainTexture==atlas,"Drawing leaves shared character assets unchanged");
+                    check(renderer.sharedMaterial.mainTexture!=atlas && AssetDatabase.LoadAssetAtPath<Material>(Root+"/"+Names[runner.personality%Names.Length]+".mat").mainTexture==atlas,"Drawing leaves shared character assets unchanged");
                     surface.ClearDrawing();
                     if(frontHit) check(Vector4.Distance(atlas.GetPixelBilinear(frontUV.x,frontUV.y),surface.DrawingTexture.GetPixelBilinear(frontUV.x,frontUV.y))<.01f,"Clear restores supplied character texture");
                 }

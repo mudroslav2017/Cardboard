@@ -6,7 +6,7 @@ namespace Cardboard
     [RequireComponent(typeof(Rigidbody))]
     public class FactoryPhysicsProp : MonoBehaviour
     {
-        public string itemName="предмет";
+        public string itemName="object";
         public bool instructionSheet,workbenchPart;
         public FactoryRecipe recipe;
         public Vector3 homePosition;
@@ -24,6 +24,7 @@ namespace Cardboard
         public void Initialize()
         {
             Body=GetComponent<Rigidbody>();shapes=GetComponentsInChildren<Collider>();
+            if(!GetComponent<FactoryFloorImpact>())gameObject.AddComponent<FactoryFloorImpact>();
             Body.useGravity=true;Body.isKinematic=false;
             Body.interpolation=RigidbodyInterpolation.Interpolate;
             Body.collisionDetectionMode=CollisionDetectionMode.ContinuousDynamic;
@@ -105,7 +106,7 @@ namespace Cardboard
             direction.y=0;if(direction.sqrMagnitude<.001f)direction=transform.forward;
             if(reaction)reaction.ReceiveImpact(direction.normalized,Mathf.Clamp(incoming.magnitude*.38f,.6f,3));
             var game=CardboardFactoryGame.Instance;
-            if(!scored && game){scored=true;game.RegisterMistake("Брошенный предмет попал в рабочего.",.5f,worker,FactoryWorkerEmotion.Thrown);}
+            if(!scored && game){scored=true;game.RegisterMistake("Thrown object hit a worker.",.5f,worker,FactoryWorkerEmotion.Thrown);}
         }
         void OnDisable(){RestorePlayerCollision();}
     }

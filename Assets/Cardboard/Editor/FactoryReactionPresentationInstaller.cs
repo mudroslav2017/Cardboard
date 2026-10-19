@@ -80,6 +80,30 @@ namespace Cardboard.Editor
                 EditorUtility.SetDirty(reaction);EditorUtility.SetDirty(speaker);
             }
         }
+        static Vector2 AlphaCenter(string path)
+        {
+            var texture=new Texture2D(2,2,TextureFormat.RGBA32,false);
+            try
+            {
+                texture.LoadImage(File.ReadAllBytes(path));var pixels=texture.GetPixels32();double sx=0,sy=0,total=0;
+                for(int y=0;y<texture.height;y++)for(int x=0;x<texture.width;x++)
+                {float weight=pixels[y*texture.width+x].a/255f;sx+=(x+.5f)*weight;sy+=(y+.5f)*weight;total+=weight;}
+                return new Vector2((float)(sx/total),(float)(sy/total));
+            }
+            finally{Object.DestroyImmediate(texture);}
+        }
+        static Vector3 MessageCenter(Mesh mesh)
+        {
+            var vertices=mesh.vertices;var triangles=mesh.triangles;Vector3 sum=Vector3.zero;float total=0;
+            for(int i=0;i<triangles.Length;i+=3)
+            {
+                var a=vertices[triangles[i]];var b=vertices[triangles[i+1]];var c=vertices[triangles[i+2]];var cross=Vector3.Cross(b-a,c-a);
+                float area=cross.magnitude*.5f;var center=(a+b+c)/3;
+                if(area<.000001f || Mathf.Abs(cross.z)<cross.magnitude*.9f || center.z<mesh.bounds.center.z)continue;
+                sum+=center*area;total+=area;
+            }
+            var result=total>0?sum/total:mesh.bounds.center;result.z=mesh.bounds.max.z+.002f;return result;
+        }
         static void Emotions(Transform root)
         {
             const string folder="Assets/Game_Assets/Cardboard/Massage/Massage_Reactions/";
@@ -91,11 +115,14 @@ namespace Cardboard.Editor
                 var importer=(TextureImporter)AssetImporter.GetAtPath(path);
                 importer.alphaIsTransparency=true;importer.wrapMode=TextureWrapMode.Clamp;importer.textureCompression=TextureImporterCompression.Uncompressed;importer.SaveAndReimport();
                 var texture=AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-                float scale=Mathf.Min(.32f/rect.width,.24f/rect.height),x=rect.width*scale*.5f,y=rect.height*scale*.5f;
+                var center=AlphaCenter(path);
+                float radiusX=Mathf.Max(center.x-rect.xMin,rect.xMax-center.x),radiusY=Mathf.Max(center.y-rect.yMin,rect.yMax-center.y);
+                float scale=Mathf.Min(.68f/(radiusX*2),.40f/(radiusY*2));
+                float left=(rect.xMin-center.x)*scale,right=(rect.xMax-center.x)*scale,bottom=(rect.yMin-center.y)*scale,top=(rect.yMax-center.y)*scale;
                 string meshPath="Assets/Cardboard/Generated/MessageEmotion"+names[i]+".asset";
                 var mesh=AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
                 if(!mesh){mesh=new Mesh{name="Message emotion "+names[i]};AssetDatabase.CreateAsset(mesh,meshPath);}else mesh.Clear();
-                mesh.vertices=new[]{new Vector3(-x,-y,0),new Vector3(x,-y,0),new Vector3(x,y,0),new Vector3(-x,y,0)};
+                mesh.vertices=new[]{new Vector3(left,bottom,0),new Vector3(right,bottom,0),new Vector3(right,top,0),new Vector3(left,top,0)};
                 mesh.uv=new[]{new Vector2(rect.xMin/texture.width,rect.yMin/texture.height),new Vector2(rect.xMax/texture.width,rect.yMin/texture.height),new Vector2(rect.xMax/texture.width,rect.yMax/texture.height),new Vector2(rect.xMin/texture.width,rect.yMax/texture.height)};
                 mesh.triangles=new[]{0,1,2,0,2,3};mesh.RecalculateBounds();mesh.RecalculateNormals();EditorUtility.SetDirty(mesh);meshes[i]=mesh;
                 string materialPath="Assets/Cardboard/Generated/MessageEmotion"+names[i]+".mat";
@@ -113,17 +140,25 @@ namespace Cardboard.Editor
                 if(!reaction.message)continue;
                 foreach(Transform child in reaction.message.Cast<Transform>().Where(t=>t.name.StartsWith("Emotion • ")).ToArray())Object.DestroyImmediate(child.gameObject);
                 reaction.reactionIcons=new Transform[names.Length];
-                float front=reaction.message.GetComponent<MeshFilter>().sharedMesh.bounds.max.z;
+                var center=MessageCenter(reaction.message.GetComponent<MeshFilter>().sharedMesh);
                 for(int i=0;i<names.Length;i++)
                 {
-                    var icon=FactoryPresentationInstaller.MeshObject("Emotion • "+names[i],reaction.message,meshes[i],materials[i],new Vector3(0,.025f,front+.002f));
+                    var icon=FactoryPresentationInstaller.MeshObject("Emotion • "+names[i],reaction.message,meshes[i],materials[i],center);
                     icon.gameObject.layer=9;var renderer=icon.GetComponent<Renderer>();renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;renderer.receiveShadows=false;
                     icon.gameObject.SetActive(false);reaction.reactionIcons[i]=icon;
                 }
                 EditorUtility.SetDirty(reaction);
             }
         }
-        public static void Apply(Transform root){Voices(root);Faces(root);Emotions(root);}
+        public static void RefreshMessages(Transform root)
+        {
+            var mesh=FactoryPresentationInstaller.Bake(FactoryShiftUpgrade.MessageModel,"WorkerMessage",0,Vector3.zero,true,1f);
+            foreach(var reaction in root.GetComponentsInChildren<FactoryWorkerImpact>(true))if(reaction.message)reaction.message.GetComponent<MeshFilter>().sharedMesh=mesh;
+            Emotions(root);
+            foreach(var reaction in root.GetComponentsInChildren<FactoryWorkerImpact>(true))
+            {var worker=reaction.GetComponent<CardboardRunner>();if(worker && reaction.message)FactoryShiftUpgrade.PlaceMessage(worker,reaction.message);}
+        }
+        public static void Apply(Transform root){Voices(root);Faces(root);RefreshMessages(root);}
         public static void ApplyCurrent()
         {
             if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Apply reaction presentation in Edit Mode.");

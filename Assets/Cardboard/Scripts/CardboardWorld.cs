@@ -84,7 +84,7 @@ namespace Cardboard
                 }
                 Disc("Pollen",flower,new Vector3(0,.32f,.025f),.065f,.03f,Gold,10);
             }
-            Sign(new Vector3(-1.4f,0,-4), "БЕГ КУДА-ТО", -8);
+            Sign(new Vector3(-1.4f,0,-4), "HEADING SOMEWHERE", -8);
             var bench = Group("Folded picnic bench", transform,new Vector3(4,0,-3));
             for (int i = -1; i <= 1; i+=2) Box("A-frame leg",bench,new Vector3(i*.65f,.3f,0),new Vector3(.12f,.6f,.65f),Kraft);
             Box("Seat",bench,new Vector3(0,.65f,0),new Vector3(2,.12f,.7f),Coral);

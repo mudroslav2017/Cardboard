@@ -30,7 +30,7 @@ namespace Cardboard.Editor
             root.gameObject.isStatic=false;root.gameObject.layer=8;
             foreach(var collider in root.GetComponentsInChildren<Collider>())collider.sharedMaterial=ContactMaterial();
             var target=root.GetComponent<FactoryInteractable>();if(!target)target=root.gameObject.AddComponent<FactoryInteractable>();
-            target.action=FactoryAction.PhysicsProp;target.prompt="E — поднять "+title;
+            target.action=FactoryAction.PhysicsProp;target.prompt="E - PICK UP "+title;
             EditorUtility.SetDirty(prop);EditorUtility.SetDirty(body);return prop;
         }
         public static void Prop(Transform root,bool barrel)
@@ -63,7 +63,7 @@ namespace Cardboard.Editor
                 Object.DestroyImmediate(capsule);
                 var collider=root.gameObject.AddComponent<MeshCollider>();collider.sharedMesh=hull;collider.convex=true;
             }
-            Configure(root,barrel?4:1.6f,barrel?"бочку":"коробку");
+            Configure(root,barrel?4:1.6f,barrel?"barrel":"box");
         }
         static void FitInk(TextMesh text,Vector3 point,float width,float height)
         {
@@ -91,7 +91,7 @@ namespace Cardboard.Editor
         }
         public static void Instruction(FactoryInstruction instruction)
         {
-            instruction.physical=Configure(instruction.sheet,.22f,"инструкцию");
+            instruction.physical=Configure(instruction.sheet,.22f,"instructions");
             instruction.physical.instructionSheet=true;
             instruction.sheet.GetComponent<FactoryInteractable>().action=FactoryAction.Instruction;
             InstructionHints(instruction);instruction.ResetFloor();EditorUtility.SetDirty(instruction);
@@ -101,11 +101,11 @@ namespace Cardboard.Editor
             var bounds=instruction.sheet.GetComponent<MeshFilter>().sharedMesh.bounds;
             foreach(string name in new[]{"Instruction control hint","Flip instruction hint"})
             {var prior=instruction.sheet.Find(name);if(prior)Object.DestroyImmediate(prior.gameObject);}
-            var hint=Group("Instruction control hint",instruction.sheet,new Vector3(bounds.min.x+.10f,bounds.min.y+.062f,bounds.min.z-.006f));
+            var hint=Group("Instruction control hint",instruction.sheet,new Vector3(bounds.min.x+.10f,bounds.min.y+.035f,bounds.min.z-.006f));
             var text=hint.gameObject.AddComponent<TextMesh>();text.font=CardboardTypography.DefaultFont;
             text.fontSize=48;text.characterSize=.030f;text.text="LBM - TROW, RBM - PUT";text.anchor=TextAnchor.LowerLeft;
             text.color=new Color(.14f,.10f,.06f);text.font.RequestCharactersInTexture(text.text,48);
-            FitInk(text,hint.localPosition,bounds.size.x-.16f,.022f);instruction.controlHint=hint;instruction.flipHint=null;
+            FitInk(text,hint.localPosition,bounds.size.x-.16f,.044f);instruction.controlHint=hint;instruction.flipHint=null;
             var ink=Paper("InstructionControlInk",Color.white,null,true);
             var label=hint.gameObject.AddComponent<CardboardWorldLabel>();label.ink=ink;label.Refresh();
             EditorUtility.SetDirty(instruction);

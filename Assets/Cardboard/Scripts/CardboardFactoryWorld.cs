@@ -79,7 +79,7 @@ namespace Cardboard
             LayoutStations(game);
             Exit(game);ExecutionTools(game);
             game.patrol=new[] {new Vector3(WorkshopWest+4,0,0),new Vector3(WorkshopCenterX,0,1),new Vector3(WorkshopEast-4,0,0),new Vector3(WorkshopEast-4,0,-4),new Vector3(WorkshopCenterX,0,-4.5f),new Vector3(WorkshopWest+5,0,-4)};
-            for(int i=0;i<12;i++)
+            for(int i=0;i<13;i++)
             {
                 Vector3 pos=i==0?new Vector3(game.station.transform.localPosition.x,0,PlayerSpawnZ):
                     i>=2 && i<=4?game.workerPosts[i-2]:new Vector3(Mathf.Lerp(WorkshopWest+2,WorkshopEast-3.2f,(i%6)/5f),0,-2+(i/6)*3);
@@ -177,7 +177,7 @@ namespace Cardboard
                 Stroke("Crack",gear.damaged,new Vector3(-.65f,.2f,.045f),new Vector3(.2f,-.4f,.045f),.025f,Ink);
                 var hit=Group("Gear interaction",root,Vector3.zero);
                 var hitbox=hit.gameObject.AddComponent<BoxCollider>();hitbox.size=new Vector3(2.2f,2.2f,.5f);
-                Interaction(hit,FactoryAction.Gear,"E — обслужить узел",gear);
+                Interaction(hit,FactoryAction.Gear,"E - SERVICE SOCKET",gear);
                 gear.indicator=Group("Fault indicator",root,new Vector3(0,1.2f,.1f)).gameObject.AddComponent<Light>();
                 gear.indicator.type=LightType.Point;gear.indicator.range=2;gear.indicator.intensity=1.4f;
                 gear.SetBroken(true);game.gears[i]=gear;
@@ -189,7 +189,7 @@ namespace Cardboard
             gate.localRotation=Quaternion.Euler(0,90,0);
             game.exitGate=Solid("Sliding exit gate",gate,new Vector3(0,1.45f,0),new Vector3(2.6f,3.2f,.35f),Teal);
             var inside=Box("Exit control",gate,new Vector3(0,1.4f,-.25f),new Vector3(1.4f,.8f,.08f),Cream);
-            Interaction(inside,FactoryAction.Exit,"E — закончить смену");
+            Interaction(inside,FactoryAction.Exit,"E - END SHIFT");
         }
         void ExecutionTools(CardboardFactoryGame game)
         {

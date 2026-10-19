@@ -100,7 +100,7 @@ namespace Cardboard.Editor
             menu.shiftHud=world.GetComponentInChildren<FactoryMistakeHUD>(true).GetComponent<CanvasGroup>();
             menu.visuals=Group("Menu • hanging imported cardboard buttons",camera.transform,Vector3.zero);
             menu.buttons=new FactoryHangingButton[3];
-            string[] words={"Настройки","Играть","Выход"};
+            string[] words={"Settings","Play","Exit"};
             string[] textures={"1/knopka1_Texture.png","2/Button_2.png","3/3.png"};
             for(int i=0;i<3;i++)
             {
@@ -129,7 +129,7 @@ namespace Cardboard.Editor
             }
             menu.settingsPanel=Group("Settings • cardboard volume panel",camera.transform,new Vector3(0,-.05f,5));
             ImportedCard("Settings backing",menu.settingsPanel,"Settings/Podloshka.fbx","Settings/Podlosha.png","MenuSettingsBacking",3.6f,Vector3.zero);
-            Text("Громкость",menu.settingsPanel,new Vector3(0,.70f,-.13f),.15f,2.7f);
+            Text("Volume",menu.settingsPanel,new Vector3(0,.70f,-.13f),.15f,2.7f);
             var slider=Group("Volume pointer track",menu.settingsPanel,new Vector3(0,-.10f,-.18f));slider.gameObject.layer=10;
             menu.volumeTrack=slider.gameObject.AddComponent<BoxCollider>();menu.volumeTrack.size=new Vector3(2.5f,.62f,.4f);
             ImportedCard("Volume bar",slider,"Volume_Bar/Volume_Bar.fbx","Volume_Bar/Volum_Bar_Texture.png","MenuVolumeBar",2.25f,Vector3.zero);

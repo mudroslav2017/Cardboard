@@ -25,7 +25,8 @@ namespace Cardboard
         CardboardDrawingSurface previous;
         Vector2 lastUV;
         Camera lens;
-        void Awake() { Instance=this;lens=GetComponent<Camera>();Pointer=new Vector2(Screen.width*.5f,Screen.height*.5f); }
+        FactoryMarkerSound writingSound;
+        void Awake() { Instance=this;lens=GetComponent<Camera>();writingSound=GetComponent<FactoryMarkerSound>();Pointer=new Vector2(Screen.width*.5f,Screen.height*.5f); }
 
         void Update()
         {
@@ -73,13 +74,13 @@ namespace Cardboard
                         int side=CardboardDrawingSurface.SideOf(hit);
                         Vector2 uv=hit.textureCoord;
                         surface.PaintStroke(dragging && previous==surface && previousSide==side?lastUV:uv,uv,Ink,radius,side);
-                        previous=surface;previousSide=side;lastUV=uv;dragging=true;IsTouching=true;return;
+                        previous=surface;previousSide=side;lastUV=uv;dragging=true;IsTouching=true;if(writingSound)writingSound.Stroke(surface,ContactPoint);return;
                     }
                 }
             }
             BreakStroke();
         }
-        void BreakStroke() { previous=null;dragging=false; }
+        void BreakStroke() { previous=null;dragging=false;if(writingSound)writingSound.EndStroke(); }
         public void SetDrawingMode(bool active,bool captureOnExit=true)
         {
             if(active && CardboardFactoryGame.Instance && CardboardFactoryGame.Instance.HandsBusy) return;

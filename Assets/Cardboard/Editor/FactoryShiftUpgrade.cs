@@ -170,7 +170,7 @@ namespace Cardboard.Editor
                     crack.localRotation=Quaternion.Euler(0,0,j%2==0?-48:29);
                 }
                 var hit=socket.gameObject.AddComponent<BoxCollider>();hit.size=new Vector3(item.z*.019f,item.z*.019f,.28f);hit.isTrigger=true;
-                var interact=socket.gameObject.AddComponent<FactoryInteractable>();interact.action=FactoryAction.Gear;interact.gear=gear;interact.prompt="E — заменить сломанную шестерёнку";
+                var interact=socket.gameObject.AddComponent<FactoryInteractable>();interact.action=FactoryAction.Gear;interact.gear=gear;interact.prompt="E - REPLACE DAMAGED GEAR";
                 var lamp=Group("Fault indicator",socket,new Vector3(0,item.z*.01f+.08f,.1f));gear.indicator=lamp.gameObject.AddComponent<Light>();gear.indicator.range=1.1f;gear.indicator.intensity=1.1f;gear.indicator.shadows=LightShadows.None;
                 gear.SetBroken(false);
             }
@@ -197,7 +197,7 @@ namespace Cardboard.Editor
         }
         static void Messages(CardboardFactoryGame game)
         {
-            var mesh=Bake(MessageModel,"WorkerMessage",0,Vector3.zero,true,.6f);
+            var mesh=Bake(MessageModel,"WorkerMessage",0,Vector3.zero,true,1f);
             var material=Paper("WorkerMessage",Color.white,AssetDatabase.LoadAssetAtPath<Texture2D>(MessageTexture));CardboardSurface.Configure(material);
             var clips=Directory.GetFiles("Assets/Game_Assets/Sounds","*.mp3").Where(p=>!System.IO.Path.GetFileNameWithoutExtension(p).Equals("Ring",StringComparison.OrdinalIgnoreCase)).OrderBy(p=>p).Select(p=>AssetDatabase.LoadAssetAtPath<AudioClip>(p.Replace('\\','/'))).Where(c=>c).ToArray();
             foreach(var worker in game.crowd.runners)
@@ -211,7 +211,7 @@ namespace Cardboard.Editor
                 reaction.voice=speaker;reaction.voices=clips;PlaceMessage(worker,reaction.message);EditorUtility.SetDirty(reaction);
             }
         }
-        static void PlaceMessage(CardboardRunner worker,Transform message)
+        public static void PlaceMessage(CardboardRunner worker,Transform message)
         {
             float top=worker.transform.position.y;
             if(worker.puppet)foreach(var renderer in worker.puppet.GetComponentsInChildren<Renderer>())
@@ -251,7 +251,7 @@ namespace Cardboard.Editor
             var game=root.GetComponent<CardboardFactoryGame>();
             Meal(game.lunch.tray,game.lunch,true);
             foreach(var tray in game.lunch.diners.meals)Meal(tray,game.lunch,false);
-            Mechanism(game);Printers(game);Messages(game);FactoryReactionPresentationInstaller.Apply(root);
+            Mechanism(game);FactoryGearPlacementInstaller.Apply(root);Printers(game);Messages(game);FactoryReactionPresentationInstaller.Apply(root);
         }
         public static void ApplyCurrent()
         {

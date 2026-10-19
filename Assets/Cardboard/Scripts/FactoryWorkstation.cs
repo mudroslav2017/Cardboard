@@ -11,6 +11,9 @@ namespace Cardboard
         public bool isPlayerStation = true;
         public Transform feedLever, pressLever, selector, wheel, wheelBase, press, guardModel;
         public Transform feedGrip, pressGrip, wheelGrip;
+        public Transform feedHandle,pressHandle;
+        public Transform FeedMotion => feedHandle?feedHandle:feedLever;
+        public Transform PressMotion => pressHandle?pressHandle:pressLever;
         public FactoryOperatorHand operatorHand;
         public FactoryMachiningVFX machiningEffects;
         public AnimationClip guardClip;
@@ -53,6 +56,7 @@ namespace Cardboard
         Vector3 pressHome, pumpHome, wheelAxis;
         Quaternion feedHome, pressLeverHome, selectorHome, wheelHome;
         float elapsed, pressBlend, landingPulse, wheelAngle, lastAngle, leverTime, autoTurnRemaining;
+        Vector2 previousDragPointer;
         int dippingBath, releasedFrame = -1;
         bool initialized, hasAngle, returnToLook, leverFired, wheelAttemptFault, wrongTypeFault;
         public bool ExecutionControlled {get;private set;}
@@ -66,7 +70,7 @@ namespace Cardboard
         {
             if (initialized || !press) return;
             initialized = true; pressHome = press.localPosition; pumpHome = pumpPlate.localPosition;
-            feedHome = feedLever.localRotation; pressLeverHome = pressLever.localRotation; selectorHome = selector.localRotation;
+            feedHome = FeedMotion.localRotation; pressLeverHome = PressMotion.localRotation; selectorHome = selector.localRotation;
             wheelHome = wheel.localRotation;
             wheelAxis = wheel.parent.InverseTransformDirection(transform.forward).normalized;
             sound = GetComponent<FactoryWorkbenchSound>();
@@ -79,12 +83,13 @@ namespace Cardboard
             PressClosed = GuardClosed = false; landingPulse = wheelAngle = 0;
             OrderNumber = QueuedOrder = 0; OrderTravel = 0;
             if(printerSignal)printerSignal.SetSignal(false);
+            if(sound)sound.StopCutting();
             if (dippingVisual) Destroy(dippingVisual);
             if (machiningEffects) machiningEffects.Clear();
             if (initialized) Refresh();
         }
         public void PrintOrder(int number) { QueuedOrder = Mathf.Max(number,0); }
-        bool Available => isPlayerStation && Game && !Game.MenuActive && !Game.Ended && !Game.HandsBusy && Game.State != FactoryState.Chased;
+        bool Available => isPlayerStation && Game && !Game.MenuActive && !Game.Ended && !Game.HandsBusy && !Game.IntroBusy && Game.State != FactoryState.Chased;
         void Update()
         {
             if (ExecutionControlled) return;
@@ -114,7 +119,7 @@ namespace Cardboard
         // Also used by the Play Mode checks, so timed machinery has a single path.
         public void Tick(float dt)
         {
-            if(Game && !Game.MenuActive && !Game.Ended && !Game.CaptureActive)TickOrder(dt);
+            if(Game && !Game.MenuActive && !Game.Ended && !Game.CaptureActive && (!Game.intro || Game.intro.AllowPrinter))TickOrder(dt);
             if (!Available) return;
             if (LeverAnimating)
             {
@@ -190,6 +195,7 @@ namespace Cardboard
         void PullLever(StationPart part)
         {
             activeLever = part; LeverAnimating = true; leverTime = LeverTravel = 0; leverFired = false;
+            if(sound)sound.Lever((part==StationPart.Feed?feedGrip:pressGrip).position);
             if (operatorHand) operatorHand.Attach(part == StationPart.Feed ? feedGrip : pressGrip);
         }
         public bool Operate(StationPart part, int number = 0)
@@ -203,15 +209,15 @@ namespace Cardboard
                     { PullLever(part); accepted = true; }
                     break;
                 case StationPart.Selector:
-                    if (!PressClosed && !GuardClosed && Stage != StationStage.Cut)
+                    if ((Stage == StationStage.Empty || Stage == StationStage.Loaded) && !Game.HasPart && !PressClosed && !GuardClosed)
                     { SelectedType = SelectedType % 3 + 1;wrongTypeFault=false; accepted = true; }
                     break;
                 case StationPart.Press:
-                    if (!GuardClosed && GuardBlend <= .01f && (Stage == StationStage.Loaded || Stage == StationStage.Cutting || Stage == StationStage.Cut))
+                    if (!GuardClosed && GuardBlend <= .01f && ((!PressClosed && Stage == StationStage.Loaded) || (PressClosed && (Stage == StationStage.Loaded || Stage == StationStage.Cutting || Stage == StationStage.Cut))))
                     { PullLever(part); accepted = true; }
                     break;
                 case StationPart.Guard:
-                    if (Stage != StationStage.Cut && (GuardClosed || (PressClosed && pressBlend >= .99f && (Stage == StationStage.Loaded || Stage == StationStage.Cutting))))
+                    if (GuardClosed || (PressClosed && pressBlend >= .99f && (Stage == StationStage.Loaded || Stage == StationStage.Cutting)))
                     { GuardClosed = !GuardClosed; if (!GuardClosed) Pressure = 0; accepted = true; }
                     break;
                 case StationPart.Wheel:
@@ -258,10 +264,10 @@ namespace Cardboard
                 if(Mathf.Abs(degrees)>.01f && !wheelAttemptFault && Stage!=StationStage.Cut)
                 {
                     wheelAttemptFault=true;
-                    string reason=Stage!=StationStage.Loaded && Stage!=StationStage.Cutting?"Начал крутить штурвал без заготовки под прессом.":
-                        !PressClosed || pressBlend<.99f?"Начал крутить штурвал до закрытия пресса.":
-                        !GuardClosed || GuardBlend<.99f?"Начал крутить штурвал до подъёма защитной решётки.":
-                        "Начал крутить штурвал, не накачав давление до максимума.";
+                    string reason=Stage!=StationStage.Loaded && Stage!=StationStage.Cutting?"Turned the wheel without a sheet under the press.":
+                        !PressClosed || pressBlend<.99f?"Turned the wheel before closing the press.":
+                        !GuardClosed || GuardBlend<.99f?"Turned the wheel before raising the guard.":
+                        "Turned the wheel without full pressure.";
                     Game.RegisterMistake(reason,.5f);
                 }
                 Refresh(); return false;
@@ -269,24 +275,25 @@ namespace Cardboard
             if(SelectedType!=Game.OrderedType && !wrongTypeFault)
             {
                 wrongTypeFault=true;
-                Game.RegisterMistake("Начал резать шестерёнку неверного типа: изображение не совпадает с перфокартой.");
+                Game.RegisterMistake("Cut the wrong gear type: the diagram does not match the punchcard.");
                 if(Game.CaptureActive) return false;
             }
             float previousProgress=CutProgress;
             CutProgress = Mathf.Clamp01(CutProgress + degrees / 1080);
             if(machiningEffects)machiningEffects.Cut(Mathf.Max(0,CutProgress-previousProgress));
+            if(sound)sound.Cut(Mathf.Max(0,CutProgress-previousProgress));
             Stage = CutProgress >= .9999f ? StationStage.Cut : StationStage.Cutting;
             if (Stage == StationStage.Cut)
             {
                 CutProgress = 1; CutType = SelectedType; BuildCutPart(); Clunk(true);
-                GuardClosed = false; Pressure = 0; EndGrip();
+                Pressure = 0; EndGrip();
             }
             Refresh(); return true;
         }
         public bool BeginWheel(Vector2 screenPointer)
         {
-            if (!Available || Manipulating || LeverAnimating) return false;
-            Manipulating = true;wheelAttemptFault=false; hasAngle = false; pointer = screenPointer; autoTurnRemaining = 0;
+            if (!Available || Manipulating || LeverAnimating || Stage == StationStage.Dipping) return false;
+            Manipulating = true;wheelAttemptFault=false; hasAngle = false; pointer = previousDragPointer = screenPointer; autoTurnRemaining = 0;
             returnToLook = Cursor.lockState == CursorLockMode.Locked;
             Cursor.lockState = CursorLockMode.Locked; FactoryVolumeCursor.SetSystemVisible(false);
             if (operatorHand) operatorHand.Attach(wheelGrip);
@@ -295,15 +302,16 @@ namespace Cardboard
         public void DragWheel(Vector2 screenPointer)
         {
             if (!Manipulating || !Camera.main) return;
-            Vector2 center = Camera.main.WorldToScreenPoint(WheelCenter);
-            Vector2 offset = screenPointer - center;
-            if (offset.sqrMagnitude < 100) { hasAngle = false; return; }
-            float angle = Mathf.Atan2(offset.y, offset.x) * Mathf.Rad2Deg;
-            float degrees = -Mathf.DeltaAngle(lastAngle, angle);
-            if (hasAngle && Mathf.Abs(degrees) <= 65) TurnWheel(degrees);
-            lastAngle = angle; hasAngle = true;
+            Vector2 center=Camera.main.WorldToScreenPoint(WheelCenter);
+            Vector2 offset=screenPointer-center,delta=screenPointer-previousDragPointer;previousDragPointer=screenPointer;
+            if(offset.sqrMagnitude<225)
+            {hasAngle=false;TurnWheel((delta.x-delta.y)*.45f);return;}
+            float angle=Mathf.Atan2(offset.y,offset.x)*Mathf.Rad2Deg;
+            if(hasAngle)TurnWheel(Mathf.Clamp(-Mathf.DeltaAngle(lastAngle,angle),-65,65));
+            else if(delta.sqrMagnitude>0)TurnWheel((delta.x-delta.y)*.45f);
+            lastAngle=angle;hasAngle=true;
         }
-        public Vector3 WheelCenter => transform.TransformPoint(new Vector3(2.049f, .798f, -.334f));
+        public Vector3 WheelCenter => wheel?wheel.position:transform.TransformPoint(new Vector3(2.049f,.798f,-.334f));
         public void EndGrip(bool capture = true)
         {
             bool wasManipulating = Manipulating;
@@ -325,7 +333,7 @@ namespace Cardboard
         }
         public void SetExecutionPose(float leverTravel,float crush)
         {
-            pressLever.localRotation=pressLeverHome*Quaternion.Euler(-58*Mathf.Clamp01(leverTravel),0,0);
+            PressMotion.localRotation=pressLeverHome*Quaternion.Euler(-58*Mathf.Clamp01(leverTravel),0,0);
             press.localPosition=pressHome+Vector3.down*(.65f*Mathf.Clamp01(crush));
         }
         void BuildCutPart()
@@ -349,8 +357,8 @@ namespace Cardboard
                 guardHit.transform.localPosition = Vector3.Lerp(new Vector3(-.05f,.45f,-.05f),new Vector3(-.05f,1.18f,-.48f),GuardBlend);
                 guardHit.size = Vector3.Lerp(new Vector3(.9f,.15f,.95f),new Vector3(.83f,1.1f,.25f),GuardBlend);
             }
-            feedLever.localRotation = feedHome * Quaternion.Euler(LeverAnimating && activeLever == StationPart.Feed ? -58 * LeverTravel : 0, 0, 0);
-            pressLever.localRotation = pressLeverHome * Quaternion.Euler(LeverAnimating && activeLever == StationPart.Press ? -58 * LeverTravel : 0, 0, 0);
+            FeedMotion.localRotation = feedHome * Quaternion.Euler(LeverAnimating && activeLever == StationPart.Feed ? -58 * LeverTravel : 0, 0, 0);
+            PressMotion.localRotation = pressLeverHome * Quaternion.Euler(LeverAnimating && activeLever == StationPart.Press ? -58 * LeverTravel : 0, 0, 0);
             selector.localRotation = selectorHome * Quaternion.Euler(0, 0, (SelectedType - 1) * 120);
             wheel.localRotation = Quaternion.AngleAxis(-wheelAngle, wheelAxis) * wheelHome;
             if(selectorNumber) selectorNumber.text = SelectedType.ToString();
@@ -358,7 +366,7 @@ namespace Cardboard
             pressureNeedle.localRotation = Quaternion.Euler(0, 0, 65 - Pressure * 130);
             for (int i = 0; i < pressureLamps.Length; i++) pressureLamps[i].sharedMaterial = Pressure >= (i + 1) * .25f ? lampOn : lampOff;
             progressFill.localScale = new Vector3(Mathf.Max(.001f, 1.1f * CutProgress), .05f, .025f);
-            progressFill.localPosition = progressOrigin + Vector3.right * (1.1f * (CutProgress - 1) * .5f);
+            progressFill.localPosition = progressOrigin + progressFill.localRotation*Vector3.right * (1.1f * (CutProgress - 1) * .5f);
             if (operatorHand) operatorHand.SyncPose();
         }
         void OnApplicationFocus(bool focused) { if (!focused && Manipulating) EndGrip(false); }

@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace Cardboard
 {
@@ -12,6 +13,7 @@ namespace Cardboard
         readonly Texture2D[] textures=new Texture2D[2];
         readonly Color32[][] pixels=new Color32[2][];
         Material[] originals;
+        readonly Dictionary<int,Color>[] inkLayers={new Dictionary<int,Color>(),new Dictionary<int,Color>()};
         MeshRenderer display;
 
         int TextureSlot(int side)
@@ -77,7 +79,13 @@ namespace Cardboard
                 {
                     float dx=(x-center.x)/rx,dy=(y-center.y)/ry;
                     float coverage=Mathf.Clamp01((1-Mathf.Sqrt(dx*dx+dy*dy))*Mathf.Min(rx,ry));
-                    if(coverage>0) inkPixels[y*width+x]=Color.Lerp(inkPixels[y*width+x],color,coverage*.72f);
+                    if(coverage>0)
+                    {
+                        int index=y*width+x;float alpha=coverage*.72f;
+                        inkPixels[index]=Color.Lerp(inkPixels[index],color,alpha);
+                        inkLayers[side].TryGetValue(index,out var old);float combined=alpha+old.a*(1-alpha);
+                        var ink=(color*alpha+old*(old.a*(1-alpha)))/combined;ink.a=combined;inkLayers[side][index]=ink;
+                    }
                 }
             }
             if(maxX<minX || maxY<minY) return;
@@ -86,10 +94,32 @@ namespace Cardboard
             for(int y=0;y<patchHeight;y++) System.Array.Copy(inkPixels,(minY+y)*width+minX,patch,y*patchWidth,patchWidth);
             texture.SetPixels32(minX,minY,patchWidth,patchHeight,patch);texture.Apply(true,false);
         }
+        public void SetBaseMaterial(Material material)
+        {
+            if(!display)display=GetComponent<MeshRenderer>();
+            var materials=display.sharedMaterials;
+            if(originals!=null && originals.Length>0 && originals[0]==material)return;
+            originals=new Material[materials.Length];
+            for(int side=0;side<materials.Length;side++)
+            {
+                originals[side]=material;
+                if(side<textures.Length && textures[side])
+                {
+                    var source=(Texture2D)material.mainTexture;pixels[side]=source.GetPixels32();
+                    foreach(var ink in inkLayers[side])if(ink.Key<pixels[side].Length)pixels[side][ink.Key]=Color.Lerp(pixels[side][ink.Key],ink.Value,ink.Value.a);
+                    textures[side].SetPixels32(pixels[side]);textures[side].Apply(true,false);
+                    instances[side].CopyPropertiesFromMaterial(material);instances[side].mainTexture=textures[side];instances[side].SetTexture("_BaseMap",textures[side]);
+                    materials[side]=instances[side];
+                }
+                else materials[side]=material;
+            }
+            display.sharedMaterials=materials;
+        }
         public void ClearDrawing()
         {
             for(int side=0;side<2;side++)
             {
+                inkLayers[side].Clear();
                 if(!textures[side] || originals==null) continue;
                 pixels[side]=((Texture2D)originals[side].mainTexture).GetPixels32();
                 textures[side].SetPixels32(pixels[side]);textures[side].Apply(true,false);
