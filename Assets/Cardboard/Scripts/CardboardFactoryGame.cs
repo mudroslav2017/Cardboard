@@ -114,7 +114,7 @@ namespace Cardboard
             if(keyboard!=null)
             {
                 if(keyboard.eKey.wasPressedThisFrame && !PlayerBlocked && !CardboardMarker.DrawingMode) Interact();
-                // Mouse pickup release and charged throws are routed through FactoryObjectCarry.
+                // Mouse placement and fixed-strength throws are routed through FactoryObjectCarry.
             }
             if(ReadyToLeave && !exitDoor) exitGate.localPosition=Vector3.Lerp(exitGate.localPosition,gateHome+Vector3.right*2.5f,dt*2);
             bool watched=IsWatched();
@@ -172,7 +172,7 @@ namespace Cardboard
             int point=(Mathf.FloorToInt(Time.time/(7+worker.personality%3))+worker.personality)%patrol.Length;
             return patrol[point];
         }
-        public bool RegisterMistake(string reason,float stars=1f,CardboardRunner witness=null)
+        public bool RegisterMistake(string reason,float stars=1f,CardboardRunner witness=null,FactoryWorkerEmotion emotion=FactoryWorkerEmotion.Machine)
         {
             if(MenuActive || Ended || CaptureActive || Mistakes>=MistakeLimit || stars<=0 || float.IsNaN(stars) || float.IsInfinity(stars)) return false;
             LastMistakeReason=string.IsNullOrWhiteSpace(reason)?"Нарушение правил смены.":reason;
@@ -181,7 +181,7 @@ namespace Cardboard
             Toast(LastMistakeReason,7);
             if(sound) sound.Play("wrong");
             var observer=witness?witness:NearestWorker();
-            if(observer){var reaction=observer.GetComponent<FactoryWorkerImpact>();if(reaction)reaction.Notice();}
+            if(observer){var reaction=observer.GetComponent<FactoryWorkerImpact>();if(reaction)reaction.Notice(2.7f,emotion);}
             if(Mistakes>=MistakeLimit) Capture(FactoryDeath.Press);
             return true;
         }
@@ -192,7 +192,7 @@ namespace Cardboard
             {
                 runSeen+=Mathf.Max(0,dt);runGrace=0;
                 if(!runCharged && runSeen>=.75f)
-                { runCharged=true;RegisterMistake("Рабочие заметили бег.",.5f,FindWitness()); }
+                { runCharged=true;RegisterMistake("Рабочие заметили бег.",.5f,FindWitness(),FactoryWorkerEmotion.Run); }
             }
             else
             {
@@ -200,7 +200,7 @@ namespace Cardboard
                 if(runGrace>=.5f) {runSeen=0;runCharged=false;}
             }
             if(watched && jump>.3f && jumpWatch<=.3f && !pumping)
-                RegisterMistake("Рабочие заметили прыжок вне панели насоса.",.5f,FindWitness());
+                RegisterMistake("Рабочие заметили прыжок вне панели насоса.",.5f,FindWitness(),FactoryWorkerEmotion.Jump);
             jumpWatch=jump;
         }
         public void TickShiftClock(float dt)
@@ -347,7 +347,7 @@ namespace Cardboard
             if(sound) sound.Play("good");return true;
         }
         public void DropPart(){ReleasePart(false);}
-        public void ReleasePart(bool thrown,float strength=1)
+        public void ReleasePart(bool thrown)
         {
             if(!HasPart || !carried || DippingPart)return;
             HasPart=false;var loose=carried;carried=null;
@@ -363,8 +363,7 @@ namespace Cardboard
             var body=loose.AddComponent<Rigidbody>();body.mass=.65f;
             var prop=loose.AddComponent<FactoryPhysicsProp>();prop.itemName="деталь";prop.workbenchPart=true;prop.recipe=HeldRecipe;prop.Initialize();
             var target=loose.AddComponent<FactoryInteractable>();target.action=FactoryAction.PhysicsProp;target.prompt="E — поднять деталь";
-            if(objectCarry)objectCarry.CancelThrow();
-            prop.BeginCarry();prop.Release(thrown?Camera.main.transform.forward*FactoryObjectCarry.ThrowSpeed(strength,body.mass):Vector3.zero,thrown);
+            prop.BeginCarry();prop.Release(thrown?Camera.main.transform.forward*FactoryObjectCarry.ThrowSpeed(body.mass):Vector3.zero,thrown);
         }
         public void Toast(string message,float seconds=4) { Message=message;MessageUntil=Time.time+seconds; }
         public void Capture(FactoryDeath death)

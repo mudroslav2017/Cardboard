@@ -94,24 +94,28 @@ namespace Cardboard.Editor
             instruction.physical=Configure(instruction.sheet,.22f,"инструкцию");
             instruction.physical.instructionSheet=true;
             instruction.sheet.GetComponent<FactoryInteractable>().action=FactoryAction.Instruction;
-            var mesh=instruction.sheet.GetComponent<MeshFilter>().sharedMesh;var bounds=mesh.bounds;
-            var old=instruction.sheet.Find("Instruction control hint");if(old)Object.DestroyImmediate(old.gameObject);
+            InstructionHints(instruction);instruction.ResetFloor();EditorUtility.SetDirty(instruction);
+        }
+        public static void InstructionHints(FactoryInstruction instruction)
+        {
+            var bounds=instruction.sheet.GetComponent<MeshFilter>().sharedMesh.bounds;
+            foreach(string name in new[]{"Instruction control hint","Flip instruction hint"})
+            {var prior=instruction.sheet.Find(name);if(prior)Object.DestroyImmediate(prior.gameObject);}
             var hint=Group("Instruction control hint",instruction.sheet,new Vector3(bounds.min.x+.10f,bounds.min.y+.062f,bounds.min.z-.006f));
             var text=hint.gameObject.AddComponent<TextMesh>();text.font=CardboardTypography.DefaultFont;
-            text.fontSize=48;text.characterSize=.030f;text.text="HOLD LMB TO THROW — LONGER = STRONGER";text.anchor=TextAnchor.LowerLeft;
+            text.fontSize=48;text.characterSize=.030f;text.text="LBM - TROW, RBM - PUT";text.anchor=TextAnchor.LowerLeft;
             text.color=new Color(.14f,.10f,.06f);text.font.RequestCharactersInTexture(text.text,48);
-            FitInk(text,hint.localPosition,bounds.size.x-.16f,.022f);instruction.controlHint=hint;
+            FitInk(text,hint.localPosition,bounds.size.x-.16f,.022f);instruction.controlHint=hint;instruction.flipHint=null;
             var ink=Paper("InstructionControlInk",Color.white,null,true);
             var label=hint.gameObject.AddComponent<CardboardWorldLabel>();label.ink=ink;label.Refresh();
-            var caption=Group("Flip instruction hint",instruction.sheet,new Vector3(bounds.min.x+.10f,bounds.min.y+.030f,bounds.min.z-.006f));
-            var prior=instruction.sheet.Find("Flip instruction hint");if(prior && prior!=caption)Object.DestroyImmediate(prior.gameObject);
-            var words=caption.gameObject.AddComponent<TextMesh>();words.font=CardboardTypography.DefaultFont;
-            words.fontSize=48;words.characterSize=.009f;words.text="RMB: PUT DOWN   ·   E: FLIP";
-            words.anchor=TextAnchor.LowerLeft;words.color=text.color;
-            words.font.RequestCharactersInTexture(words.text,48);
-            FitInk(words,caption.localPosition,bounds.size.x-.16f,.022f);instruction.flipHint=caption;
-            var captionLabel=caption.gameObject.AddComponent<CardboardWorldLabel>();captionLabel.ink=ink;captionLabel.Refresh();
-            instruction.ResetFloor();EditorUtility.SetDirty(instruction);
+            EditorUtility.SetDirty(instruction);
+        }
+        public static void InstructionHintsCurrent()
+        {
+            if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Update instruction hints in Edit Mode.");
+            var game=Object.FindFirstObjectByType<CardboardFactoryGame>();InstructionHints(game.instruction);
+            AssetDatabase.SaveAssets();EditorSceneManager.MarkSceneDirty(game.gameObject.scene);EditorSceneManager.SaveScene(game.gameObject.scene);
+            File.WriteAllText("Library/FactoryInstructionControls.txt",game.instruction.controlHint.GetComponent<TextMesh>().text);
         }
         public static void Cursor(FactoryMainMenu menu)
         {

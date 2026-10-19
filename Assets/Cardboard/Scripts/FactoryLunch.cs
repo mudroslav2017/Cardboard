@@ -92,7 +92,7 @@ namespace Cardboard
         {
             if(!Carrying)return;
             State=LunchState.Spilled;ResultUntil=Time.time+6;if(physicsTray)physicsTray.ReleaseTray();
-            RefreshWorld();game.RegisterMistake("Уронил еду с подноса во время обеда.");game.PlayCaptureSound("impact");
+            RefreshWorld();game.RegisterMistake("Уронил еду с подноса во время обеда.",emotion:FactoryWorkerEmotion.None);game.PlayCaptureSound("impact");
         }
         public void TickSpill(float dt){} // Unity physics owns the flight, impacts and resting pose.
         public void CancelCarry()

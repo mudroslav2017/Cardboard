@@ -146,14 +146,14 @@ namespace Cardboard.Editor
                 Check(game.instruction.Flip(),"Instruction still flips on its separate action");
                 Simulate(100,true);
                 Check(Quaternion.Angle(prop.Body.rotation,lens.transform.rotation*Quaternion.Euler(0,180,0))<4,"Instruction physically turns to its reverse side");
-                Check(game.instruction.controlHint.GetComponent<TextMesh>().text.Contains("HOLD LMB") && game.instruction.flipHint.GetComponent<TextMesh>().text.Contains("RMB: PUT DOWN"),"English charge and placement hints are printed on the instruction");
+                Check(game.instruction.controlHint.GetComponent<TextMesh>().text=="LBM - TROW, RBM - PUT" && !game.instruction.flipHint,"Instruction shows the exact requested single control line");
                 game.instruction.RefreshHints();
-                Check(!game.instruction.controlHint.gameObject.activeSelf && !game.instruction.flipHint.gameObject.activeSelf,"Front hints do not show through the reverse side");
+                Check(!game.instruction.controlHint.gameObject.activeSelf && (!game.instruction.flipHint || !game.instruction.flipHint.gameObject.activeSelf),"Front hints do not show through the reverse side");
                 CardboardFactorySceneBuilder.Capture("PhysicalInstruction");
             }
             before=prop.Body.position;game.Interact();
             Check(game.objectCarry.Held==prop,"E does not put down "+prop.itemName);
-            game.objectCarry.TickInput(0,false,false,false,true);
+            game.objectCarry.TickInput(false,true);
             Check(!game.objectCarry.Held && !prop.IsHeld && prop.Body.useGravity,"RMB releases "+prop.itemName+" and restores gravity");
             Check(Vector3.Distance(before,prop.Body.position)<.0001f,"Release keeps current height without snapping to the floor: "+prop.itemName);
             Simulate(20);
@@ -177,49 +177,42 @@ namespace Cardboard.Editor
                     report.Add("DETAIL control blocked "+control.name+" by "+(focus?focus.name:"solid geometry"));
             }
         }
-        static void ChargedThrows(FactoryPhysicsProp prop)
+        static void ClickThrows(FactoryPhysicsProp prop)
         {
             Camera.main.transform.SetPositionAndRotation(new Vector3(200,1.62f,200),Quaternion.identity);
             var speeds=new List<float>();
-            foreach(float seconds in new[]{.02f,.60f,1.5f})
+            foreach(int heldFrames in new[]{1,30,90})
             {
                 Place(prop,new Vector3(200,1,201.3f));prop.Take(game);
-                game.objectCarry.TickInput(.01f,true,true,false,false);
-                game.objectCarry.TickInput(seconds,false,true,false,false);
-                Check(game.objectCarry.Held==prop && game.objectCarry.Charging,"LMB holds "+prop.itemName+" until release");
-                game.objectCarry.TickInput(0,false,false,true,false);
-                speeds.Add(prop.Body.linearVelocity.z);
-                Check(!prop.IsHeld && prop.Body.useGravity && !game.objectCarry.Charging,"Releasing LMB launches "+prop.itemName);
+                for(int i=0;i<heldFrames;i++)game.objectCarry.TickInput(false,false);
+                Check(prop.IsHeld,"Waiting without a new click keeps "+prop.itemName+" in hand");
+                game.objectCarry.TickInput(true,false);speeds.Add(prop.Body.linearVelocity.z);
+                Check(!prop.IsHeld && prop.Body.useGravity && prop.ThrowArmed && prop.Body.linearVelocity.z>7,"LMB press immediately throws "+prop.itemName+" at full fixed speed");
+                game.objectCarry.TickInput(false,false);
+                Check(Mathf.Abs(prop.Body.linearVelocity.z-speeds[speeds.Count-1])<.001f,"Holding or releasing LMB does not produce a second impulse");
                 prop.ResetHome();
             }
-            Check(speeds[0]<1 && speeds[1]>speeds[0]+2 && speeds[2]>speeds[1]+2,"Longer LMB holds produce stronger throws for "+prop.itemName);
-            Place(prop,new Vector3(200,1,201.3f));prop.Take(game);
-            game.objectCarry.TickInput(.9f,true,true,false,false);
-            Vector3 position=prop.Body.position;
-            game.objectCarry.TickInput(0,false,true,false,true);
-            Check(!prop.IsHeld && !game.objectCarry.Charging && prop.Body.linearVelocity.magnitude<=.56f &&
-                Vector3.Distance(position,prop.Body.position)<.0001f,"RMB cancels a charged throw and gently releases "+prop.itemName);
+            Check(speeds.Max()-speeds.Min()<.001f,"Time spent holding the object never changes its throw speed: "+prop.itemName);
+            Place(prop,new Vector3(200,1,201.3f));prop.Take(game);Vector3 position=prop.Body.position;
+            game.objectCarry.TickInput(false,true);
+            Check(!prop.IsHeld && !prop.ThrowArmed && prop.Body.linearVelocity.magnitude<=.56f && Vector3.Distance(position,prop.Body.position)<.0001f,"RMB gently puts down "+prop.itemName+" at its current position");
             prop.ResetHome();
         }
-        static void ChargedGear()
+        static void ClickGear()
         {
             var speeds=new List<float>();
-            foreach(float seconds in new[]{.02f,.6f,1.5f})
+            for(int attempt=0;attempt<3;attempt++)
             {
-                game.ReceiveWorkbenchPart(FactoryRecipe.ForType(1));
-                game.objectCarry.TickInput(seconds,true,true,false,false);
-                Check(game.HasPart && game.objectCarry.Charging,"Manufactured gear stays in hand while charging");
-                game.objectCarry.TickInput(0,false,false,true,false);
+                game.ReceiveWorkbenchPart(FactoryRecipe.ForType(1));game.objectCarry.TickInput(false,false);
+                Check(game.HasPart,"Manufactured gear stays in hand without a click");game.objectCarry.TickInput(true,false);
                 var loose=game.GetComponentsInChildren<FactoryPhysicsProp>().First(prop=>prop.workbenchPart);
-                speeds.Add(loose.Body.linearVelocity.z);loose.gameObject.SetActive(false);
+                speeds.Add(loose.Body.linearVelocity.z);Check(!game.HasPart && loose.ThrowArmed && loose.Body.linearVelocity.z>7,"LMB press immediately throws the manufactured gear");
+                loose.gameObject.SetActive(false);
             }
-            Check(speeds[0]<1 && speeds[1]>speeds[0]+2 && speeds[2]>speeds[1]+2,"Manufactured gear shares the duration-based throw strength");
-            game.ReceiveWorkbenchPart(FactoryRecipe.ForType(1));game.Interact();
-            Check(game.HasPart,"E does not place manufactured gears");
-            game.objectCarry.TickInput(0,false,false,false,true);
-            var placed=game.GetComponentsInChildren<FactoryPhysicsProp>().First(prop=>prop.workbenchPart);
-            Check(!game.HasPart && placed.Body.linearVelocity.sqrMagnitude<.001f,"RMB gently puts down a manufactured gear");
-            placed.gameObject.SetActive(false);
+            Check(speeds.Max()-speeds.Min()<.001f,"Manufactured gears use the same fixed throw speed on every click");
+            game.ReceiveWorkbenchPart(FactoryRecipe.ForType(1));game.Interact();Check(game.HasPart,"E does not place manufactured gears");
+            game.objectCarry.TickInput(false,true);var placed=game.GetComponentsInChildren<FactoryPhysicsProp>().First(prop=>prop.workbenchPart);
+            Check(!game.HasPart && placed.Body.linearVelocity.sqrMagnitude<.001f,"RMB gently puts down a manufactured gear");placed.gameObject.SetActive(false);
         }
         static void PhysicsChecks()
         {
@@ -240,7 +233,7 @@ namespace Cardboard.Editor
             CarryAndDrop(game.instruction.physical);
             CarryAndDrop(props.First(prop=>prop.itemName=="бочку"));
             CarryAndDrop(props.First(prop=>prop.itemName=="коробку"));
-            ChargedThrows(game.instruction.physical);ChargedThrows(props.First(prop=>prop.itemName=="бочку"));ChargedThrows(props.First(prop=>prop.itemName=="коробку"));ChargedGear();
+            ClickThrows(game.instruction.physical);ClickThrows(props.First(prop=>prop.itemName=="бочку"));ClickThrows(props.First(prop=>prop.itemName=="коробку"));ClickGear();
             Camera.main.transform.SetPositionAndRotation(new Vector3(200,1.62f,200),Quaternion.identity);
             var box=props.First(prop=>prop.itemName=="коробку");Place(box,new Vector3(200,.8f,200.3f));
             var wall=GameObject.CreatePrimitive(PrimitiveType.Cube);wall.name="Grip collision test wall";

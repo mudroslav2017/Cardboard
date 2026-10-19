@@ -205,11 +205,39 @@ namespace Cardboard.Editor
                 if(!worker || worker.isPlayer)continue;
                 var reaction=worker.GetComponent<FactoryWorkerImpact>();if(!reaction)reaction=worker.gameObject.AddComponent<FactoryWorkerImpact>();
                 var old=worker.transform.Find("Messege • reaction");if(old)Object.DestroyImmediate(old.gameObject);
-                reaction.message=MeshObject("Messege • reaction",worker.transform,mesh,material,new Vector3(0,2.02f,0));reaction.message.gameObject.layer=9;reaction.message.gameObject.SetActive(false);
+                reaction.message=MeshObject("Messege • reaction",worker.transform,mesh,material,new Vector3(0,2.7f,0));reaction.message.gameObject.layer=9;reaction.message.gameObject.SetActive(false);
                 var speaker=worker.GetComponent<AudioSource>();if(!speaker)speaker=worker.gameObject.AddComponent<AudioSource>();
-                speaker.playOnAwake=false;speaker.loop=true;speaker.spatialBlend=1;speaker.volume=.8f;speaker.minDistance=2;speaker.maxDistance=19;speaker.rolloffMode=AudioRolloffMode.Linear;
-                reaction.voice=speaker;reaction.voices=clips;EditorUtility.SetDirty(reaction);
+                speaker.playOnAwake=false;speaker.loop=true;speaker.spatialBlend=1;speaker.volume=.55f;speaker.minDistance=1.25f;speaker.maxDistance=16;speaker.rolloffMode=AudioRolloffMode.Logarithmic;
+                reaction.voice=speaker;reaction.voices=clips;PlaceMessage(worker,reaction.message);EditorUtility.SetDirty(reaction);
             }
+        }
+        static void PlaceMessage(CardboardRunner worker,Transform message)
+        {
+            float top=worker.transform.position.y;
+            if(worker.puppet)foreach(var renderer in worker.puppet.GetComponentsInChildren<Renderer>())
+                if(renderer.enabled)top=Mathf.Max(top,renderer.bounds.max.y);
+            float halfHeight=0;
+            foreach(var renderer in message.GetComponentsInChildren<Renderer>(true))
+                halfHeight=Mathf.Max(halfHeight,renderer.bounds.extents.y);
+            var position=message.position;
+            position.y=Mathf.Max(worker.transform.TransformPoint(new Vector3(0,2.7f,0)).y,top+.3f+halfHeight);
+            message.position=position;EditorUtility.SetDirty(message);
+        }
+        public static void RaiseMessagesCurrent()
+        {
+            if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Raise messages in Edit Mode.");
+            var game=Object.FindFirstObjectByType<CardboardFactoryGame>();var report=new StringBuilder();int count=0;
+            foreach(var worker in game.crowd.runners)
+            {
+                if(!worker || worker.isPlayer)continue;
+                var reaction=worker.GetComponent<FactoryWorkerImpact>();if(!reaction || !reaction.message)continue;
+                PlaceMessage(worker,reaction.message);count++;
+                float top=worker.puppet.GetComponentsInChildren<Renderer>().Where(r=>r.enabled).Max(r=>r.bounds.max.y);
+                float bottom=reaction.message.GetComponentsInChildren<Renderer>(true).Min(r=>r.bounds.min.y);
+                report.AppendLine(worker.name+": messageY="+reaction.message.localPosition.y+" head clearance="+(bottom-top));
+            }
+            AssetDatabase.SaveAssets();EditorSceneManager.MarkSceneDirty(game.gameObject.scene);EditorSceneManager.SaveScene(game.gameObject.scene);
+            File.WriteAllText("Library/FactoryMessageHeights.txt","Raised "+count+" worker messages\n"+report);
         }
         public static void AudioCurrent()
         {
@@ -223,7 +251,7 @@ namespace Cardboard.Editor
             var game=root.GetComponent<CardboardFactoryGame>();
             Meal(game.lunch.tray,game.lunch,true);
             foreach(var tray in game.lunch.diners.meals)Meal(tray,game.lunch,false);
-            Mechanism(game);Printers(game);Messages(game);
+            Mechanism(game);Printers(game);Messages(game);FactoryReactionPresentationInstaller.Apply(root);
         }
         public static void ApplyCurrent()
         {

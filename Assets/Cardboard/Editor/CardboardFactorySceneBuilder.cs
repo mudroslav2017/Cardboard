@@ -49,6 +49,9 @@ namespace Cardboard.Editor
             else if(command=="floor-texture") FactoryFloorInstaller.ApplyCurrentScene();
             else if(command=="presentation-update") FactoryPresentationInstaller.ApplyCurrentScene();
             else if(command=="menu-rebuild") FactoryMenuBuilder.RebuildCurrent();
+            else if(command=="reaction-verify") FactoryReactionPresentationVerification.Run();
+            else if(command=="reaction-presentation") FactoryReactionPresentationInstaller.ApplyCurrent();
+            else if(command=="messages-height") FactoryShiftUpgrade.RaiseMessagesCurrent();
             else if(command=="shift-audio") FactoryShiftUpgrade.AudioCurrent();
             else if(command=="shift-verify") FactoryShiftVerification.Run();
             else if(command=="shift-preview") FactoryShiftVerification.Preview();
@@ -59,6 +62,7 @@ namespace Cardboard.Editor
             else if(command=="clean-menu-shot") FactoryWorkstationUpgrade.CaptureCleanMenu();
             else if(command=="people-restore") FactoryWorkstationUpgrade.RestorePeopleCurrent();
             else if(command=="station-upgrade-audit") FactoryWorkstationUpgrade.AuditCurrent();
+            else if(command=="instruction-hints") FactoryPhysicsInstaller.InstructionHintsCurrent();
             else if(command=="physics-update") FactoryPhysicsInstaller.ApplyCurrent();
             else if(command=="physics-verify") FactoryPhysicsVerification.Run();
             else if(command=="cursor-verify") FactoryPhysicsVerification.RunCursor();
@@ -149,6 +153,7 @@ namespace Cardboard.Editor
                 FactoryPhysicsInstaller.Apply(root.transform);
                 FactoryWorkstationUpgrade.Apply(root.transform);
                 FactoryShiftUpgrade.Apply(root.transform);
+
                 var container=AssetDatabase.LoadAssetAtPath<CardboardGeneratedAssets>(ArtPath);
                 if(!container) { container=ScriptableObject.CreateInstance<CardboardGeneratedAssets>();AssetDatabase.CreateAsset(container,ArtPath); }
                 else foreach(var old in AssetDatabase.LoadAllAssetsAtPath(ArtPath)) if(old && old!=container) UnityEngine.Object.DestroyImmediate(old,true);

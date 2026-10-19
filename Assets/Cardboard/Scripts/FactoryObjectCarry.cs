@@ -13,19 +13,10 @@ namespace Cardboard
         Quaternion gripRotation;
         Vector3 localCenter;
         int pickupFrame;
-        float chargeTime;
-        public const float MaxChargeSeconds=1.25f;
-        public bool Charging {get;private set;}
-        public float ThrowCharge => Mathf.Clamp01(chargeTime/MaxChargeSeconds);
-        public string Prompt => Held && Held.instructionSheet?"E — перевернуть · удерживайте ЛКМ — бросить · ПКМ — положить":"Удерживайте ЛКМ — бросить · ПКМ — положить";
-        public static float ThrowSpeed(float charge,float mass,bool instruction=false)
-        {
-            float maximum=instruction?12:Mathf.Lerp(11,8,Mathf.InverseLerp(.5f,5,mass));
-            return Mathf.Lerp(.65f,maximum,Mathf.SmoothStep(0,1,Mathf.Clamp01(charge)));
-        }
-        public void ItemReceived(){CancelThrow();pickupFrame=Time.frameCount;}
-        public void CancelThrow(){Charging=false;chargeTime=0;}
-
+        public string Prompt => Held && Held.instructionSheet?"E — перевернуть · ЛКМ — бросить · ПКМ — положить":"ЛКМ — бросить · ПКМ — положить";
+        public static float ThrowSpeed(float mass,bool instruction=false)
+        {return instruction?12:Mathf.Lerp(11,8,Mathf.InverseLerp(.5f,5,mass));}
+        public void ItemReceived(){pickupFrame=Time.frameCount;}
         public bool Take(FactoryPhysicsProp prop)
         {
             if(Held || !prop || !Camera.main || game.HandsBusy || game.HasPart || game.PlayerBlocked || game.CaptureActive)return false;
@@ -43,29 +34,20 @@ namespace Cardboard
         }
         void Update()
         {
-            if(!Held && !game.HasPart){CancelThrow();return;}
-            if(game.CaptureActive || game.Ended){CancelThrow();if(Held)Release(false);return;}
-            if(game.MenuActive || game.PlayerBlocked || CardboardMarker.DrawingMode){CancelThrow();return;}
+            if(!Held && !game.HasPart){return;}
+            if(game.CaptureActive || game.Ended){if(Held)Release(false);return;}
+            if(game.MenuActive || game.PlayerBlocked || CardboardMarker.DrawingMode){return;}
             if(Time.frameCount==pickupFrame)return;
-            var mouse=Mouse.current;if(mouse==null){CancelThrow();return;}
-            TickInput(Time.deltaTime,mouse.leftButton.wasPressedThisFrame,mouse.leftButton.isPressed,
-                mouse.leftButton.wasReleasedThisFrame,mouse.rightButton.wasPressedThisFrame);
+            var mouse=Mouse.current;if(mouse==null){return;}
+            TickInput(mouse.leftButton.wasPressedThisFrame,mouse.rightButton.wasPressedThisFrame);
         }
-        public void TickInput(float dt,bool press,bool hold,bool release,bool putDown)
+        public void TickInput(bool throwPressed,bool putDownPressed)
         {
-            if(!Held && !game.HasPart){CancelThrow();return;}
-            if(putDown)
-            {
-                CancelThrow();if(Held)Release(false);else game.ReleasePart(false);return;
-            }
-            if(press){Charging=true;chargeTime=0;}
-            if(!Charging)return;
-            if(hold)chargeTime=Mathf.Min(MaxChargeSeconds,chargeTime+Mathf.Max(0,dt));
-            if(release || !hold)
-            {
-                float strength=ThrowCharge;CancelThrow();
-                if(Held)Release(true,strength);else game.ReleasePart(true,strength);
-            }
+            if(!Held && !game.HasPart)return;
+            if(putDownPressed)
+            {if(Held)Release(false);else game.ReleasePart(false);return;}
+            if(throwPressed)
+            {if(Held)Release(true);else game.ReleasePart(true);}
         }
         public void FlipInstruction(bool reverse)
         {if(Held && Held.instructionSheet)gripRotation=Quaternion.Euler(0,reverse?180:0,0);}
@@ -91,21 +73,21 @@ namespace Cardboard
             // A blocked object stays against the wall; walking away releases the grip.
             if(Vector3.Distance(body.worldCenterOfMass,lens.position)>3.6f)Release(false);
         }
-        public void Release(bool thrown,float strength=1)
+        public void Release(bool thrown)
         {
             if(!Held)return;
-            var prop=Held;Held=null;CancelThrow();
+            var prop=Held;Held=null;
             Vector3 velocity=Vector3.ClampMagnitude(prop.Body.linearVelocity,.55f);
             if(thrown)
             {
-                float speed=ThrowSpeed(strength,prop.Body.mass,prop.instructionSheet);
+                float speed=ThrowSpeed(prop.Body.mass,prop.instructionSheet);
                 velocity=Camera.main.transform.forward*speed+(CardboardRunner.Player?CardboardRunner.Player.Velocity*.35f:Vector3.zero);
             }
             prop.Release(velocity,thrown);
             if(game.instruction && prop.instructionSheet)game.instruction.Released();
         }
         public void Clear()
-        {CancelThrow();if(Held){Held.IsHeld=false;Held=null;}}
-        void OnDisable(){CancelThrow();if(Application.isPlaying)Release(false);}
+        {if(Held){Held.IsHeld=false;Held=null;}}
+        void OnDisable(){if(Application.isPlaying)Release(false);}
     }
 }
