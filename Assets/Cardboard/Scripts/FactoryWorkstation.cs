@@ -17,6 +17,10 @@ namespace Cardboard
         public BoxCollider guardHit;
         public Transform sheet, cutPart, pumpPlate, pressureNeedle, progressFill, orderCard;
         public TextMesh orderNumber;
+        public FactoryPunchcardView orderView;
+        public FactoryPrinterSignal printerSignal;
+        public const float PrintDuration=2.6f;
+        public bool IsPrinting=>QueuedOrder>0 && (OrderNumber!=QueuedOrder || OrderTravel<1);
         public Transform[] baths;
         public Renderer[] pressureLamps;
         public Material lampOff, lampOn;
@@ -74,17 +78,18 @@ namespace Cardboard
             Stage = StationStage.Empty; SelectedType = 1; CutType = 0; Pressure = CutProgress = GuardBlend = pressBlend = elapsed = 0;
             PressClosed = GuardClosed = false; landingPulse = wheelAngle = 0;
             OrderNumber = QueuedOrder = 0; OrderTravel = 0;
+            if(printerSignal)printerSignal.SetSignal(false);
             if (dippingVisual) Destroy(dippingVisual);
             if (machiningEffects) machiningEffects.Clear();
             if (initialized) Refresh();
         }
-        public void PrintOrder(int number) { QueuedOrder = Mathf.Clamp(number, 0, 3); }
+        public void PrintOrder(int number) { QueuedOrder = Mathf.Max(number,0); }
         bool Available => isPlayerStation && Game && !Game.MenuActive && !Game.Ended && !Game.HandsBusy && Game.State != FactoryState.Chased;
         void Update()
         {
             if (ExecutionControlled) return;
-            if (!Available) { EndGrip(false); return; }
             Tick(Time.deltaTime);
+            if (!Available) { EndGrip(false); return; }
             if (!Application.isFocused) { if (Manipulating && autoTurnRemaining <= 0) EndGrip(false); return; }
             var keyboard = Keyboard.current; var mouse = Mouse.current;
             if (Manipulating && autoTurnRemaining <= 0)
@@ -109,8 +114,8 @@ namespace Cardboard
         // Also used by the Play Mode checks, so timed machinery has a single path.
         public void Tick(float dt)
         {
+            if(Game && !Game.MenuActive && !Game.Ended && !Game.CaptureActive)TickOrder(dt);
             if (!Available) return;
-            TickOrder(dt);
             if (LeverAnimating)
             {
                 leverTime += dt;
@@ -169,14 +174,17 @@ namespace Cardboard
         void TickOrder(float dt)
         {
             if (!orderCard) return;
-            if (OrderNumber != QueuedOrder && OrderTravel > 0) OrderTravel = Mathf.MoveTowards(OrderTravel, 0, dt / .4f);
+            if (OrderNumber != QueuedOrder && OrderTravel > 0) OrderTravel = Mathf.MoveTowards(OrderTravel, 0, dt / 1.6f);
             else
             {
                 OrderNumber = QueuedOrder;
-                OrderTravel = Mathf.MoveTowards(OrderTravel, OrderNumber == 0 ? 0 : 1, dt / .65f);
+                OrderTravel = Mathf.MoveTowards(OrderTravel, OrderNumber == 0 ? 0 : 1, dt / PrintDuration);
             }
             orderCard.gameObject.SetActive(OrderTravel > 0);
-            if (orderNumber) orderNumber.text = OrderNumber.ToString();
+            if(orderNumber)orderNumber.text="";
+            if(!orderView)orderView=orderCard.GetComponent<FactoryPunchcardView>();
+            if(orderView && OrderNumber>0 && Game && OrderNumber<=Game.gears.Length)orderView.ShowType(Game.gears[OrderNumber-1].recipe.Type);
+            if(printerSignal)printerSignal.SetSignal(IsPrinting);
             orderCard.localPosition = new Vector3(0, -.65f * Mathf.SmoothStep(0, 1, OrderTravel), .055f);
         }
         void PullLever(StationPart part)
@@ -258,10 +266,10 @@ namespace Cardboard
                 }
                 Refresh(); return false;
             }
-            if(SelectedType!=Game.CurrentOrder && !wrongTypeFault)
+            if(SelectedType!=Game.OrderedType && !wrongTypeFault)
             {
                 wrongTypeFault=true;
-                Game.RegisterMistake("Начал резать шестерёнку "+SelectedType+", но на перфокарте заказ "+Game.CurrentOrder+".");
+                Game.RegisterMistake("Начал резать шестерёнку неверного типа: изображение не совпадает с перфокартой.");
                 if(Game.CaptureActive) return false;
             }
             float previousProgress=CutProgress;

@@ -105,7 +105,7 @@ namespace Cardboard
             direction.y=0;if(direction.sqrMagnitude<.001f)direction=transform.forward;
             if(reaction)reaction.ReceiveImpact(direction.normalized,Mathf.Clamp(incoming.magnitude*.38f,.6f,3));
             var game=CardboardFactoryGame.Instance;
-            if(!scored && game){scored=true;game.RegisterMistake("Брошенный предмет попал в рабочего.",.5f);}
+            if(!scored && game){scored=true;game.RegisterMistake("Брошенный предмет попал в рабочего.",.5f,worker);}
         }
         void OnDisable(){RestorePlayerCollision();}
     }

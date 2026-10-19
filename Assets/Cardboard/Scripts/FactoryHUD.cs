@@ -44,7 +44,7 @@ namespace Cardboard
             Fill(20,20,372,95,panel);Fill(20,20,3,95,gold);
             GUI.Label(new Rect(35,29,350,28),"НЕ СВОЙ  /  СМЕНА 017",title);
             int seconds=Mathf.CeilToInt(game.ShiftRemaining);
-            GUI.Label(new Rect(36,64,345,24),"Ремонты  "+game.Repairs+" / "+game.gears.Length+"     Механизм  "+game.WorkingGears+" / "+game.gears.Length,text);
+            GUI.Label(new Rect(36,64,345,24),"Ремонты  "+game.Repairs+" / "+game.RepairGoal+"     Механизм  "+game.WorkingGears+" / "+game.gears.Length,text);
             GUI.Label(new Rect(36,91,340,18),"ДО КОНЦА СМЕНЫ  "+seconds/60+":"+(seconds%60).ToString("00"),small);
             Fill(w-308,20,288,110,panel);
             string suspicion=game.State==FactoryState.Chased?"ЧУЖОЙ В ЦЕХУ!":game.Suspicion>=65?"ОНИ ПОДОЗРЕВАЮТ":game.Suspicion>=30?"НА ВАС СМОТРЯТ":"ВАМ ПОКА ВЕРЯТ";

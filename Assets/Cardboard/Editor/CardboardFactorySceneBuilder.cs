@@ -49,6 +49,11 @@ namespace Cardboard.Editor
             else if(command=="floor-texture") FactoryFloorInstaller.ApplyCurrentScene();
             else if(command=="presentation-update") FactoryPresentationInstaller.ApplyCurrentScene();
             else if(command=="menu-rebuild") FactoryMenuBuilder.RebuildCurrent();
+            else if(command=="shift-audio") FactoryShiftUpgrade.AudioCurrent();
+            else if(command=="shift-verify") FactoryShiftVerification.Run();
+            else if(command=="shift-preview") FactoryShiftVerification.Preview();
+            else if(command=="shift-assets") FactoryShiftUpgrade.Inspect();
+            else if(command=="shift-update") FactoryShiftUpgrade.ApplyCurrent();
             else if(command=="station-inspect") FactoryWorkstationUpgrade.Inspect();
             else if(command=="station-update") FactoryWorkstationUpgrade.ApplyCurrent();
             else if(command=="clean-menu-shot") FactoryWorkstationUpgrade.CaptureCleanMenu();
@@ -143,6 +148,7 @@ namespace Cardboard.Editor
                 FactoryStorageInstaller.Create(root.transform);
                 FactoryPhysicsInstaller.Apply(root.transform);
                 FactoryWorkstationUpgrade.Apply(root.transform);
+                FactoryShiftUpgrade.Apply(root.transform);
                 var container=AssetDatabase.LoadAssetAtPath<CardboardGeneratedAssets>(ArtPath);
                 if(!container) { container=ScriptableObject.CreateInstance<CardboardGeneratedAssets>();AssetDatabase.CreateAsset(container,ArtPath); }
                 else foreach(var old in AssetDatabase.LoadAllAssetsAtPath(ArtPath)) if(old && old!=container) UnityEngine.Object.DestroyImmediate(old,true);

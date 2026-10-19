@@ -70,14 +70,14 @@ namespace Cardboard.Editor
             }
             return tip;
         }
-        public static Mesh Bake(string modelPath,string name,float yaw,Vector3 pivot,bool center=false,float width=0,bool pointerUp=false)
+        public static Mesh Bake(string modelPath,string name,float yaw,Vector3 pivot,bool center=false,float width=0,bool pointerUp=false,string meshName=null)
         {
             var importer=AssetImporter.GetAtPath(modelPath) as ModelImporter;
             if(importer && !importer.isReadable){importer.isReadable=true;importer.SaveAndReimport();}
             var source=UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(modelPath));
             try
             {
-                var filter=source.GetComponentInChildren<MeshFilter>();
+                var filter=meshName==null?source.GetComponentInChildren<MeshFilter>():Array.Find(source.GetComponentsInChildren<MeshFilter>(),item=>item.name==meshName);
                 if(!filter)throw new InvalidOperationException("Mesh is missing: "+modelPath);
                 var mesh=UnityEngine.Object.Instantiate(filter.sharedMesh);mesh.name=name;
                 Matrix4x4 pose=Matrix4x4.Rotate(Quaternion.Euler(0,yaw,0))*filter.transform.localToWorldMatrix;

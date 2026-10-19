@@ -5,10 +5,10 @@ namespace Cardboard
 {
     public static class FactoryPunchcard
     {
-        public static Transform Create(Transform parent,int type)
+        public static Transform Create(Transform parent,int type,Material paper=null,Material ink=null)
         {
             var card=Group("Punched work order • gear diagram",parent,Vector3.zero);
-            Box("Card",card,Vector3.zero,new Vector3(.42f,.60f,.018f),Cream);
+            Box("Card",card,Vector3.zero,new Vector3(.42f,.60f,.018f),paper?paper:Cream);
             var view=card.gameObject.AddComponent<FactoryPunchcardView>();view.icons=new Transform[3];
             for(int i=0;i<3;i++)
             {
@@ -18,7 +18,7 @@ namespace Cardboard
             view.ShowType(type);
             for(int row=0;row<3;row++)for(int column=0;column<6;column++)
                 if((column+row*2)%3!=0)
-                    Box("Punch",card,new Vector3(-.15f+column*.06f,-.12f-row*.055f,.012f),new Vector3(.027f,.034f,.006f),Ink);
+                    Box("Punch",card,new Vector3(-.15f+column*.06f,-.12f-row*.055f,.012f),new Vector3(.027f,.034f,.006f),ink?ink:Ink);
             return card;
         }
     }

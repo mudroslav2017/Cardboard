@@ -22,7 +22,7 @@ namespace Cardboard
             var focus=game.Focus?game.Focus.GetComponent<FactoryLunchControl>():null;
             hint.text=lunch.State==LunchState.Served?"Поднос на столе, еда на месте.\nМожно возвращаться к работе.":
                 lunch.State==LunchState.Spilled?"Картонки заметили упавшую еду.\nПродолжайте смену и будьте осторожнее.":focus?focus.Prompt:lunch.Carrying?
-                "ЛКМ — влево    ПКМ — вправо\nWASD — к столу. Держите метку в центре.":
+                "WASD — к столу. Двигайте мышью плавно.\nЕда и посуда могут упасть в любую сторону.":
                 "Возьмите поднос на раздаче в столовой.\nВход — в южной стене цеха.";
             needle.anchoredPosition=new Vector2(Mathf.Clamp(lunch.Tilt,-1,1)*190,0);
         }

@@ -43,7 +43,7 @@ namespace Cardboard
             if(value && punchcard) {printCard=false;cardTravel=0;punchcard.localPosition=cardHome;punchcard.gameObject.SetActive(false);}
             if(healthy) healthy.gameObject.SetActive(!value);
             if(damaged) damaged.gameObject.SetActive(value);
-            if(indicator) indicator.color=value?new Color(1,.19f,.08f):new Color(.3f,1,.6f);
+            if(indicator){indicator.enabled=value;indicator.color=value?new Color(1,.19f,.08f):new Color(.3f,1,.6f);}
         }
         void Update()
         {

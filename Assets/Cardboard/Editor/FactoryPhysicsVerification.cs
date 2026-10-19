@@ -300,7 +300,7 @@ namespace Cardboard.Editor
                     Check(reaction.Reacting,"Worker holds the player's gaze briefly");
                     stage=2;Save();return;
                 }
-                if(stage==2 && Time.time-hitAt>2.5f)
+                if(stage==2 && Time.time-hitAt>3.1f)
                 {
                     Check(!reaction.Reacting && !reaction.TickReaction(.02f),"Worker reaction expires and releases normal movement");
                     var controller=worker.GetComponent<CharacterController>();if(controller)controller.enabled=false;
