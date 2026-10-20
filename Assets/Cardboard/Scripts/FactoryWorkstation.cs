@@ -94,7 +94,7 @@ namespace Cardboard
         bool Available => isPlayerStation && Game && !Game.MenuActive && !Game.Ended && !Game.HandsBusy && !Game.IntroBusy && Game.State != FactoryState.Chased;
         void Update()
         {
-            if (ExecutionControlled) return;
+            if (ExecutionControlled || (Game && Game.MenuActive)) return;
             Tick(Time.deltaTime);
             if (!Available) { EndGrip(false); return; }
             if (!Application.isFocused) { if (Manipulating && autoTurnRemaining <= 0) EndGrip(false); return; }

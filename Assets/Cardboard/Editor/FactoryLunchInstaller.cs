@@ -17,19 +17,6 @@ namespace Cardboard.Editor
             if(solid) {cube.gameObject.layer=8;cube.gameObject.AddComponent<BoxCollider>();}
             return cube;
         }
-        static TextMesh Sign(string value,Transform parent,Vector3 position,Material ink)
-        {
-            var root=Group("Lunch sign",parent,position);root.localRotation=Quaternion.Euler(0,180,0);
-            var text=root.gameObject.AddComponent<TextMesh>();text.font=CardboardTypography.DefaultFont;
-            text.fontSize=48;text.characterSize=.075f;text.anchor=TextAnchor.MiddleCenter;text.alignment=TextAlignment.Center;
-            text.color=new Color(.98f,.91f,.75f);text.text=value;
-            root.gameObject.AddComponent<CardboardWorldLabel>().ink=ink;
-            root.GetComponent<CardboardWorldLabel>().Refresh();
-            text.font.RequestCharactersInTexture(value,48,FontStyle.Normal);
-            float width=root.GetComponent<Renderer>().bounds.size.x;
-            if(width>2.6f) text.characterSize*=2.6f/width;
-            return text;
-        }
         static Bounds BoundsOf(Transform model)
         {
             var renderers=model.GetComponentsInChildren<Renderer>();
@@ -117,7 +104,6 @@ namespace Cardboard.Editor
             var wood=FactoryPresentationInstaller.Paper("LunchFurniture",Hex("8F6440"));
             var trayMaterial=FactoryPresentationInstaller.Paper("LunchTray",Hex("AEB5A7"));
             var gold=FactoryPresentationInstaller.Paper("LunchMarker",Hex("DEB55C"));
-            var ink=FactoryPresentationInstaller.Paper("LunchLettering",Color.white,null,true);
             Cube("Lunch serving counter • placeholder",root,new Vector3(-19,.42f,-19.5f),new Vector3(3,1.15f,1.3f),wood,true);
             Cube("Lunch table • placeholder",root,new Vector3(-7,.32f,-24),new Vector3(4.4f,.95f,1.8f),wood,true);
             Cube("Shared lunch table west • placeholder",root,new Vector3(-20,.32f,-29),new Vector3(5,.95f,1.8f),wood,true);
@@ -131,9 +117,6 @@ namespace Cardboard.Editor
             lunch.tray.position=lunch.pickup.position;
             Control(root,lunch,false,new Vector3(-19,1.08f,-19.2f),new Vector3(.85f,.28f,.6f));
             Control(root,lunch,true,new Vector3(-7,.98f,-23.55f),new Vector3(1.4f,.45f,.9f));lunch.destinationHit.SetActive(false);
-            lunch.counterSign=Sign("LUNCH COUNTER\nWAIT FOR THE BELL",root,new Vector3(-19,1.7f,-19.65f),ink);
-            lunch.tableSign=Sign("DINING TABLE\nTRAYS HERE",root,new Vector3(-7,1.55f,-24.2f),ink);
-            Sign("CANTEEN\nLUNCH",root,new Vector3(-13,2.6f,CardboardFactoryWorld.WorkshopSouth+.35f),ink);
             CreateDiners(root,lunch);
             foreach(float x in new[]{-20f,-7f})
             {

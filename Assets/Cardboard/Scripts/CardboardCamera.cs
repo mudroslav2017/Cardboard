@@ -23,7 +23,8 @@ namespace Cardboard
             yaw=transform.eulerAngles.y;pitch=Mathf.DeltaAngle(0,transform.eulerAngles.x);
             if(player){controller=player.GetComponent<CardboardRunner>();previousPosition=player.position;}
             var lens=GetComponent<Camera>();lens.orthographic=false;lens.fieldOfView=GameplayFov;lens.nearClipPlane=.05f;
-            Cursor.lockState=CursorLockMode.None;FactoryVolumeCursor.SetSystemVisible(true);
+            bool menu=CardboardFactoryGame.Instance && CardboardFactoryGame.Instance.MenuActive;
+            Cursor.lockState=menu?CursorLockMode.None:CursorLockMode.Locked;FactoryVolumeCursor.SetSystemVisible(menu);
         }
         void Update()
         {

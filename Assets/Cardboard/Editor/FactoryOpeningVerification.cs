@@ -24,7 +24,7 @@ namespace Cardboard.Editor
         {
             if(EditorApplication.isPlayingOrWillChangePlaymode)return;
             report.Clear();stage=0;started=EditorApplication.timeSinceStartup;background=Application.runInBackground;Application.runInBackground=true;
-            SessionState.SetBool(Active,true);FactoryMainMenu.SkipNextMenu=true;EditorApplication.isPaused=false;EditorApplication.isPlaying=true;
+            SessionState.SetBool(Active,true);FactoryMainMenu.SkipNextMenu=false;EditorApplication.isPaused=false;EditorApplication.isPlaying=true;
         }
         static void Place(Vector3 position)
         {var controller=CardboardRunner.Player.GetComponent<CharacterController>();controller.enabled=false;CardboardRunner.Player.transform.position=position;controller.enabled=true;}

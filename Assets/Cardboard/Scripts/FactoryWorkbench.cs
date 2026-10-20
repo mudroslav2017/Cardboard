@@ -53,6 +53,7 @@ namespace Cardboard
         void Update()
         {
             var mouse=Mouse.current;var keyboard=Keyboard.current;
+            if(Game && Game.MenuActive)return;
             if(!Game || Game.Ended || Game.HandsBusy || Game.State==FactoryState.Chased || !Application.isFocused)
             { if(Manipulating) EndGrip(false);return; }
             if(Manipulating)

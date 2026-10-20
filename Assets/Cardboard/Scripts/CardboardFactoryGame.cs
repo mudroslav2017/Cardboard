@@ -109,6 +109,8 @@ namespace Cardboard
         void Update()
         {
             var keyboard=Keyboard.current;
+            if(!MenuActive && mainMenu && keyboard!=null && keyboard.escapeKey.wasPressedThisFrame)
+            {mainMenu.ReturnToMenu();return;}
             if(MenuActive || CaptureActive || IntroBusy || EndingBusy) return;
             if(Ended)
             {

@@ -59,7 +59,54 @@ namespace Cardboard.Editor
             roof.transform.localPosition=new Vector3(-13,5.65f,-25);roof.transform.localScale=new Vector3(26,.18f,18);roof.layer=8;
             var wall=game.GetComponentsInChildren<Renderer>().First(r=>r.name=="Canteen west wall");
             var roofMaterial=FactoryPresentationInstaller.Paper("CanteenCeiling",new Color(.74f,.66f,.52f),wall.sharedMaterial.mainTexture);
-            roofMaterial.mainTextureScale=new Vector2(4.3f,3);roof.GetComponent<Renderer>().sharedMaterial=roofMaterial;EditorUtility.SetDirty(roofMaterial);
+            roofMaterial.mainTextureScale=new Vector2(4.3f,3);roof.GetComponent<Renderer>().sharedMaterial=roofMaterial;EditorUtility.SetDirty(roofMaterial);Lighting(game);RemoveFloatingSigns(game);
+        }
+        public static int RemoveFloatingSigns(CardboardFactoryGame game)
+        {
+            int count=0;var lunch=game.lunch;
+            foreach(var text in lunch.GetComponentsInChildren<TextMesh>(true))
+            {
+                if(text.gameObject.name!="Lunch sign" && text!=lunch.counterSign && text!=lunch.tableSign)continue;
+                Object.DestroyImmediate(text.gameObject);count++;
+            }
+            lunch.counterSign=lunch.tableSign=null;EditorUtility.SetDirty(lunch);return count;
+        }
+        public static void RemoveFloatingSignsCurrent()
+        {
+            if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Remove canteen signs in Edit Mode.");
+            var game=Object.FindFirstObjectByType<CardboardFactoryGame>();int count=RemoveFloatingSigns(game);
+            EditorSceneManager.MarkSceneDirty(game.gameObject.scene);EditorSceneManager.SaveScene(game.gameObject.scene);
+            File.WriteAllText("Library/FactoryLunchSigns.txt","SUCCESS: removed "+count+" floating canteen signs; pickup and delivery interactions retained.");
+        }
+        public static void Lighting(CardboardFactoryGame game)
+        {
+            foreach(var lamp in game.GetComponentsInChildren<Light>(true))
+            {
+                if(lamp.name!="Canteen warm light")continue;
+                lamp.intensity=Mathf.Max(lamp.intensity,4.5f);lamp.range=Mathf.Max(lamp.range,13);
+                EditorUtility.SetDirty(lamp);
+            }
+            var root=game.transform.Find("Canteen lunch lighting");
+            if(!root){root=new GameObject("Canteen lunch lighting").transform;root.SetParent(game.transform,false);}
+            var positions=new[]{new Vector3(-21,3.5f,-20),new Vector3(-5,3.5f,-20),new Vector3(-21,3.5f,-29),new Vector3(-5,3.5f,-29)};
+            for(int i=0;i<positions.Length;i++)
+            {
+                string name="Canteen fill light "+(i+1);var node=root.Find(name);
+                if(!node){node=new GameObject(name).transform;node.SetParent(root,false);}
+                node.position=positions[i];var light=node.GetComponent<Light>();if(!light)light=node.gameObject.AddComponent<Light>();
+                light.type=LightType.Point;light.color=new Color(1,.91f,.73f);light.intensity=2.8f;light.range=11;
+                light.shadows=LightShadows.None;light.renderMode=LightRenderMode.ForcePixel;light.lightmapBakeType=LightmapBakeType.Realtime;
+                light.cullingMask=~((1<<10)|(1<<FactoryInventorySlot.Layer)|(1<<FactoryDeathPresentation.Layer));EditorUtility.SetDirty(light);
+            }
+            game.lunch.EnsureTraySpotlight();game.lunch.traySpotlight.renderMode=LightRenderMode.ForcePixel;
+            game.lunch.RefreshTrayLight();EditorUtility.SetDirty(game.lunch.traySpotlight);EditorUtility.SetDirty(game.lunch);
+        }
+        public static void LightingCurrent()
+        {
+            if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Update lunch lighting in Edit Mode.");
+            var game=Object.FindFirstObjectByType<CardboardFactoryGame>();Lighting(game);
+            EditorSceneManager.MarkSceneDirty(game.gameObject.scene);EditorSceneManager.SaveScene(game.gameObject.scene);
+            File.WriteAllText("Library/FactoryLunchLighting.txt","SUCCESS: brighter canteen ceiling lamps, four warm fill lights and a dedicated bright tray spotlight.");
         }
         public static void ApplyCurrent()
         {

@@ -27,7 +27,8 @@ namespace Cardboard
             localCenter=Quaternion.Inverse(body.rotation)*(body.worldCenterOfMass-body.position);
             float radius=0;foreach(var shape in prop.GetComponentsInChildren<Collider>())
                 radius=Mathf.Max(radius,shape.bounds.extents.magnitude);
-            HoldDistance=prop.instructionSheet?1.02f:Mathf.Clamp(1.05f+radius*.8f,1.2f,2);
+            HoldDistance=prop.instructionSheet?.72f:Mathf.Clamp(1.05f+radius*.8f,1.2f,2);
+            if(prop.instructionSheet && game.instruction)game.instruction.MarkPickedUp();
             gripRotation=prop.instructionSheet?Quaternion.identity:Quaternion.Inverse(Camera.main.transform.rotation)*body.rotation;
             game.Toast(Prompt,5);
             return true;

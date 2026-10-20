@@ -29,7 +29,7 @@ namespace Cardboard
         CharacterController body;
         bool bodyWasEnabled;
 
-        void Update(){Tick(Time.deltaTime);}
+        void Update(){Tick(Phase==FactoryEndingPhase.MenuReveal?Time.unscaledDeltaTime:Time.deltaTime);}
         void Change(FactoryEndingPhase phase){Phase=phase;PhaseTime=0;}
         void Fade(float alpha){if(white)white.color=new Color(1,1,1,Mathf.Clamp01(alpha));}
 

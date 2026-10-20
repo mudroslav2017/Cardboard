@@ -76,7 +76,7 @@ namespace Cardboard
         void LateUpdate() { Tick(Time.deltaTime); }
         public void Tick(float dt)
         {
-            if(!Active) return;
+            if(!Active || game.MenuActive) return;
             dt=Mathf.Max(0,dt);PhaseTime+=dt;gait+=dt;
             if(Phase==CapturePhase.Approaching)
             {

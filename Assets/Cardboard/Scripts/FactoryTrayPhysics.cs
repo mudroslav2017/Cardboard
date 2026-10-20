@@ -19,8 +19,29 @@ namespace Cardboard
         Collider[] playerShapes;
         Collider[] trayShapes;
         Quaternion targetRotation;
-        Vector3 targetPosition,supportVelocity;
+        Vector3 targetPosition,previousTargetPosition,supportVelocity;
         Vector3 previousSupportVelocity;
+        float balanceInput,supportMassRatio=1,clickDirection,clickRemaining,correctionRemaining;
+        Vector3 supportOffset;
+        Quaternion Heading=>Quaternion.Euler(0,targetRotation.eulerAngles.y,0);
+        public float RollDegrees
+        {
+            get{var up=Quaternion.Inverse(Heading)*(body.rotation*Vector3.up);return Mathf.Atan2(-up.x,up.y)*Mathf.Rad2Deg;}
+        }
+        public float PitchDegrees
+        {
+            get{var up=Quaternion.Inverse(Heading)*(body.rotation*Vector3.up);return Mathf.Atan2(up.z,up.y)*Mathf.Rad2Deg;}
+        }
+        public float RollSpeed=>Vector3.Dot(body.angularVelocity,Heading*Vector3.forward)*Mathf.Rad2Deg;
+        public void SetBalanceInput(float input){balanceInput=Mathf.Clamp(input,-1,1);}
+        public void PressBalance(float direction)
+        {
+            if(!Carrying || Mathf.Abs(direction)<.5f)return;
+            clickDirection=Mathf.Sign(direction);clickRemaining=.24f;
+            // Keep a tap until physics consumes it, even if press and release happen between fixed steps.
+            correctionRemaining=Mathf.Abs(RollDegrees)>2 && RollDegrees*clickDirection>0?.9f:0;
+        }
+        void ClearBalanceInput(){balanceInput=clickDirection=clickRemaining=correctionRemaining=0;}
         void Awake()
         {
             if(!body)body=GetComponent<Rigidbody>();trayShapes=GetComponentsInChildren<Collider>(true);
@@ -35,7 +56,7 @@ namespace Cardboard
         }
         public void ResetContents()
         {
-            Active=Carrying=false;OutsideTime=0;RestorePlayerCollision();Freeze(body);
+            Active=Carrying=false;OutsideTime=0;ClearBalanceInput();RestorePlayerCollision();Freeze(body);
             for(int i=0;i<contents.Length;i++)
             {
                 var item=contents[i];if(!item)continue;Freeze(item);
@@ -46,13 +67,21 @@ namespace Cardboard
         public void Begin(Vector3 position,Quaternion rotation)
         {
             Freeze(body);transform.SetPositionAndRotation(position,rotation);body.position=position;body.rotation=rotation;
-            targetPosition=position;targetRotation=rotation;supportVelocity=previousSupportVelocity=Vector3.zero;Active=Carrying=true;OutsideTime=0;
+            targetPosition=previousTargetPosition=position;targetRotation=rotation;supportVelocity=previousSupportVelocity=Vector3.zero;Active=Carrying=true;OutsideTime=0;ClearBalanceInput();
+            body.isKinematic=false;body.useGravity=true;body.constraints=RigidbodyConstraints.None;
+            body.collisionDetectionMode=CollisionDetectionMode.ContinuousDynamic;body.linearDamping=.3f;body.angularDamping=1;body.maxAngularVelocity=6;
+            body.WakeUp();
             // Detach once. From here gravity, contact and inertia move the dishes.
             foreach(var item in contents)
             {
                 item.transform.SetParent(lunch.transform,true);item.isKinematic=false;item.useGravity=true;item.collisionDetectionMode=CollisionDetectionMode.ContinuousDynamic;
                 item.linearVelocity=Vector3.zero;item.angularVelocity=Vector3.zero;item.WakeUp();
             }
+            Physics.SyncTransforms();
+            float totalMass=body.mass;Vector3 loadedCenter=body.worldCenterOfMass*body.mass;
+            foreach(var item in contents){totalMass+=item.mass;loadedCenter+=item.worldCenterOfMass*item.mass;}
+            supportMassRatio=totalMass/body.mass;
+            supportOffset=Quaternion.Inverse(body.rotation)*(loadedCenter/totalMass-body.position);supportOffset.y=.015f;
             trayShapes=GetComponentsInChildren<Collider>().Concat(contents.SelectMany(item=>item.GetComponentsInChildren<Collider>())).ToArray();
             if(CardboardRunner.Player)
             {
@@ -62,11 +91,32 @@ namespace Cardboard
             Physics.SyncTransforms();
         }
         public void Aim(Vector3 position,Quaternion rotation){targetPosition=position;targetRotation=rotation;}
-        public void StepSupport()
+        public void StepSupport(float dt)
         {
-            if(!Carrying || !body)return;
-            body.MovePosition(Vector3.SmoothDamp(body.position,targetPosition,ref supportVelocity,.16f,3,Time.fixedDeltaTime));
-            body.MoveRotation(Quaternion.RotateTowards(body.rotation,targetRotation,140*Time.fixedDeltaTime));
+            if(!Carrying || !body || dt<=0)return;
+            // Hands supply a soft force in all three axes; collisions and inertia remain physical.
+            Vector3 targetVelocity=Vector3.ClampMagnitude((targetPosition-previousTargetPosition)/dt,5);
+            previousTargetPosition=targetPosition;
+            Vector3 acceleration=(targetPosition-body.position)*160+(targetVelocity-body.linearVelocity)*24-Physics.gravity*supportMassRatio;
+            body.AddForceAtPosition(Vector3.ClampMagnitude(acceleration,100),body.position+body.rotation*supportOffset,ForceMode.Acceleration);
+            Vector3 forward=Heading*Vector3.forward;
+            var error=targetRotation*Quaternion.Inverse(body.rotation);
+            if(error.w<0)error=new Quaternion(-error.x,-error.y,-error.z,-error.w);
+            error.ToAngleAxis(out float angle,out Vector3 axis);
+            Vector3 correction=axis.sqrMagnitude>.001f?axis*(Mathf.DeltaAngle(0,angle)*Mathf.Deg2Rad):Vector3.zero;
+            // Gently follow heading and pitch. Roll is free and must be balanced by the player.
+            Vector3 torque=Vector3.ProjectOnPlane(correction,forward)*28-Vector3.ProjectOnPlane(body.angularVelocity,forward)*8;
+            float difficulty=lunch?Mathf.SmoothStep(0,1,(lunch.CarryTime-1.5f)/4):0;
+            float sway=lunch?(.30f*Mathf.Sin(lunch.CarryTime*1.45f)-lunch.Tilt*.55f)*difficulty:0;
+            float input=Mathf.Abs(balanceInput)>.01f?balanceInput:clickRemaining>0?clickDirection:0;
+            float rollSpeed=Vector3.Dot(body.angularVelocity,forward);
+            // A held button asks for a modest roll speed; feedback also brakes existing momentum.
+            float rollDrive=Mathf.Abs(input)>.01f?Mathf.Clamp((-input*.55f-rollSpeed)*6,-4,4):0;
+            if(correctionRemaining>0)
+                rollDrive=Mathf.Clamp(-RollDegrees*Mathf.Deg2Rad*48-rollSpeed*13,-8,8);
+            body.AddTorque(torque+forward*(rollDrive+sway),ForceMode.Acceleration);
+            clickRemaining=Mathf.Max(0,clickRemaining-dt);correctionRemaining=Mathf.Max(0,correctionRemaining-dt);
+            supportVelocity=body.linearVelocity;
         }
         void FixedUpdate(){TickSupport(Time.fixedDeltaTime);}
         public void TickSupport(float dt)
@@ -74,7 +124,7 @@ namespace Cardboard
             if(!Active)return;
             if(Carrying)
             {
-                StepSupport();
+                StepSupport(dt);
                 var acceleration=Vector3.ClampMagnitude((supportVelocity-previousSupportVelocity)/Mathf.Max(dt,.001f),20);
                 previousSupportVelocity=supportVelocity;
                 bool outside=false;
@@ -106,7 +156,7 @@ namespace Cardboard
         }
         public void Park(Transform place)
         {
-            Carrying=false;
+            Carrying=false;ClearBalanceInput();
             var oldPosition=transform.position;var delta=place.rotation*Quaternion.Inverse(transform.rotation);
             foreach(var item in contents)
             {
@@ -114,11 +164,12 @@ namespace Cardboard
                 item.linearVelocity=delta*item.linearVelocity;
             }
             body.position=place.position;body.rotation=place.rotation;transform.SetPositionAndRotation(place.position,place.rotation);
+            body.linearVelocity=body.angularVelocity=Vector3.zero;
             RestorePlayerCollision();
         }
         public void ReleaseTray()
         {
-            Carrying=false;Active=true;
+            Carrying=false;Active=true;ClearBalanceInput();
             body.isKinematic=false;body.useGravity=true;body.collisionDetectionMode=CollisionDetectionMode.ContinuousDynamic;body.WakeUp();
         }
         void RestorePlayerCollision()

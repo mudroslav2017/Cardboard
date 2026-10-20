@@ -40,7 +40,7 @@ namespace Cardboard
             Tick(0);
         }
         void LateUpdate(){if(Angry && guards!=null)for(int i=0;i<guards.Length;i++)guards[i].Pose(elapsed*6+i,1);}
-        void Update(){if(game.CaptureActive && Active){Cancel();return;}if(Active && !game.MenuActive)Tick(Time.deltaTime);else if(hint && !Active)hint.text="";}
+        void Update(){if(hint)hint.enabled=!game.MenuActive;if(game.CaptureActive && Active){Cancel();return;}if(Active && !game.MenuActive)Tick(Time.deltaTime);else if(hint && !Active)hint.text="";}
         public void Tick(float dt)
         {
             elapsed+=Mathf.Max(0,dt);
@@ -96,7 +96,9 @@ namespace Cardboard
         public bool OnRepair(FactoryGear gear)
         {
             if(Phase!=IntroPhase.Tutorial || gear!=TutorialTarget)return false;
-            if(FloorGear){FloorGear.gameObject.SetActive(false);Destroy(FloorGear.gameObject);}FloorGear=null;Phase=IntroPhase.PrinterDelay;elapsed=0;if(hint)hint.text="GOOD. WAIT FOR YOUR NEXT ORDER.";return true;
+            if(FloorGear){FloorGear.gameObject.SetActive(false);Destroy(FloorGear.gameObject);}FloorGear=null;
+            if(game.instruction)game.instruction.HighlightForTutorial(glow);
+            Phase=IntroPhase.PrinterDelay;elapsed=0;if(hint)hint.text="GOOD. GO TO YOUR WORKSTATION. PICK UP THE HIGHLIGHTED INSTRUCTIONS.  [E]";return true;
         }
         Vector3 ChooseLanding()
         {

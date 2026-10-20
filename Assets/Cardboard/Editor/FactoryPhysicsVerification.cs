@@ -117,7 +117,7 @@ namespace Cardboard.Editor
             Check(Physics.Raycast(cursor.PointerRay,out var backHit,15,1<<10) && backHit.collider==menu.back.hit,"Imported cursor reaches settings Back button");
             Point(menu.lens.WorldToScreenPoint(menu.volumeTrack.bounds.center));cursor.Refresh(.02f);
             Check(menu.volumeTrack.Raycast(cursor.PointerRay,out _,15),"Imported cursor reaches volume slider");
-            menu.SendMessage("Close");cursor.Refresh(.02f);
+            menu.SendMessage("Close");Cursor.lockState=CursorLockMode.None;cursor.Refresh(.02f);
             Check(cursor.overlay.enabled && cursor.model.gameObject.activeSelf,"Free pointer also renders after leaving the main menu");
         }
         static void Place(FactoryPhysicsProp prop,Vector3 position)
@@ -146,7 +146,7 @@ namespace Cardboard.Editor
                 Check(game.instruction.Flip(),"Instruction still flips on its separate action");
                 Simulate(100,true);
                 Check(Quaternion.Angle(prop.Body.rotation,lens.transform.rotation*Quaternion.Euler(0,180,0))<4,"Instruction physically turns to its reverse side");
-                Check(game.instruction.controlHint.GetComponent<TextMesh>().text=="LBM - TROW, RBM - PUT" && !game.instruction.flipHint,"Instruction shows the exact requested single control line");
+                Check(game.instruction.controlHint.GetComponent<TextMesh>().text=="LBM - TROW, RBM - PUT" && game.instruction.flipHint && game.instruction.flipHint.GetComponent<TextMesh>().text=="E","Instruction shows its control line and separate E hint");
                 game.instruction.RefreshHints();
                 Check(!game.instruction.controlHint.gameObject.activeSelf && (!game.instruction.flipHint || !game.instruction.flipHint.gameObject.activeSelf),"Front hints do not show through the reverse side");
                 CardboardFactorySceneBuilder.Capture("PhysicalInstruction");

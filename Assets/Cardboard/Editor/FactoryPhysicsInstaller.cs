@@ -108,21 +108,28 @@ namespace Cardboard.Editor
             FitInk(text,hint.localPosition,bounds.size.x-.16f,.044f);instruction.controlHint=hint;instruction.flipHint=null;
             var ink=Paper("InstructionControlInk",Color.white,null,true);
             var label=hint.gameObject.AddComponent<CardboardWorldLabel>();label.ink=ink;label.Refresh();
-            EditorUtility.SetDirty(instruction);
+            InstructionFlipHint(instruction);EditorUtility.SetDirty(instruction);
+        }
+        static void InstructionFlipHint(FactoryInstruction instruction)
+        {
+            var bounds=instruction.sheet.GetComponent<MeshFilter>().sharedMesh.bounds;
+            var hint=instruction.sheet.Find("Flip instruction hint");
+            if(!hint)hint=Group("Flip instruction hint",instruction.sheet,Vector3.zero);
+            hint.localPosition=new Vector3(bounds.max.x-.10f,bounds.min.y+.08f,bounds.min.z-.008f);
+            var source=instruction.controlHint.GetComponent<TextMesh>();var text=hint.GetComponent<TextMesh>();
+            if(!text)text=hint.gameObject.AddComponent<TextMesh>();
+            text.font=source.font;text.fontSize=48;text.characterSize=source.characterSize*2;text.text="E";text.anchor=TextAnchor.LowerRight;text.color=source.color;
+            text.font.RequestCharactersInTexture("E",48);
+            var label=hint.GetComponent<CardboardWorldLabel>();if(!label)label=hint.gameObject.AddComponent<CardboardWorldLabel>();
+            label.ink=instruction.controlHint.GetComponent<CardboardWorldLabel>().ink;label.Refresh();instruction.flipHint=hint;
+            EditorUtility.SetDirty(hint);EditorUtility.SetDirty(text);EditorUtility.SetDirty(instruction);
         }
         public static void InstructionFlipHintCurrent()
         {
             if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Update instruction hint in Edit Mode.");
-            var game=Object.FindFirstObjectByType<CardboardFactoryGame>();var instruction=game.instruction;
-            var bounds=instruction.sheet.GetComponent<MeshFilter>().sharedMesh.bounds;
-            var prior=instruction.sheet.Find("Flip instruction hint");if(prior)Object.DestroyImmediate(prior.gameObject);
-            var hint=Group("Flip instruction hint",instruction.sheet,new Vector3(bounds.max.x-.035f,bounds.min.y+.035f,bounds.min.z-.008f));
-            var source=instruction.controlHint.GetComponent<TextMesh>();var text=hint.gameObject.AddComponent<TextMesh>();
-            text.font=source.font;text.fontSize=48;text.characterSize=source.characterSize;text.text="E";text.anchor=TextAnchor.LowerRight;text.color=source.color;
-            text.font.RequestCharactersInTexture("E",48);hint.gameObject.AddComponent<CardboardWorldLabel>().ink=instruction.controlHint.GetComponent<CardboardWorldLabel>().ink;
-            hint.GetComponent<CardboardWorldLabel>().Refresh();instruction.flipHint=hint;EditorUtility.SetDirty(instruction);
+            var game=Object.FindFirstObjectByType<CardboardFactoryGame>();InstructionFlipHint(game.instruction);
             AssetDatabase.SaveAssets();EditorSceneManager.MarkSceneDirty(game.gameObject.scene);EditorSceneManager.SaveScene(game.gameObject.scene);
-            File.WriteAllText("Library/FactoryInstructionFlipHint.txt","SUCCESS: E in the bottom-right corner.");
+            File.WriteAllText("Library/FactoryInstructionFlipHint.txt","SUCCESS: E inset 0.10 m from right and 0.08 m from bottom; size 2x.");
         }
         public static void InstructionHintsCurrent()
         {

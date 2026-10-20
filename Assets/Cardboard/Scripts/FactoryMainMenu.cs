@@ -35,18 +35,34 @@ namespace Cardboard
         public Vector3 CameraPosition => viewPosition+new Vector3(Mathf.Sin(Time.unscaledTime*.13f)*.08f,Mathf.Sin(Time.unscaledTime*.19f)*.025f,0);
         public Quaternion CameraRotation => viewRotation*Quaternion.Euler(0,Mathf.Sin(Time.unscaledTime*.11f)*.35f,0);
         FactoryMenuAction pending;
-        bool sliderDragging;
+        bool sliderDragging,shiftStarted,paused;
+        float savedTimeScale=1,savedFov;
+        Vector3 savedCameraPosition;
+        Quaternion savedCameraRotation;
         Vector2 settingsAim;
 
         void Awake()
         {
+            RestoreTimeScale();shiftStarted=false;Phase=FactoryMenuPhase.Opening;PhaseTime=0;
             foreach(var renderer in lens.GetComponentsInChildren<MeshRenderer>(true))
                 if(renderer.gameObject.layer==10 || renderer.gameObject.layer==FactoryInventorySlot.Layer)CardboardSurface.Configure(renderer);
             SetVolume(PlayerPrefs.GetFloat(VolumeKey,.65f),false);
-            if(SkipNextMenu){SkipNextMenu=false;Close();}else Show();
+            if(SkipNextMenu){SkipNextMenu=false;shiftStarted=true;Close();}else Show();
+        }
+        public void ReturnToMenu()
+        {
+            if(!BlocksGameplay)Show();
         }
         public void Show()
         {
+            if(!BlocksGameplay)
+            {
+                savedCameraPosition=lens.transform.position;savedCameraRotation=lens.transform.rotation;savedFov=lens.fieldOfView;
+                savedTimeScale=Time.timeScale;paused=true;Time.timeScale=0;
+                if(CardboardMarker.Instance)CardboardMarker.Instance.SetDrawingMode(false,false);
+                if(game.station && game.station.Manipulating)game.station.EndGrip(false);
+                if(game.workbench && game.workbench.Manipulating)game.workbench.EndGrip(false);
+            }
             Change(FactoryMenuPhase.Opening);QuitRequested=false;sliderDragging=false;
             settingsAim=Vector2.zero;settingsPanel.localRotation=Quaternion.identity;
             visuals.gameObject.SetActive(true);settingsPanel.gameObject.SetActive(false);
@@ -57,7 +73,7 @@ namespace Cardboard
         void Update()
         {
             if(!BlocksGameplay)return;
-            Cursor.lockState=CursorLockMode.None;FactoryVolumeCursor.SetSystemVisible(true);
+            ApplyCursor();
             if(OwnsCamera)lens.fieldOfView=60;
             if(uiCamera){uiCamera.fieldOfView=lens.fieldOfView;uiCamera.aspect=lens.aspect;}
             Tick(Time.unscaledDeltaTime);
@@ -149,9 +165,19 @@ namespace Cardboard
                     Close();return;
                 }
                 visuals.gameObject.SetActive(false);settingsPanel.gameObject.SetActive(false);
-                game.ResetShift();if(game.intro)game.intro.Begin();lens.GetComponent<CardboardCamera>().ResetView(0);
-                lens.transform.position=CardboardRunner.Player.transform.position+Vector3.up*1.62f;
-                lens.fieldOfView=CardboardCamera.GameplayFov;if(shiftHud)shiftHud.alpha=1;
+                if(!shiftStarted)
+                {
+                    game.ResetShift();lens.GetComponent<CardboardCamera>().ResetView(0);
+                    if(game.intro)game.intro.Begin();
+                    lens.transform.position=CardboardRunner.Player.transform.position+Vector3.up*1.62f;
+                    lens.fieldOfView=CardboardCamera.GameplayFov;shiftStarted=true;
+                }
+                else if(paused)
+                {
+                    lens.transform.SetPositionAndRotation(savedCameraPosition,savedCameraRotation);
+                    lens.GetComponent<CardboardCamera>().AdoptCurrentView();lens.fieldOfView=savedFov;
+                }
+                if(shiftHud)shiftHud.alpha=1;
                 Change(FactoryMenuPhase.Revealing);
             }
             else if(Phase==FactoryMenuPhase.Revealing)
@@ -191,10 +217,20 @@ namespace Cardboard
         void Close()
         {
             Change(FactoryMenuPhase.Closed);visuals.gameObject.SetActive(false);settingsPanel.gameObject.SetActive(false);
-            SetFade(0);lens.fieldOfView=CardboardCamera.GameplayFov;if(uiCamera)uiCamera.enabled=false;if(shiftHud)shiftHud.alpha=1;
+            SetFade(0);lens.fieldOfView=paused?savedFov:CardboardCamera.GameplayFov;if(uiCamera)uiCamera.enabled=false;if(shiftHud)shiftHud.alpha=1;
+            RestoreTimeScale();
         }
         static float OutBack(float t){float u=t-1;return 1+2.70158f*u*u*u+1.70158f*u*u;}
         static float InBack(float t)=>2.70158f*t*t*t-1.70158f*t*t;
-        void Change(FactoryMenuPhase phase){Phase=phase;PhaseTime=0;}
+        void ApplyCursor()
+        {
+            bool locked=!BlocksGameplay || (pending==FactoryMenuAction.Play &&
+                (Phase==FactoryMenuPhase.Pressing || Phase==FactoryMenuPhase.Leaving || Phase==FactoryMenuPhase.Black || Phase==FactoryMenuPhase.Revealing));
+            Cursor.lockState=locked?CursorLockMode.Locked:CursorLockMode.None;
+            FactoryVolumeCursor.SetSystemVisible(!locked);
+        }
+        void RestoreTimeScale(){if(paused){Time.timeScale=savedTimeScale;paused=false;}}
+        void OnDestroy(){RestoreTimeScale();}
+        void Change(FactoryMenuPhase phase){Phase=phase;PhaseTime=0;ApplyCursor();}
     }
 }
