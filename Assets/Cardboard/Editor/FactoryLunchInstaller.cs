@@ -163,8 +163,8 @@ namespace Cardboard.Editor
             foreach(float x in new[]{-8.45f,-7f,-5.55f}) Place(x,-25.7f,-24.45f,false);
             foreach(float x in new[]{-21.2f,-18.8f}) Place(x,-27.4f,-28.5f,true);
             foreach(float x in new[]{-21.2f,-18.8f}) Place(x,-30.6f,-29.5f,false);
-            foreach(float x in new[]{-8.2f,-5.8f}) Place(x,-28.4f,-29.5f,true);
-            foreach(float x in new[]{-8.2f,-5.8f}) Place(x,-31.6f,-30.5f,false);
+            foreach(float x in new[]{-8.9f,-5.1f}) Place(x,-28.4f,-29.5f,true);
+            foreach(float x in new[]{-8.9f,-5.1f}) Place(x,-31.6f,-30.5f,false);
         }
         [MenuItem("Cardboard/Install shift lunch")]
         public static void InstallCurrent()

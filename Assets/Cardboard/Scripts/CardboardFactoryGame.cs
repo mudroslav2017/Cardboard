@@ -286,6 +286,7 @@ namespace Cardboard
             get
             {
                 if(objectCarry && objectCarry.Held)return objectCarry.Prompt;
+                if(lunch && lunch.NearDestination)return lunch.DeliveryPrompt;
                 if(!Focus) return HasPart && objectCarry?objectCarry.Prompt:"";
                 if(Focus.action==FactoryAction.Lunch)
                 {
@@ -303,6 +304,11 @@ namespace Cardboard
         {
             if(Ended)return;
             if(instruction && instruction.Held){instruction.Flip();return;}
+            if(lunch && lunch.NearDestination)
+            {
+                if(!lunch.TryServe())Toast("HOLD THE TRAY LEVEL, THEN PRESS E.",1.5f);
+                return;
+            }
             if(!Focus)return;
             if(HandsBusy && Focus.action!=FactoryAction.Lunch && Focus.action!=FactoryAction.Door) return;
             switch(Focus.action)

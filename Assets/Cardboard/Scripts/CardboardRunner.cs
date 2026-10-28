@@ -99,6 +99,11 @@ namespace Cardboard
                 }
                 if(IsResting && !chasing && !lunchGuided) wish=Vector3.zero;
             }
+            if(isPlayer && factory && factory.lunch && factory.lunch.Carrying)
+            {
+                var heading=Quaternion.Euler(0,Camera.main?Camera.main.transform.eulerAngles.y:180,0);
+                wish+=heading*Vector3.right*factory.lunch.StaggerVelocity;
+            }
             if(!isPlayer && Time.time<paintHoldUntil && !chasing) velocity=Vector3.zero;
             if(factory && !isPlayer)FactoryDoor.OpenForWorker(transform.position,wish);
             velocity=Vector3.Lerp(velocity,wish,1-Mathf.Exp(-9*dt)); speed=velocity.magnitude;

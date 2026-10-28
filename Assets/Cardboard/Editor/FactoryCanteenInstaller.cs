@@ -53,13 +53,13 @@ namespace Cardboard.Editor
             {
                 var place=lunch.diners.places[i];Chair(place.position-place.forward*.82f,place.eulerAngles.y,"Worker dining chair "+(i+1));
             }
-            Chair(new Vector3(-7,0,-32.25f),0,"Player dining chair");
+            Chair(new Vector3(-7,0,-32.8f),0,"Player dining chair");
             var ceiling=furniture.Find("Canteen ceiling");if(ceiling)Object.DestroyImmediate(ceiling.gameObject);
             var roof=GameObject.CreatePrimitive(PrimitiveType.Cube);roof.name="Canteen ceiling";roof.transform.SetParent(furniture,false);
             roof.transform.localPosition=new Vector3(-13,5.65f,-25);roof.transform.localScale=new Vector3(26,.18f,18);roof.layer=8;
             var wall=game.GetComponentsInChildren<Renderer>().First(r=>r.name=="Canteen west wall");
             var roofMaterial=FactoryPresentationInstaller.Paper("CanteenCeiling",new Color(.74f,.66f,.52f),wall.sharedMaterial.mainTexture);
-            roofMaterial.mainTextureScale=new Vector2(4.3f,3);roof.GetComponent<Renderer>().sharedMaterial=roofMaterial;EditorUtility.SetDirty(roofMaterial);Lighting(game);RemoveFloatingSigns(game);
+            roofMaterial.mainTextureScale=new Vector2(4.3f,3);roof.GetComponent<Renderer>().sharedMaterial=roofMaterial;EditorUtility.SetDirty(roofMaterial);ClearDeliveryApproach(game);Lighting(game);RemoveFloatingSigns(game);
         }
         public static int RemoveFloatingSigns(CardboardFactoryGame game)
         {
@@ -119,14 +119,62 @@ namespace Cardboard.Editor
             light.shadowBias=.02f;light.shadowNormalBias=.05f;light.renderMode=LightRenderMode.ForcePixel;
             light.lightmapBakeType=LightmapBakeType.Realtime;
             light.cullingMask=~((1<<10)|(1<<FactoryInventorySlot.Layer)|(1<<FactoryDeathPresentation.Layer));EditorUtility.SetDirty(light);
+            lunch.deliverySpotlight=light;
+            Transform Fixture(string name,PrimitiveType type,Vector3 position,Vector3 scale,Material material)
+            {
+                var node=root.Find(name);
+                if(!node)
+                {
+                    node=GameObject.CreatePrimitive(type).transform;node.name=name;node.SetParent(root,false);
+                    Object.DestroyImmediate(node.GetComponent<Collider>());
+                }
+                node.SetPositionAndRotation(position,Quaternion.identity);node.localScale=scale;
+                node.GetComponent<Renderer>().sharedMaterial=material;return node;
+            }
+            var shade=FactoryPresentationInstaller.Paper("CanteenDeliveryLampShade",new Color(.25f,.21f,.15f));
+            Fixture("Delivery lamp shade",PrimitiveType.Cube,spot.position+Vector3.up*.1f,new Vector3(.42f,.09f,.42f),shade);
+            var glow=FactoryPresentationInstaller.Paper("CanteenDeliveryLampBulb",new Color(1,.91f,.68f));
+            glow.EnableKeyword("_EMISSION");glow.SetColor("_EmissionColor",new Color(1,.91f,.68f)*6);EditorUtility.SetDirty(glow);
+            lunch.deliveryBulb=Fixture("Delivery lamp bulb",PrimitiveType.Sphere,spot.position,new Vector3(.24f,.10f,.24f),glow).GetComponent<Renderer>();
+            lunch.RefreshDeliveryLight();EditorUtility.SetDirty(lunch);
+        }
+        public static void ClearDeliveryApproach(CardboardFactoryGame game)
+        {
+            var lunch=game.lunch;var crowd=lunch.diners;if(!crowd)return;
+            float centerX=lunch.destination.position.x,centerZ=lunch.destination.position.z+.45f;
+            var chairs=game.transform.Find("Canteen furniture/Dining chairs");
+            for(int i=0;i<crowd.places.Length;i++)
+            {
+                var place=crowd.places[i];var position=place.position;
+                if(Mathf.Abs(position.x-centerX)>3 || Mathf.Abs(position.z-centerZ)>2.4f)continue;
+                var meal=crowd.meals[i];
+                if(Mathf.Abs(position.x-centerX)<.3f)
+                {
+                    place.SetPositionAndRotation(new Vector3(centerX+3.8f,position.y,centerZ),Quaternion.Euler(0,-90,0));
+                    meal.SetPositionAndRotation(new Vector3(centerX+2.1f,meal.position.y,centerZ),place.rotation);
+                }
+                else
+                {
+                    float x=centerX+Mathf.Sign(position.x-centerX)*1.9f;
+                    place.position=new Vector3(x,position.y,position.z);meal.position=new Vector3(x,meal.position.y,meal.position.z);
+                }
+                var chair=chairs?chairs.Find("Worker dining chair "+(i+1)):null;
+                if(chair)
+                {
+                    var seat=place.position-place.forward*.82f;seat.y=chair.position.y;
+                    chair.SetPositionAndRotation(seat,Quaternion.Euler(0,place.eulerAngles.y+90,0));EditorUtility.SetDirty(chair);
+                }
+                EditorUtility.SetDirty(place);EditorUtility.SetDirty(meal);
+            }
+            var playerChair=chairs?chairs.Find("Player dining chair"):null;
+            if(playerChair)playerChair.position=new Vector3(centerX,playerChair.position.y,centerZ-2.8f);
         }
         public static void CarryUpdate(CardboardFactoryGame game)
         {
             var lunch=game.lunch;
             lunch.destination.position=new Vector3(-7,lunch.destination.position.y,-30.45f);
             lunch.destinationHit.transform.position=new Vector3(-7,lunch.destinationHit.transform.position.y,-30.45f);
-            var chair=game.transform.Find("Canteen furniture/Dining chairs/Player dining chair");
-            if(chair)chair.SetPositionAndRotation(new Vector3(-7,chair.position.y,-32.25f),Quaternion.Euler(0,90,0));
+            ClearDeliveryApproach(game);
             lunch.physicsTray.ResetContents();
             var hud=game.GetComponentInChildren<FactoryLunchHUD>(true);
             if(hud && hud.hint && !hud.hint.GetComponent<UnityEngine.UI.Shadow>())
@@ -141,7 +189,7 @@ namespace Cardboard.Editor
         {
             if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Update tray carrying in Edit Mode.");
             var game=Object.FindFirstObjectByType<CardboardFactoryGame>();CarryUpdate(game);
-            EditorSceneManager.MarkSceneDirty(game.gameObject.scene);EditorSceneManager.SaveScene(game.gameObject.scene);
+            AssetDatabase.SaveAssets();EditorSceneManager.MarkSceneDirty(game.gameObject.scene);EditorSceneManager.SaveScene(game.gameObject.scene);
         }
         public static void ShortLunchCurrent()
         {

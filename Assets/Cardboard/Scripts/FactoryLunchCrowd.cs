@@ -43,6 +43,31 @@ namespace Cardboard
         Diner[] diners;
         FactoryCaptureNavigation navigation;
         float playerFinished;
+        readonly List<Collider[]> deliveryCollisions=new List<Collider[]>();
+        bool deliveryAccess;
+        public void RefreshDeliveryAccess()
+        {
+            bool allow=lunch && lunch.Carrying && Active && !Returning && CardboardRunner.Player;
+            if(allow==deliveryAccess)return;
+            RestoreDeliveryCollisions();deliveryAccess=allow;if(!allow)return;
+            var shapes=new List<Collider>(CardboardRunner.Player.GetComponentsInChildren<Collider>());
+            shapes.AddRange(lunch.tray.GetComponentsInChildren<Collider>());
+            for(int i=0;i<workers.Length;i++)
+            {
+                var place=places[i].position;
+                if(Mathf.Abs(place.z-(lunch.destination.position.z+.45f))>2.4f || Mathf.Abs(place.x-lunch.destination.position.x)>4.2f)continue;
+                foreach(var other in workers[i].GetComponentsInChildren<Collider>())foreach(var shape in shapes)
+                {
+                    if(!shape || !other || Physics.GetIgnoreCollision(shape,other))continue;
+                    Physics.IgnoreCollision(shape,other,true);deliveryCollisions.Add(new[]{shape,other});
+                }
+            }
+        }
+        void RestoreDeliveryCollisions()
+        {
+            foreach(var pair in deliveryCollisions)if(pair[0] && pair[1])Physics.IgnoreCollision(pair[0],pair[1],false);
+            deliveryCollisions.Clear();deliveryAccess=false;
+        }
         int Index(CardboardRunner worker) => workers==null?-1:System.Array.IndexOf(workers,worker);
         public bool Guides(CardboardRunner worker)
         {int index=Index(worker);return Active && index>=0 && !diners[index].done;}
@@ -82,6 +107,7 @@ namespace Cardboard
         void Update() {Tick(Time.deltaTime);}
         public void Tick(float dt)
         {
+            RefreshDeliveryAccess();
             if(!Active || !lunch.game || lunch.game.MenuActive || lunch.game.CaptureActive || lunch.game.Ended) return;
             Elapsed+=Mathf.Max(0,dt);
             bool playerDone=lunch.State==LunchState.Served || lunch.State==LunchState.Spilled || lunch.Missed;
@@ -166,6 +192,7 @@ namespace Cardboard
         void ReturnToWork()
         {
             Returning=true;
+            RefreshDeliveryAccess();
             // Remove every meal before sampling navigation: a bite held at a worker's mouth
             // otherwise becomes an obstacle around the route's starting cell.
             for(int i=0;i<workers.Length;i++)
@@ -184,6 +211,7 @@ namespace Cardboard
         }
         public void Cancel()
         {
+            RestoreDeliveryCollisions();
             Active=Returning=false;
             if(meals!=null) foreach(var meal in meals) if(meal) meal.gameObject.SetActive(false);
             if(workers!=null) foreach(var worker in workers) if(worker) worker.Pose(0,0);
@@ -205,5 +233,6 @@ namespace Cardboard
             }
             diners=null;navigation=null;
         }
+        void OnDisable(){RestoreDeliveryCollisions();}
     }
 }

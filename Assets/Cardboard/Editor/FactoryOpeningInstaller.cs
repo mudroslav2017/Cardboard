@@ -38,8 +38,8 @@ namespace Cardboard.Editor
             var diners=game.lunch.diners;
             if(diners.workers.Length<12)
             {
-                var place=Object.Instantiate(diners.places[7],diners.transform);place.name="Worker lunch place 12";place.position=new Vector3(-7,0,-28.4f);
-                var meal=Object.Instantiate(diners.meals[7],diners.transform);meal.name="Worker meal 12";meal.position=new Vector3(-7,.83f,-29.5f);meal.gameObject.SetActive(false);
+                var place=Object.Instantiate(diners.places[7],diners.transform);place.name="Worker lunch place 12";place.SetPositionAndRotation(new Vector3(-3.2f,0,-30),Quaternion.Euler(0,-90,0));
+                var meal=Object.Instantiate(diners.meals[7],diners.transform);meal.name="Worker meal 12";meal.SetPositionAndRotation(new Vector3(-4.9f,.83f,-30),place.rotation);meal.gameObject.SetActive(false);
                 diners.places=diners.places.Concat(new[]{place}).ToArray();diners.meals=diners.meals.Concat(new[]{meal}).ToArray();diners.bites=diners.bites.Concat(new[]{meal.Find("Lunch apple")}).ToArray();
                 diners.workers=game.crowd.runners.Where(w=>!w.isPlayer).ToArray();EditorUtility.SetDirty(diners);
             }

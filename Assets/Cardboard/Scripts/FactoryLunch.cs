@@ -25,6 +25,8 @@ namespace Cardboard
         public FactoryLunchCrowd diners;
         public FactoryTrayPhysics physicsTray;
         public Light traySpotlight;
+        public Light deliverySpotlight;
+        public Renderer deliveryBulb;
         public LunchState State {get;private set;}
         public bool Carrying=>State==LunchState.Carrying;
         public float Tilt {get;private set;}
@@ -33,8 +35,15 @@ namespace Cardboard
         public float Elapsed {get;private set;}
         public float CarryTime {get;private set;}
         public float ResultUntil {get;private set;}
+        public float SwayBlend=>Carrying?Mathf.SmoothStep(0,1,CarryTime/.7f):0;
+        public float SwayRoll=>SwayBlend*(7*Mathf.Sin(CarryTime*1.75f)+1.3f*Mathf.Sin(CarryTime*2.9f));
+        public float SwayOffset=>SwayBlend*(.075f*Mathf.Sin(CarryTime*1.75f)+.015f*Mathf.Sin(CarryTime*2.9f));
+        public float StaggerVelocity=>SwayBlend*(.26f*Mathf.Sin(CarryTime*1.75f)+.07f*Mathf.Sin(CarryTime*2.9f));
+        public bool NearDestination=>Carrying && CardboardRunner.Player && Vector3.Distance(CardboardRunner.Player.transform.position,destination.position)<2.75f;
+        public string DeliveryPrompt=>CanServe?"E - SET DOWN TRAY":"E - SET DOWN TRAY  |  HOLD IT LEVEL";
+        MaterialPropertyBlock bulbProperties;
         bool previousLeft,previousRight;
-        public bool CanServe=>Carrying && CardboardRunner.Player && Vector3.Distance(CardboardRunner.Player.transform.position,destination.position)<2.5f && Mathf.Abs(Tilt)<=.4f && Mathf.Abs(PitchTilt)<=.45f;
+        public bool CanServe=>NearDestination && Mathf.Abs(Tilt)<=.4f && Mathf.Abs(PitchTilt)<=.45f;
         bool Gameplay=>game && !game.MenuActive && !game.Ended && !game.CaptureActive && !game.IntroBusy && !game.EndingBusy;
         public void ResetLunch()
         {
@@ -120,7 +129,7 @@ namespace Cardboard
         {
             var camera=Camera.main.transform;
             // Looking down must not drive the tray through the counter or floor.
-            position=camera.position+Quaternion.Euler(0,camera.eulerAngles.y,0)*new Vector3(Mathf.Sin(CarryTime*2)*.009f,-.30f,.72f);
+            position=camera.position+Quaternion.Euler(0,camera.eulerAngles.y,0)*new Vector3(SwayOffset*.35f,-.30f,.72f);
             float pitch=Mathf.Clamp(Mathf.DeltaAngle(0,camera.eulerAngles.x)*.15f,-10,10);
             rotation=Quaternion.Euler(pitch+2+Mathf.Sin(CarryTime*2.6f)*.4f,camera.eulerAngles.y,0);
         }
@@ -130,7 +139,18 @@ namespace Cardboard
             if(!physicsTray || !physicsTray.body)return;
             Tilt=-physicsTray.RollDegrees/42;PitchTilt=physicsTray.PitchDegrees/42;AngularSpeed=-physicsTray.RollSpeed/42;
         }
-        void LateUpdate(){if(Carrying){PoseTray();ReadPhysicalBalance();}RefreshTrayLight();}
+        void LateUpdate(){if(Carrying){PoseTray();ReadPhysicalBalance();}RefreshTrayLight();RefreshDeliveryLight();}
+        public void RefreshDeliveryLight()
+        {
+            bool bright=!Carrying || Mathf.Repeat(CarryTime,1.25f)<.8f;
+            if(deliverySpotlight)deliverySpotlight.intensity=bright?24:2;
+            if(deliveryBulb)
+            {
+                if(bulbProperties==null)bulbProperties=new MaterialPropertyBlock();
+                bulbProperties.SetColor("_EmissionColor",new Color(1,.91f,.68f)*(bright?6:.12f));
+                deliveryBulb.SetPropertyBlock(bulbProperties);
+            }
+        }
         public void EnsureTraySpotlight()
         {
             if(traySpotlight)return;
@@ -173,6 +193,8 @@ namespace Cardboard
         }
         void RefreshWorld()
         {
+            if(diners)diners.RefreshDeliveryAccess();
+            RefreshDeliveryLight();
             if(pickupHit)pickupHit.SetActive(State==LunchState.Waiting || State==LunchState.Ready);
             if(destinationHit)destinationHit.SetActive(Carrying);
             if(counterSign)counterSign.gameObject.SetActive(false);

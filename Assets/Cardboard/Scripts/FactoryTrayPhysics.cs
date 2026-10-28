@@ -99,15 +99,15 @@ namespace Cardboard
             Vector3 correction=axis.sqrMagnitude>.001f?axis*(Mathf.DeltaAngle(0,angle)*Mathf.Deg2Rad):Vector3.zero;
             // Follow heading and pitch; a weak roll spring and damping help the player stay level.
             Vector3 torque=Vector3.ProjectOnPlane(correction,forward)*28-Vector3.ProjectOnPlane(body.angularVelocity,forward)*8;
-            float difficulty=lunch?Mathf.SmoothStep(0,1,(lunch.CarryTime-1.5f)/4):0;
-            float sway=lunch ? .20f*Mathf.Sin(lunch.CarryTime*1.25f)*difficulty : 0;
+            // The player's drunken lean pushes the loaded tray off balance in the same direction.
+            float sway=lunch?lunch.SwayRoll*.38f+Mathf.Sin(lunch.CarryTime*.65f)*.65f*lunch.SwayBlend:0;
             float input=Mathf.Abs(balanceInput)>.01f?balanceInput:clickRemaining>0?clickDirection:0;
             float rollSpeed=Vector3.Dot(body.angularVelocity,forward);
             // A held button asks for a modest roll speed; feedback also brakes existing momentum.
             float rollDrive=Mathf.Abs(input)>.01f?Mathf.Clamp((-input*.45f-rollSpeed)*6,-3,3):0;
             if(correctionRemaining>0)
                 rollDrive=Mathf.Clamp(-RollDegrees*Mathf.Deg2Rad*48-rollSpeed*13,-8,8);
-            float leveling=-RollDegrees*Mathf.Deg2Rad*1.8f-rollSpeed*2.3f;
+            float leveling=-RollDegrees*Mathf.Deg2Rad-rollSpeed*1.8f;
             body.AddTorque(torque+forward*(leveling+rollDrive+sway),ForceMode.Acceleration);
             clickRemaining=Mathf.Max(0,clickRemaining-dt);correctionRemaining=Mathf.Max(0,correctionRemaining-dt);
         }

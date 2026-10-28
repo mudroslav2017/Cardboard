@@ -42,10 +42,11 @@ namespace Cardboard.Editor
             game.lunch.TickSchedule(game.lunch.lunchAfter+.1f);
             Place(new Vector3(game.lunch.pickup.position.x,0,game.lunch.pickup.position.z+1.5f),Quaternion.Euler(20,180,0));
         }
-        static void Step(FactoryLunch lunch,int count,bool left=false,bool right=false)
+        static void Step(FactoryLunch lunch,int count,bool left=false,bool right=false,bool assist=false)
         {
             for(int i=0;i<count;i++)
             {
+                if(assist){left=lunch.Tilt>.10f && lunch.AngularSpeed>0;right=lunch.Tilt<-.10f && lunch.AngularSpeed<0;}
                 lunch.TickBalance(.02f,left,right);lunch.physicsTray.TickSupport(.02f);Physics.Simulate(.02f);
             }
         }
@@ -95,15 +96,29 @@ namespace Cardboard.Editor
                 Check(hud.hint.gameObject.activeInHierarchy && hud.hint.text.Contains("LMB") && hud.hint.text.Contains("RMB") &&
                     hud.title.text.Contains("FAR END TABLE"),"English balance controls and far table objective are visible while carrying");
                 Check(!lunch.TryServe(),"Serving at the counter is rejected");
+                lunch.RefreshDeliveryLight();float bright=deliveryLight.intensity;
+                Step(lunch,45,assist:true);lunch.RefreshDeliveryLight();float dim=deliveryLight.intensity;
+                Step(lunch,25,assist:true);lunch.RefreshDeliveryLight();
+                Check(bright==24 && dim==2 && deliveryLight.intensity==24 && lunch.deliveryBulb,
+                    "Delivery spotlight and visible bulb blink while carrying");
+                var cameraMotion=Camera.main.GetComponent<CardboardCamera>();
+                Check(lunch.diners.places.All(p=>Mathf.Abs(p.position.x-lunch.destination.position.x)>1.35f ||
+                    Mathf.Abs(p.position.z-(lunch.destination.position.z+.45f))>2.4f),"Diners leave the delivery table's central approach clear");
                 keyboard=InputSystem.AddDevice<Keyboard>();
                 foreach(bool sprint in new[]{false,true})
                 {
                     InputSystem.QueueStateEvent(keyboard,sprint?new KeyboardState(Key.W,Key.LeftShift):new KeyboardState(Key.W));InputSystem.Update();
                     for(int i=0;i<30;i++)player.TickMovement(.02f);
-                    Check(Mathf.Abs(player.speed-1.3f)<.01f,"Carrying speed is 1.3 m/s with Shift="+sprint);
+                    Check(player.speed<=1.31f && player.speed>1.2f,"Carrying speed stays capped at 1.3 m/s with Shift="+sprint);
                 }
                 InputSystem.QueueStateEvent(keyboard,new KeyboardState());InputSystem.Update();
                 StartLunch(game);
+                foreach(var worker in lunch.diners.workers)
+                {
+                    int index=Array.IndexOf(lunch.diners.workers,worker);var controller=worker.GetComponent<CharacterController>();
+                    controller.enabled=false;worker.transform.SetPositionAndRotation(lunch.diners.places[index].position,lunch.diners.places[index].rotation);controller.enabled=true;
+                }
+                lunch.diners.Tick(.02f);Physics.SyncTransforms();
                 var route=new FactoryCaptureNavigation(.4f).Path(player.transform.position,new Vector3(-7,0,-31.5f));
                 Check(route.Count>3 && Vector3.Distance(route[route.Count-1],new Vector3(-7,0,-31.5f))<.6f,
                     "A walkable route reaches the far table between the dining furniture");
@@ -116,38 +131,62 @@ namespace Cardboard.Editor
                     var view=Quaternion.LookRotation(delta);
                     Camera.main.transform.SetPositionAndRotation(player.transform.position+Vector3.up*1.62f,view);
                     player.TickMovement(.02f);Camera.main.transform.position=player.transform.position+Vector3.up*1.62f;
-                    Step(lunch,1);
+                    Step(lunch,1,assist:true);
                 }
+                for(int i=0;i<100 && point==route.Count && lunch.Carrying && !lunch.CanServe;i++)Step(lunch,1,assist:true);
                 lunch.SendMessage("LateUpdate");
+                report.Add("DETAIL occupied route: "+point+"/"+route.Count+" player="+player.transform.position+" state="+lunch.State+" canServe="+lunch.CanServe);
                 Check(point==route.Count && lunch.Carrying && lunch.CanServe && Attached(tray),
-                    "Player physically walks the full route with a stable loaded tray and can serve at the far table");
+                    "Balanced player physically reaches the delivery spot with all diners and meals present");
                 InputSystem.QueueStateEvent(keyboard,new KeyboardState());InputSystem.Update();
+                StartLunch(game);lunch.TryTake();Place(new Vector3(-13,0,-25),Quaternion.Euler(0,180,0));cameraMotion.AdoptCurrentView();
+                tray.ResetContents();tray.Begin(new Vector3(-13,1.32f,-25.72f),Quaternion.Euler(0,180,0));
+                float minX=player.transform.position.x,maxX=minX,maxCameraRoll=0;
+                for(int i=0;i<250 && lunch.Carrying;i++)
+                {
+                    player.TickMovement(.02f);cameraMotion.RefreshPlayerPose(.02f);Step(lunch,1,assist:true);
+                    minX=Mathf.Min(minX,player.transform.position.x);maxX=Mathf.Max(maxX,player.transform.position.x);
+                    maxCameraRoll=Mathf.Max(maxCameraRoll,Mathf.Abs(Mathf.DeltaAngle(0,Camera.main.transform.eulerAngles.z)));
+                }
+                Check(lunch.Carrying && maxX-minX>.15f && maxCameraRoll>5,"Carrying sways the player sideways and visibly rolls the camera");
                 Place(new Vector3(200,0,200),Quaternion.identity);tray.ResetContents();tray.Begin(new Vector3(200,1.32f,200.72f),Quaternion.identity);
                 for(int i=0;i<1500 && lunch.Carrying;i++)
                 {
                     float t=i*.02f;Camera.main.transform.SetPositionAndRotation(new Vector3(200+t*1.3f,1.62f,200),Quaternion.Euler(55*Mathf.Sin(t*.7f),180*Mathf.SmoothStep(0,1,t/12),0));
-                    Step(lunch,1);
+                    Step(lunch,1,assist:true);
                 }
                 Check(lunch.Carrying && Attached(tray),"Dishes retain their exact local poses during 30 seconds of walking, turning and looking up/down");
-                tray.body.rotation=Quaternion.Euler(0,Camera.main.transform.eulerAngles.y,25);Step(lunch,200);
-                Check(lunch.Carrying && Mathf.Abs(tray.RollDegrees)<8,"Passive damping recovers a 25 degree lean without input; roll="+tray.RollDegrees);
+                tray.body.rotation=Quaternion.Euler(0,Camera.main.transform.eulerAngles.y,25);Step(lunch,200,assist:true);
+                Check(lunch.Carrying && Mathf.Abs(tray.RollDegrees)<20,"Balance controls recover a 25 degree lean despite the player's sway; roll="+tray.RollDegrees);
+                StartLunch(game);lunch.TryTake();Place(new Vector3(200,0,200),Quaternion.identity);tray.ResetContents();tray.Begin(new Vector3(200,1.32f,200.72f),Quaternion.identity);
                 tray.body.rotation=Quaternion.Euler(0,Camera.main.transform.eulerAngles.y,0);tray.body.angularVelocity=Vector3.zero;
                 Step(lunch,15,true,false);float leftRoll=tray.RollDegrees;
+                StartLunch(game);lunch.TryTake();Place(new Vector3(200,0,200),Quaternion.identity);tray.ResetContents();tray.Begin(new Vector3(200,1.32f,200.72f),Quaternion.identity);
                 tray.body.rotation=Quaternion.Euler(0,Camera.main.transform.eulerAngles.y,0);tray.body.angularVelocity=Vector3.zero;
                 Step(lunch,15,false,true);
                 Check(leftRoll>1 && tray.RollDegrees< -1,"LMB and RMB balance in opposite directions");
+                StartLunch(game);lunch.TryTake();Place(new Vector3(200,0,200),Quaternion.identity);tray.ResetContents();tray.Begin(new Vector3(200,1.32f,200.72f),Quaternion.identity);
+                float unbalancedRoll=0;
+                for(int i=0;i<750 && lunch.Carrying;i++){Step(lunch,1);unbalancedRoll=Mathf.Max(unbalancedRoll,Mathf.Abs(tray.RollDegrees));}
+                Check(unbalancedRoll>18,"Player sway produces a substantial tray lean when balance is left unattended; peak="+unbalancedRoll);
                 StartLunch(game);lunch.TryTake();
                 Place(new Vector3(-7,0,-25.7f),Quaternion.Euler(15,180,0));lunch.SendMessage("LateUpdate");
                 Check(!lunch.TryServe(),"The former near table cannot complete the delivery");
                 Place(new Vector3(-7,0,-31.7f),Quaternion.Euler(15,0,0));
                 tray.body.rotation=Quaternion.Euler(0,0,24);lunch.SendMessage("LateUpdate");
                 Check(!lunch.TryServe(),"A heavily tilted tray cannot be served");
+                hud.SendMessage("LateUpdate");Check(hud.title.text.Contains("E - SET DOWN TRAY") && hud.title.text.Contains("HOLD IT LEVEL"),"English E hint appears near the table and explains when the tray needs leveling");
                 tray.body.rotation=Quaternion.identity;tray.body.angularVelocity=Vector3.zero;lunch.SendMessage("LateUpdate");
                 Physics.SyncTransforms();
                 var interaction=game.TargetForRay(new Ray(Camera.main.transform.position,lunch.destinationHit.transform.position-Camera.main.transform.position));
                 Check(interaction && interaction.GetComponent<FactoryLunchControl>() && interaction.GetComponent<FactoryLunchControl>().serve,
                     "Delivery interaction is reachable by the player's ray at the far table");
-                Check(lunch.TryServe() && lunch.State==LunchState.Served && !game.HandsBusy,"A level tray is accepted at the far table");
+                Camera.main.transform.rotation=Quaternion.Euler(0,180,0);game.SendMessage("UpdateFocus");
+                hud.SendMessage("LateUpdate");CardboardFactorySceneBuilder.Capture("CanteenDeliveryPrompt");
+                game.Interact();Check(lunch.State==LunchState.Served && !game.HandsBusy,"E sets down a level tray near the table without aiming through diners");
+                cameraMotion.RefreshPlayerPose(.02f);lunch.RefreshDeliveryLight();
+                Check(lunch.SwayRoll==0 && lunch.StaggerVelocity==0 && Mathf.Abs(Mathf.DeltaAngle(0,Camera.main.transform.eulerAngles.z))<.1f && deliveryLight.intensity==24,
+                    "Serving stops the drunken sway and restores a steady delivery light");
                 var parked=tray.transform.position;Step(lunch,250);
                 Check(tray.body.isKinematic && Attached(tray) && Vector3.Distance(parked,lunch.destination.position)<.001f &&
                     Vector3.Distance(parked,tray.transform.position)<.001f,"Served tray and all dishes stay fixed at the far table");
@@ -164,7 +203,7 @@ namespace Cardboard.Editor
                 game.ResetShift();Check(Attached(tray) && tray.body.isKinematic,"Restart restores every dish and the tray");
                 StartLunch(game);lunch.TryTake();Place(new Vector3(-13,0,-26),Quaternion.Euler(14,180,0));
                 tray.ResetContents();tray.Begin(Camera.main.transform.position+Quaternion.Euler(0,180,0)*new Vector3(0,-.3f,.72f),Quaternion.Euler(4,180,0));
-                Step(lunch,120);hud.SendMessage("LateUpdate");Canvas.ForceUpdateCanvases();
+                Step(lunch,120,assist:true);hud.SendMessage("LateUpdate");Canvas.ForceUpdateCanvases();
                 CardboardFactorySceneBuilder.Capture("CanteenCarryControls");
             }
             catch(Exception error){Check(false,error.ToString());Debug.LogException(error);}

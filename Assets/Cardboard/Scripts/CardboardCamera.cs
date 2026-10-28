@@ -59,19 +59,22 @@ namespace Cardboard
             stepPhase=walkingAmount=0;WalkingOffset=Vector3.zero;WalkingRotation=Quaternion.identity;
             if(player)previousPosition=player.position;
         }
-        void LateUpdate()
+        void LateUpdate(){RefreshPlayerPose(Time.deltaTime);}
+        public void RefreshPlayerPose(float dt)
         {
             var factory=CardboardFactoryGame.Instance;
             if(factory && factory.CameraOverride)
             {ResetWalkingMotion();transform.SetPositionAndRotation(factory.CameraPosition,factory.CameraRotation);return;}
             if(!player)return;
-            float dt=Time.deltaTime;
             Vector3 movement=player.position-previousPosition;movement.y=0;previousPosition=player.position;
             bool active=(!factory || !factory.PlayerBlocked) && !CardboardMarker.DrawingMode;
             float speed=dt>.00001f?Mathf.Min(movement.magnitude/dt,controller?controller.speed:6):0;
             TickWalkingMotion(dt,active?speed:0,!controller || controller.JumpHeight<.01f);
-            transform.position=player.position+Vector3.up*(1.62f+(controller?controller.JumpHeight:0))+Quaternion.Euler(0,yaw,0)*WalkingOffset;
-            transform.rotation=Quaternion.Euler(pitch,yaw,0)*WalkingRotation;
+            var lunch=factory?factory.lunch:null;
+            var sway=active && lunch?new Vector3(lunch.SwayOffset,0,0):Vector3.zero;
+            float roll=active && lunch?lunch.SwayRoll:0;
+            transform.position=player.position+Vector3.up*(1.62f+(controller?controller.JumpHeight:0))+Quaternion.Euler(0,yaw,0)*(WalkingOffset+sway);
+            transform.rotation=Quaternion.Euler(pitch,yaw,0)*WalkingRotation*Quaternion.Euler(0,0,roll);
         }
         public void AdoptCurrentView()
         {yaw=transform.eulerAngles.y;pitch=Mathf.DeltaAngle(0,transform.eulerAngles.x);ResetWalkingMotion();}
