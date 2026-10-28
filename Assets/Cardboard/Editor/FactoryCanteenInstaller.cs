@@ -101,6 +101,14 @@ namespace Cardboard.Editor
             game.lunch.EnsureTraySpotlight();game.lunch.traySpotlight.renderMode=LightRenderMode.ForcePixel;
             game.lunch.RefreshTrayLight();EditorUtility.SetDirty(game.lunch.traySpotlight);EditorUtility.SetDirty(game.lunch);
         }
+        public static void ShortLunchCurrent()
+        {
+            if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Update lunch timing in Edit Mode.");
+            var game=Object.FindAnyObjectByType<CardboardFactoryGame>();var crowd=game.lunch.diners;
+            crowd.minimumLunch=27.5f;crowd.afterPlayer=7.5f;crowd.maximumLunch=35;
+            EditorUtility.SetDirty(crowd);EditorSceneManager.MarkSceneDirty(game.gameObject.scene);EditorSceneManager.SaveScene(game.gameObject.scene);
+            File.WriteAllText("Library/FactoryLunchTiming.txt","SUCCESS: minimum 27.5 s, after player 7.5 s, maximum 35 s; one ordinary lunch per shift.");
+        }
         public static void LightingCurrent()
         {
             if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Update lunch lighting in Edit Mode.");

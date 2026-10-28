@@ -74,6 +74,7 @@ namespace Cardboard.Editor
             rect=label.GetComponent<RectTransform>();rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(0,1);rect.anchoredPosition=new Vector2(32,-28);rect.sizeDelta=new Vector2(153,76);
             counter.label=label.GetComponent<Text>();counter.label.font=CardboardTypography.DefaultFont;counter.label.fontSize=44;counter.label.text="0 / 6";
             counter.label.color=new Color(1,.94f,.8f);counter.label.alignment=TextAnchor.MiddleLeft;counter.label.raycastTarget=false;
+            counter.label.horizontalOverflow=HorizontalWrapMode.Overflow;counter.label.verticalOverflow=VerticalWrapMode.Overflow;
             label.GetComponent<Shadow>().effectColor=new Color(.07f,.04f,.02f,.95f);label.GetComponent<Shadow>().effectDistance=new Vector2(2,-3);
             old=counter.inventory.overlay.transform.Find("Repair counter 3D gear");if(old)Object.DestroyImmediate(old.gameObject);
             var icon=new GameObject("Repair counter 3D gear").transform;icon.SetParent(counter.inventory.overlay.transform,false);counter.icon=icon;

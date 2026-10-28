@@ -58,9 +58,11 @@ namespace Cardboard.Editor
             else if(command=="finale-verify") FactoryFinaleVerification.Run();
             else if(command=="finale-update") FactoryFinaleInstaller.ApplyCurrent();
             else if(command=="lunch-signs-remove") FactoryCanteenInstaller.RemoveFloatingSignsCurrent();
+            else if(command=="lunch-timing") FactoryCanteenInstaller.ShortLunchCurrent();
             else if(command=="lunch-lighting") FactoryCanteenInstaller.LightingCurrent();
             else if(command=="canteen-update") FactoryCanteenInstaller.ApplyCurrent();
             else if(command=="canteen-audit") FactoryFinaleInstaller.Audit();
+            else if(command=="shift-loop-verify") FactoryShiftLoopVerification.Run();
             else if(command=="session-verify") FactorySessionVerification.Run();
             else if(command=="opening-verify") FactoryOpeningVerification.Run();
             else if(command=="opening-update") FactoryOpeningInstaller.ApplyCurrent();

@@ -67,6 +67,10 @@ namespace Cardboard
         FactoryGuardAnimation guardAnimation;
 
         void Awake() { Initialize(); }
+        void Start()
+        {
+            if(isPlayerStation && !GetComponent<FactoryStationHoverOutline>())gameObject.AddComponent<FactoryStationHoverOutline>();
+        }
         void Initialize()
         {
             if (initialized || !press) return;
@@ -199,6 +203,29 @@ namespace Cardboard
             activeLever = part; LeverAnimating = true; leverTime = LeverTravel = 0; leverFired = false;
             if(sound)sound.Lever((part==StationPart.Feed?feedGrip:pressGrip).position);
             if (operatorHand) operatorHand.Attach(part == StationPart.Feed ? feedGrip : pressGrip);
+        }
+        public bool CanInteract(StationPart part,int number=0)
+        {
+            if(!Available || ExecutionControlled || Manipulating || LeverAnimating || Stage==StationStage.Dipping)return false;
+            switch(part)
+            {
+                case StationPart.Feed:
+                    return Stage==StationStage.Empty && !Game.HasPart && !PressClosed && !GuardClosed;
+                case StationPart.Selector:
+                    return (Stage==StationStage.Empty || Stage==StationStage.Loaded) && !Game.HasPart && !PressClosed && !GuardClosed;
+                case StationPart.Press:
+                    return !GuardClosed && GuardBlend<=.01f && ((!PressClosed && Stage==StationStage.Loaded) ||
+                        (PressClosed && (Stage==StationStage.Loaded || Stage==StationStage.Cutting || Stage==StationStage.Cut)));
+                case StationPart.Guard:
+                    return GuardClosed || (PressClosed && pressBlend>=.99f && (Stage==StationStage.Loaded || Stage==StationStage.Cutting));
+                case StationPart.Wheel:
+                    return !Game.HasPart;
+                case StationPart.Output:
+                    return Stage==StationStage.Cut && !PressClosed && pressBlend<=.01f && !GuardClosed && GuardBlend<=.01f && !Game.HasPart;
+                case StationPart.Bath:
+                    return number>=1 && number<=baths.Length && Stage==StationStage.Empty && Game.HasPart && Game.HeldRecipe.finish==0 && !Game.DippingPart;
+                default:return false;
+            }
         }
         public bool Operate(StationPart part, int number = 0)
         {

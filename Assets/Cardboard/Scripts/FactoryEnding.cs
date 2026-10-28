@@ -22,7 +22,7 @@ namespace Cardboard
         public IReadOnlyList<Vector3> Route=>route;
         readonly List<Vector3> route=new List<Vector3>();
         int point;
-        float runTime,runSpeed,homeFov;
+        float runTime,runSpeed,homeFov,cameraYawVelocity,cameraPitchVelocity;
         Vector3 lookPosition;
         Quaternion lookRotation,runFacing;
         Camera lens;
@@ -71,7 +71,7 @@ namespace Cardboard
             route.Add(inside);
             route.Add(new Vector3(CardboardFactoryWorld.WorkshopEast+1,player.position.y,-2));
             route.Add(new Vector3(CardboardFactoryWorld.WorkshopEast+14.4f,player.position.y,-2));
-            point=0;runSpeed=runTime=0;
+            point=0;runSpeed=runTime=cameraYawVelocity=cameraPitchVelocity=0;
             Cursor.lockState=CursorLockMode.Locked;FactoryVolumeCursor.SetSystemVisible(false);
             game.Toast("Everyone has left for lunch. Now is your chance.",4);
             Change(FactoryEndingPhase.LookAround);
@@ -108,7 +108,7 @@ namespace Cardboard
                     if(PhaseTime>=.7f)
                     {
                         RestoreBody();lens.fieldOfView=homeFov;
-                        game.mainMenu.Show();Change(FactoryEndingPhase.MenuReveal);
+                        game.mainMenu.ShowNewShift();Change(FactoryEndingPhase.MenuReveal);
                     }
                     break;
                 case FactoryEndingPhase.MenuReveal:
@@ -133,13 +133,32 @@ namespace Cardboard
             float strength=Mathf.InverseLerp(1,6.4f,runSpeed);
             Vector3 shake=new Vector3(Mathf.Sin(runTime*10.8f)*.018f,Mathf.Sin(runTime*21.6f)*.035f,0)*strength;
             CameraPosition=player.transform.position+Vector3.up*1.62f+player.transform.rotation*shake;
-            runFacing=Quaternion.Slerp(runFacing,facing,1-Mathf.Exp(-7*dt));
+            // Look ahead along the route instead of tracking every small navigation corner.
+            Vector3 gaze=LookAhead(2.2f)-player.transform.position;gaze.y=0;
+            if(gaze.sqrMagnitude>.001f)
+            {
+                float targetYaw=Quaternion.LookRotation(gaze,Vector3.up).eulerAngles.y;
+                float yaw=Mathf.SmoothDampAngle(runFacing.eulerAngles.y,targetYaw,ref cameraYawVelocity,.38f,100,dt);
+                float pitch=Mathf.SmoothDampAngle(runFacing.eulerAngles.x,0,ref cameraPitchVelocity,.38f,30,dt);
+                runFacing=Quaternion.Euler(pitch,yaw,0);
+            }
             CameraRotation=runFacing*
                 Quaternion.Euler(Mathf.Sin(runTime*21.6f)*.45f*strength,0,Mathf.Sin(runTime*10.8f)*.65f*strength);
             lens.fieldOfView=Mathf.Lerp(lens.fieldOfView,CardboardCamera.GameplayFov+5,1-Mathf.Exp(-2*dt));
             float endDistance=Vector3.Distance(player.transform.position,route[route.Count-1]);
             Fade(Mathf.InverseLerp(3,.25f,endDistance)*.65f);
             if(endDistance<.25f)EnterGlow();
+        }
+        Vector3 LookAhead(float distance)
+        {
+            Vector3 from=CardboardRunner.Player.transform.position;
+            for(int i=point;i<route.Count;i++)
+            {
+                float length=Vector3.Distance(from,route[i]);
+                if(length>=distance)return Vector3.Lerp(from,route[i],distance/Mathf.Max(.001f,length));
+                distance-=length;from=route[i];
+            }
+            return from;
         }
         public void EnterGlow()
         {

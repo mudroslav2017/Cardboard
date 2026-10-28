@@ -9,7 +9,7 @@ namespace Cardboard
         public FactoryLunch lunch;
         public CardboardRunner[] workers;
         public Transform[] places, meals, bites;
-        public float minimumLunch=55, afterPlayer=15;
+        public float minimumLunch=27.5f, afterPlayer=7.5f, maximumLunch=35;
         public bool Active {get;private set;}
         public bool Returning {get;private set;}
         public float Elapsed {get;private set;}
@@ -86,8 +86,11 @@ namespace Cardboard
             Elapsed+=Mathf.Max(0,dt);
             bool playerDone=lunch.State==LunchState.Served || lunch.State==LunchState.Spilled || lunch.Missed;
             playerFinished=playerDone?playerFinished+Mathf.Max(0,dt):0;
-            bool allAte=true;foreach(var diner in diners) {if(diner.eating) diner.eatingTime+=Mathf.Max(0,dt);if(diner.eatingTime<12) allAte=false;}
-            if(!lunch.FinalLunch && !Returning && allAte && Elapsed>=minimumLunch && (playerFinished>=afterPlayer || Elapsed>=minimumLunch+45)) ReturnToWork();
+            bool allAte=true;foreach(var diner in diners) {if(diner.eating) diner.eatingTime+=Mathf.Max(0,dt);if(diner.eatingTime<6) allAte=false;}
+            // An unreachable dining place must not keep every worker in the canteen forever.
+            bool finished=allAte && playerFinished>=afterPlayer;
+            bool deadline=Elapsed>=Mathf.Max(minimumLunch,maximumLunch);
+            if(!lunch.FinalLunch && !Returning && Elapsed>=minimumLunch && (finished || deadline)) ReturnToWork();
             bool complete=true,routesDirty=false;
             for(int i=0;i<workers.Length;i++)
             {
@@ -163,13 +166,20 @@ namespace Cardboard
         void ReturnToWork()
         {
             Returning=true;
+            // Remove every meal before sampling navigation: a bite held at a worker's mouth
+            // otherwise becomes an obstacle around the route's starting cell.
+            for(int i=0;i<workers.Length;i++)
+            {
+                var diner=diners[i];diner.eating=false;meals[i].gameObject.SetActive(false);
+                bites[i].localPosition=diner.foodHome;bites[i].localRotation=diner.foodRotation;
+                workers[i].Pose(0,0);
+            }
             navigation=new FactoryCaptureNavigation(.38f);
             for(int i=0;i<workers.Length;i++)
             {
-                var diner=diners[i];diner.eating=false;diner.goal=diner.home;diner.point=0;diner.pointAge=0;diner.lastPoint=0;
+                var diner=diners[i];diner.goal=diner.home;diner.point=0;diner.pointAge=0;diner.lastPoint=0;
                 diner.path=navigation.Path(workers[i].transform.position,diner.goal);
                 if(diner.path.Count>0) diner.goal=diner.path[diner.path.Count-1];
-                meals[i].gameObject.SetActive(false);workers[i].Pose(0,0);
             }
         }
         public void Cancel()

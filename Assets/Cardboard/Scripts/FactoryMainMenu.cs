@@ -49,6 +49,10 @@ namespace Cardboard
             SetVolume(PlayerPrefs.GetFloat(VolumeKey,.65f),false);
             if(SkipNextMenu){SkipNextMenu=false;shiftStarted=true;Close();}else Show();
         }
+        public void ShowNewShift()
+        {
+            shiftStarted=false;Show();
+        }
         public void ReturnToMenu()
         {
             if(!BlocksGameplay)Show();
@@ -165,7 +169,7 @@ namespace Cardboard
                     Close();return;
                 }
                 visuals.gameObject.SetActive(false);settingsPanel.gameObject.SetActive(false);
-                if(!shiftStarted)
+                if(!shiftStarted || game.Ended)
                 {
                     game.ResetShift();lens.GetComponent<CardboardCamera>().ResetView(0);
                     if(game.intro)game.intro.Begin();

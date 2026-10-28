@@ -40,22 +40,33 @@ namespace Cardboard
         {
             Attended=Missed=FinalLunch=previousLeft=previousRight=false;AttendanceElapsed=0;
             State=LunchState.Waiting;Tilt=PitchTilt=AngularSpeed=Elapsed=CarryTime=ResultUntil=0;
-            if(physicsTray)physicsTray.ResetContents();
             if(diners)diners.ResetLunch();
+            RestoreTray();RefreshWorld();
+        }
+        void RestoreTray()
+        {
+            if(physicsTray)physicsTray.ResetContents();
             tray.SetParent(transform,false);tray.SetPositionAndRotation(pickup.position,pickup.rotation);tray.gameObject.SetActive(true);
             if(physicsTray){physicsTray.body.position=tray.position;physicsTray.body.rotation=tray.rotation;}
-            RefreshWorld();
+        }
+        void BeginOrdinaryLunch()
+        {
+            Attended=Missed=previousLeft=previousRight=false;AttendanceElapsed=0;
+            Tilt=PitchTilt=AngularSpeed=CarryTime=ResultUntil=Elapsed=0;
+            RestoreTray();State=LunchState.Ready;RefreshWorld();if(diners)diners.Begin();
+            game.Toast("Lunch time! Reach the canteen in "+ArrivalCountdown+".",8);game.PlayCaptureSound("good");TickAttendance(0);
         }
         public void TickSchedule(float dt)
         {
-            if(!Gameplay || game.IntroActive)return;
-            if(State!=LunchState.Waiting){TickAttendance(dt);return;}
+            if(!Gameplay || game.IntroActive || FinalLunch)return;
             Elapsed+=Mathf.Max(0,dt);
-            if(Elapsed>=lunchAfter && game.Repairs>0 && !game.IntroActive)
+            if(State==LunchState.Waiting)
             {
-                State=LunchState.Ready;RefreshWorld();if(diners)diners.Begin();
-                game.Toast("Lunch time! Reach the canteen in "+ArrivalCountdown+".",8);game.PlayCaptureSound("good");TickAttendance(0);
+                if(Elapsed>=lunchAfter && game.Repairs>0)BeginOrdinaryLunch();
+                return;
             }
+            TickAttendance(dt);
+
         }
         void TickAttendance(float dt)
         {
