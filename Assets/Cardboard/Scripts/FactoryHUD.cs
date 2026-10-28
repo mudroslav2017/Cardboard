@@ -81,7 +81,7 @@ namespace Cardboard
                 {
                     var marker=CardboardMarker.Instance;
                     Fill(w-278,h-184,258,78,panel);
-                    GUI.Label(new Rect(w-262,h-174,230,18),"MARKER / 1-5 COLOR / C CLEAR",small);
+                    GUI.Label(new Rect(w-262,h-174,230,18),marker.Erasing?"CLOTH / LMB WIPE / C MARKER":"MARKER / 1-5 COLOR / C CLOTH",small);
                     for(int i=0;i<marker.Colors.Length;i++)
                     {
                         float x=w-262+i*46;if(i==marker.colorIndex) Fill(x-2,h-145,34,27,paper);
@@ -95,7 +95,7 @@ namespace Cardboard
                 }
                 Fill(20,h-94,w-40,74,panel);
                 GUI.Label(new Rect(35,h-80,w-70,23),"WASD  move     SHIFT  run     E  interact     C  blend in     RMB  put down     LMB  throw",text);
-                GUI.Label(new Rect(35,h-52,w-70,23),drawing?"LMB  draw nearby     MOUSE  move hand     WHEEL  brush size     F  put marker away":"F  marker     MOUSE  look     ESC  release cursor",small);
+                GUI.Label(new Rect(35,h-52,w-70,23),drawing?(CardboardMarker.Instance.Erasing?"LMB  wipe nearby     MOUSE  move cloth     C  marker     F  put cloth away":"LMB  draw nearby     MOUSE  move hand     WHEEL  brush size     C  cloth     F  put marker away"):"F  marker     MOUSE  look     ESC  release cursor",small);
                 if(Cursor.lockState!=CursorLockMode.Locked && !drawing)
                     GUI.Label(new Rect(w/2-220,h/2+78,440,32),"Click inside the game to look around",center);
             }

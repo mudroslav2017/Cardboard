@@ -6,12 +6,15 @@ namespace Cardboard
     [RequireComponent(typeof(MeshRenderer),typeof(MeshCollider))]
     public class CardboardDrawingSurface : MonoBehaviour
     {
+        public bool transparentInk;
+        public Vector2 physicalSize=new Vector2(1.36f,2.34f);
         public CardboardRunner Runner => GetComponentInParent<CardboardRunner>();
         public Texture2D DrawingTexture => textures[0];
         public Texture2D BackDrawingTexture => textures[TextureSlot(1)];
         readonly Material[] instances=new Material[2];
         readonly Texture2D[] textures=new Texture2D[2];
         readonly Color32[][] pixels=new Color32[2][];
+        readonly Color32[][] basePixels=new Color32[2][];
         Material[] originals;
         readonly Dictionary<int,Color>[] inkLayers={new Dictionary<int,Color>(),new Dictionary<int,Color>()};
         MeshRenderer display;
@@ -49,23 +52,42 @@ namespace Cardboard
             if(textures[side]) return;
             if(!display) display=GetComponent<MeshRenderer>();
             if(originals==null || originals.Length==0) originals=display.sharedMaterials;
-            textures[side]=Instantiate((Texture2D)originals[side].mainTexture);
+            if(transparentInk)
+            {
+                int width=Mathf.Clamp(Mathf.CeilToInt(physicalSize.x*128),32,4096);
+                int height=Mathf.Clamp(Mathf.CeilToInt(physicalSize.y*128),32,4096);
+                textures[side]=new Texture2D(width,height,TextureFormat.RGBA32,true)
+                    {wrapMode=TextureWrapMode.Clamp,filterMode=FilterMode.Bilinear};
+                pixels[side]=new Color32[width*height];textures[side].SetPixels32(pixels[side]);
+                display.enabled=true;
+            }
+            else
+            {
+                textures[side]=Instantiate((Texture2D)originals[side].mainTexture);
+                basePixels[side]=textures[side].GetPixels32();pixels[side]=(Color32[])basePixels[side].Clone();
+            }
             textures[side].name=name+(side==0?" front":" back")+" • individual marker drawing";
             instances[side]=new Material(originals[side]) {name=name+" • marker ink "+side};
             instances[side].mainTexture=textures[side];instances[side].SetTexture("_BaseMap",textures[side]);
             var materials=display.sharedMaterials;materials[side]=instances[side];display.sharedMaterials=materials;
-            pixels[side]=textures[side].GetPixels32();
         }
 
         // The two faces have independent ink; radius is measured on the physical sheet.
         public void PaintStroke(Vector2 from,Vector2 to,Color color,float radius,int side=0)
+        {ApplyStroke(from,to,color,radius,side,false);}
+        public void EraseStroke(Vector2 from,Vector2 to,float radius,int side=0)
+        {ApplyStroke(from,to,Color.clear,radius,side,true);}
+        void ApplyStroke(Vector2 from,Vector2 to,Color color,float radius,int side,bool erase)
         {
-            side=TextureSlot(side);EnsureTexture(side);
+            side=TextureSlot(side);
+            if(erase && !textures[side])return;
+            EnsureTexture(side);
+            if(transparentInk && !erase)display.enabled=true;
             var texture=textures[side];var inkPixels=pixels[side];
             int width=texture.width,height=texture.height;
             Vector2 a=new Vector2(from.x*(width-1),from.y*(height-1));
             Vector2 b=new Vector2(to.x*(width-1),to.y*(height-1));
-            float rx=Mathf.Max(1,radius/1.36f*width),ry=Mathf.Max(1,radius/2.34f*height);
+            float rx=Mathf.Max(1,radius/Mathf.Max(.01f,physicalSize.x)*width),ry=Mathf.Max(1,radius/Mathf.Max(.01f,physicalSize.y)*height);
             int steps=Mathf.Clamp(Mathf.CeilToInt(Vector2.Distance(a,b)/(Mathf.Min(rx,ry)*.45f)),1,2048);
             int minX=width,minY=height,maxX=-1,maxY=-1;
             for(int s=0;s<=steps;s++)
@@ -81,10 +103,20 @@ namespace Cardboard
                     float coverage=Mathf.Clamp01((1-Mathf.Sqrt(dx*dx+dy*dy))*Mathf.Min(rx,ry));
                     if(coverage>0)
                     {
+                        if(erase)
+                        {
+                            int eraseIndex=y*width+x;
+                            if(!inkLayers[side].TryGetValue(eraseIndex,out var erasedInk))continue;
+                            erasedInk.a*=1-coverage;
+                            if(erasedInk.a<.003f){inkLayers[side].Remove(eraseIndex);erasedInk=Color.clear;}else inkLayers[side][eraseIndex]=erasedInk;
+                            inkPixels[eraseIndex]=transparentInk?erasedInk:Color.Lerp(basePixels[side][eraseIndex],new Color(erasedInk.r,erasedInk.g,erasedInk.b,1),erasedInk.a);
+                            continue;
+                        }
                         int index=y*width+x;float alpha=coverage*.72f;
                         inkPixels[index]=Color.Lerp(inkPixels[index],color,alpha);
                         inkLayers[side].TryGetValue(index,out var old);float combined=alpha+old.a*(1-alpha);
                         var ink=(color*alpha+old*(old.a*(1-alpha)))/combined;ink.a=combined;inkLayers[side][index]=ink;
+                        if(transparentInk)inkPixels[index]=ink;
                     }
                 }
             }
@@ -93,6 +125,7 @@ namespace Cardboard
             var patch=new Color32[patchWidth*patchHeight];
             for(int y=0;y<patchHeight;y++) System.Array.Copy(inkPixels,(minY+y)*width+minX,patch,y*patchWidth,patchWidth);
             texture.SetPixels32(minX,minY,patchWidth,patchHeight,patch);texture.Apply(true,false);
+            if(transparentInk && erase && inkLayers[side].Count==0)display.enabled=false;
         }
         public void SetBaseMaterial(Material material)
         {
@@ -105,7 +138,7 @@ namespace Cardboard
                 originals[side]=material;
                 if(side<textures.Length && textures[side])
                 {
-                    var source=(Texture2D)material.mainTexture;pixels[side]=source.GetPixels32();
+                    var source=(Texture2D)material.mainTexture;basePixels[side]=source.GetPixels32();pixels[side]=(Color32[])basePixels[side].Clone();
                     foreach(var ink in inkLayers[side])if(ink.Key<pixels[side].Length)pixels[side][ink.Key]=Color.Lerp(pixels[side][ink.Key],ink.Value,ink.Value.a);
                     textures[side].SetPixels32(pixels[side]);textures[side].Apply(true,false);
                     instances[side].CopyPropertiesFromMaterial(material);instances[side].mainTexture=textures[side];instances[side].SetTexture("_BaseMap",textures[side]);
@@ -121,9 +154,10 @@ namespace Cardboard
             {
                 inkLayers[side].Clear();
                 if(!textures[side] || originals==null) continue;
-                pixels[side]=((Texture2D)originals[side].mainTexture).GetPixels32();
+                pixels[side]=transparentInk?new Color32[textures[side].width*textures[side].height]:(Color32[])basePixels[side].Clone();
                 textures[side].SetPixels32(pixels[side]);textures[side].Apply(true,false);
             }
+            if(transparentInk && display)display.enabled=false;
         }
         void OnDestroy()
         {

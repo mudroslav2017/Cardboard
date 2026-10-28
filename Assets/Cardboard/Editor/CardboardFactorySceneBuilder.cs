@@ -37,6 +37,8 @@ namespace Cardboard.Editor
             if(command=="build") Build();
             else if(command=="instruction-flip-hint") FactoryPhysicsInstaller.InstructionFlipHintCurrent();
             else if(command=="marker-web-fix") FactoryMarkerWebFix.Apply();
+            else if(command=="wall-drawing-update") FactoryWallDrawingInstaller.ApplyCurrent();
+            else if(command=="wall-drawing-verify") FactoryWallDrawingVerification.Run();
             else if(command=="marker-web-verify") FactoryMarkerWebFix.Verify();
             else if(command=="web-fix-audit") FactoryWebFixVerification.Audit();
             else if(command=="web-fix-apply") FactoryWebFixVerification.Apply();
@@ -194,6 +196,7 @@ namespace Cardboard.Editor
                 FactoryAudioInstaller.Install(root.transform);
                 FactoryFloorAudioInstaller.Install(root.transform);
                 foreach(var station in root.GetComponentsInChildren<FactoryWorkstation>(true))FactoryLeverInstaller.Install(station);
+                FactoryWallDrawingInstaller.Install(root.transform);
 
                 var container=AssetDatabase.LoadAssetAtPath<CardboardGeneratedAssets>(ArtPath);
                 if(!container) { container=ScriptableObject.CreateInstance<CardboardGeneratedAssets>();AssetDatabase.CreateAsset(container,ArtPath); }

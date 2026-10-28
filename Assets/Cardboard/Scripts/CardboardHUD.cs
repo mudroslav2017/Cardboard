@@ -43,7 +43,7 @@ namespace Cardboard
             }
             Fill(20,h-84,w-40,64,panel);
             GUI.Label(new Rect(36,h-73,w-70,24),"WASD  move     SHIFT  run     SPACE  jump     E  call     R  commotion     MOUSE  look     ESC  cursor",text);
-            GUI.Label(new Rect(36,h-47,w-70,24),drawing?"LMB  touch and draw     1-5  color     WHEEL  brush size     C  clear NPC     F  put marker away":"F  take out the marker and draw on coworkers",text);
+            GUI.Label(new Rect(36,h-47,w-70,24),drawing?(CardboardMarker.Instance.Erasing?"LMB  wipe with cloth     C  return to marker     F  put cloth away":"LMB  touch and draw     1-5  color     WHEEL  brush size     C  cloth     F  put marker away"):"F  take out the marker and draw on coworkers",text);
             if(drawing)
             {
                 var marker=CardboardMarker.Instance;

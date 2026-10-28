@@ -19,6 +19,8 @@ namespace Cardboard
         public Vector3 ContactNormal {get;private set;}
         public bool IsTouching {get;private set;}
         public bool IsPressed {get;private set;}
+        public bool Erasing {get;private set;}
+        public float wipeRadius=.09f;
         public Color Ink => Colors[colorIndex];
         bool drawing,dragging;
         int previousSide;
@@ -37,6 +39,7 @@ namespace Cardboard
             if(keyboard.fKey.wasPressedThisFrame) SetDrawingMode(!drawing);
             if(keyboard.escapeKey.wasPressedThisFrame && drawing) SetDrawingMode(false,false);
             if(!drawing) return;
+            if(keyboard.cKey.wasPressedThisFrame)SetErasing(!Erasing);
             if(keyboard.digit1Key.wasPressedThisFrame) colorIndex=0;
             if(keyboard.digit2Key.wasPressedThisFrame) colorIndex=1;
             if(keyboard.digit3Key.wasPressedThisFrame) colorIndex=2;
@@ -50,8 +53,10 @@ namespace Cardboard
             if(!drawing || mouse==null || !Application.isFocused)
             { Target=null;IsTouching=false;IsPressed=false;BreakStroke();return; }
             TracePointer(mouse.position.ReadValue(),mouse.leftButton.isPressed);
-            if(Keyboard.current!=null && Keyboard.current.cKey.wasPressedThisFrame && Target)
-            { Target.ClearDrawing();BreakStroke(); }
+        }
+        public void SetErasing(bool active)
+        {
+            Erasing=drawing && active;IsTouching=false;IsPressed=false;BreakStroke();
         }
         // Shared by the input path and integration checks: ink and the visible nib use this same contact.
         public void TracePointer(Vector2 pointer,bool pressed)
@@ -71,10 +76,12 @@ namespace Cardboard
                     if(surface.Runner) surface.Runner.HoldForDrawing();
                     if(pressed)
                     {
-                        int side=CardboardDrawingSurface.SideOf(hit);
+                        int side=surface.transparentInk?0:CardboardDrawingSurface.SideOf(hit);
                         Vector2 uv=hit.textureCoord;
-                        surface.PaintStroke(dragging && previous==surface && previousSide==side?lastUV:uv,uv,Ink,radius,side);
-                        previous=surface;previousSide=side;lastUV=uv;dragging=true;IsTouching=true;if(writingSound)writingSound.Stroke(surface,ContactPoint);return;
+                        var from=dragging && previous==surface && previousSide==side?lastUV:uv;
+                        if(Erasing)surface.EraseStroke(from,uv,wipeRadius,side);else surface.PaintStroke(from,uv,Ink,radius,side);
+                        previous=surface;previousSide=side;lastUV=uv;dragging=true;IsTouching=true;
+                        if(writingSound){if(Erasing)writingSound.EndStroke();else writingSound.Stroke(surface,ContactPoint);}return;
                     }
                 }
             }
@@ -84,14 +91,14 @@ namespace Cardboard
         public void SetDrawingMode(bool active,bool captureOnExit=true)
         {
             if(active && CardboardFactoryGame.Instance && CardboardFactoryGame.Instance.HandsBusy) return;
-            drawing=active;Target=null;IsTouching=false;IsPressed=false;BreakStroke();
+            drawing=active;Erasing=false;Target=null;IsTouching=false;IsPressed=false;BreakStroke();
             Cursor.lockState=active || !captureOnExit?CursorLockMode.None:CursorLockMode.Locked;
             FactoryVolumeCursor.SetSystemVisible(active || !captureOnExit);
         }
         void OnApplicationFocus(bool focused) { if(!focused && drawing) SetDrawingMode(false,false); }
         void OnDisable()
         {
-            drawing=false;Target=null;IsTouching=false;BreakStroke();
+            drawing=Erasing=false;Target=null;IsTouching=false;BreakStroke();
             if(Instance==this) Instance=null;
             Cursor.lockState=CursorLockMode.None;FactoryVolumeCursor.SetSystemVisible(true);
         }

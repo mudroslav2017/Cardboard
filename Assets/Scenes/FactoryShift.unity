@@ -21737,6 +21737,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b38def33ac4ee944a89a83b8708055d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardDrawingSurface
+  transparentInk: 0
+  physicalSize: {x: 1.36, y: 2.34}
 --- !u!64 &205690197
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -22160,6 +22162,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b38def33ac4ee944a89a83b8708055d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardDrawingSurface
+  transparentInk: 0
+  physicalSize: {x: 1.36, y: 2.34}
 --- !u!64 &208868824
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -24673,6 +24677,7 @@ GameObject:
   - component: {fileID: 247509136}
   - component: {fileID: 247509135}
   - component: {fileID: 247509134}
+  - component: {fileID: 247509137}
   m_Layer: 8
   m_Name: Canteen north wall
   m_TagString: Untagged
@@ -24780,6 +24785,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 247509132}
   m_Mesh: {fileID: 4300000, guid: b28e590a5c5bab040b963449a66203a1, type: 2}
+--- !u!114 &247509137
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 247509132}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1 &249698286
 GameObject:
   m_ObjectHideFlags: 0
@@ -36706,6 +36725,7 @@ GameObject:
   - component: {fileID: 371070933}
   - component: {fileID: 371070932}
   - component: {fileID: 371070931}
+  - component: {fileID: 371070934}
   m_Layer: 8
   m_Name: Doorway infill
   m_TagString: Untagged
@@ -36813,6 +36833,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 371070929}
   m_Mesh: {fileID: 4300000, guid: 2730521d394b49342ac6ebb91b16ec5b, type: 2}
+--- !u!114 &371070934
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 371070929}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1001 &371664691
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -42349,6 +42383,7 @@ GameObject:
   - component: {fileID: 450307683}
   - component: {fileID: 450307682}
   - component: {fileID: 450307681}
+  - component: {fileID: 450307684}
   m_Layer: 8
   m_Name: Canteen south wall
   m_TagString: Untagged
@@ -42456,6 +42491,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 450307679}
   m_Mesh: {fileID: 4300000, guid: 1362a7099a951bd4e85a854ac692b65c, type: 2}
+--- !u!114 &450307684
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 450307679}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1001 &450796605
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -47638,6 +47687,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b38def33ac4ee944a89a83b8708055d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardDrawingSurface
+  transparentInk: 0
+  physicalSize: {x: 1.36, y: 2.34}
 --- !u!64 &502642889
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -56231,6 +56282,7 @@ GameObject:
   - component: {fileID: 631423551}
   - component: {fileID: 631423550}
   - component: {fileID: 631423549}
+  - component: {fileID: 631423552}
   m_Layer: 8
   m_Name: West workshop wall
   m_TagString: Untagged
@@ -56338,6 +56390,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 631423547}
   m_Mesh: {fileID: 4300000, guid: 30011273127aa0d46a2fee1aec5aab99, type: 2}
+--- !u!114 &631423552
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 631423547}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1 &632524007
 GameObject:
   m_ObjectHideFlags: 0
@@ -57620,6 +57686,7 @@ GameObject:
   - component: {fileID: 656011073}
   - component: {fileID: 656011072}
   - component: {fileID: 656011071}
+  - component: {fileID: 656011074}
   m_Layer: 8
   m_Name: South wall west of canteen door
   m_TagString: Untagged
@@ -57727,6 +57794,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 656011069}
   m_Mesh: {fileID: 4300000, guid: d52951e92b2b07044842ec3b7841887d, type: 2}
+--- !u!114 &656011074
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 656011069}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1 &659435407
 GameObject:
   m_ObjectHideFlags: 0
@@ -66299,6 +66380,7 @@ GameObject:
   - component: {fileID: 782627239}
   - component: {fileID: 782627238}
   - component: {fileID: 782627237}
+  - component: {fileID: 782627240}
   m_Layer: 8
   m_Name: East wall above exit
   m_TagString: Untagged
@@ -66406,6 +66488,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 782627235}
   m_Mesh: {fileID: 4300000, guid: a787b27ffa9737c42a7bef053a6c484c, type: 2}
+--- !u!114 &782627240
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 782627235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1 &785048871
 GameObject:
   m_ObjectHideFlags: 0
@@ -67801,6 +67897,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b38def33ac4ee944a89a83b8708055d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardDrawingSurface
+  transparentInk: 0
+  physicalSize: {x: 1.36, y: 2.34}
 --- !u!64 &796959684
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -68983,6 +69081,7 @@ GameObject:
   - component: {fileID: 818702361}
   - component: {fileID: 818702360}
   - component: {fileID: 818702359}
+  - component: {fileID: 818702362}
   m_Layer: 8
   m_Name: Corridor cardboard wall
   m_TagString: Untagged
@@ -69090,6 +69189,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 818702357}
   m_Mesh: {fileID: 4300000, guid: deed2adafeb087f48b372a31c813254c, type: 2}
+--- !u!114 &818702362
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 818702357}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1 &819241690
 GameObject:
   m_ObjectHideFlags: 0
@@ -69881,6 +69994,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b38def33ac4ee944a89a83b8708055d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardDrawingSurface
+  transparentInk: 0
+  physicalSize: {x: 1.36, y: 2.34}
 --- !u!64 &824379744
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -78468,6 +78583,7 @@ GameObject:
   - component: {fileID: 939178535}
   - component: {fileID: 939178534}
   - component: {fileID: 939178533}
+  - component: {fileID: 939178536}
   m_Layer: 8
   m_Name: East wall below exit
   m_TagString: Untagged
@@ -78575,6 +78691,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 939178531}
   m_Mesh: {fileID: 4300000, guid: 9db0d69255c76fe4aba688cd62d0ce3b, type: 2}
+--- !u!114 &939178536
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 939178531}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1 &940345973
 GameObject:
   m_ObjectHideFlags: 0
@@ -79587,6 +79717,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b38def33ac4ee944a89a83b8708055d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardDrawingSurface
+  transparentInk: 0
+  physicalSize: {x: 1.36, y: 2.34}
 --- !u!64 &950812088
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -86223,6 +86355,7 @@ GameObject:
   - component: {fileID: 1014989440}
   - component: {fileID: 1014989439}
   - component: {fileID: 1014989438}
+  - component: {fileID: 1014989441}
   m_Layer: 8
   m_Name: Canteen passage side wall
   m_TagString: Untagged
@@ -86330,6 +86463,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1014989436}
   m_Mesh: {fileID: 4300000, guid: 74796d150b3123a4fad22585984af19e, type: 2}
+--- !u!114 &1014989441
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1014989436}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1 &1016591283
 GameObject:
   m_ObjectHideFlags: 0
@@ -94203,6 +94350,7 @@ GameObject:
   - component: {fileID: 1111600833}
   - component: {fileID: 1111600832}
   - component: {fileID: 1111600831}
+  - component: {fileID: 1111600834}
   m_Layer: 8
   m_Name: Doorway infill
   m_TagString: Untagged
@@ -94310,6 +94458,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1111600829}
   m_Mesh: {fileID: 4300000, guid: 86c3b53c5319dc348a6bb3065df5b116, type: 2}
+--- !u!114 &1111600834
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1111600829}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1 &1116049552
 GameObject:
   m_ObjectHideFlags: 0
@@ -108598,6 +108760,7 @@ GameObject:
   - component: {fileID: 1284823139}
   - component: {fileID: 1284823138}
   - component: {fileID: 1284823137}
+  - component: {fileID: 1284823140}
   m_Layer: 8
   m_Name: Canteen west wall
   m_TagString: Untagged
@@ -108705,6 +108868,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1284823135}
   m_Mesh: {fileID: 4300000, guid: 9c540b9c916d09f409ae18f2babc7eac, type: 2}
+--- !u!114 &1284823140
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1284823135}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1 &1286565611
 GameObject:
   m_ObjectHideFlags: 0
@@ -109955,6 +110132,7 @@ GameObject:
   - component: {fileID: 1303032249}
   - component: {fileID: 1303032248}
   - component: {fileID: 1303032247}
+  - component: {fileID: 1303032250}
   m_Layer: 8
   m_Name: North workstation wall
   m_TagString: Untagged
@@ -110062,6 +110240,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1303032245}
   m_Mesh: {fileID: 4300000, guid: 411f97c7af6555042bd819a44bfd1090, type: 2}
+--- !u!114 &1303032250
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1303032245}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1 &1304873593
 GameObject:
   m_ObjectHideFlags: 0
@@ -111306,6 +111498,7 @@ GameObject:
   - component: {fileID: 1315745614}
   - component: {fileID: 1315745613}
   - component: {fileID: 1315745612}
+  - component: {fileID: 1315745615}
   m_Layer: 8
   m_Name: Canteen east wall
   m_TagString: Untagged
@@ -111413,6 +111606,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1315745610}
   m_Mesh: {fileID: 4300000, guid: 8f4872ffcdaec6348b3ab0923dc58e13, type: 2}
+--- !u!114 &1315745615
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1315745610}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1 &1316283449
 GameObject:
   m_ObjectHideFlags: 0
@@ -113800,6 +114007,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b38def33ac4ee944a89a83b8708055d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardDrawingSurface
+  transparentInk: 0
+  physicalSize: {x: 1.36, y: 2.34}
 --- !u!64 &1346045089
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -115057,6 +115266,7 @@ GameObject:
   - component: {fileID: 1360972256}
   - component: {fileID: 1360972255}
   - component: {fileID: 1360972254}
+  - component: {fileID: 1360972257}
   m_Layer: 8
   m_Name: Corridor cardboard wall
   m_TagString: Untagged
@@ -115164,6 +115374,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1360972252}
   m_Mesh: {fileID: 4300000, guid: b772146126db63a4e9eb55e95c7339f1, type: 2}
+--- !u!114 &1360972257
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1360972252}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1 &1361468823
 GameObject:
   m_ObjectHideFlags: 0
@@ -122065,6 +122289,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b38def33ac4ee944a89a83b8708055d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardDrawingSurface
+  transparentInk: 0
+  physicalSize: {x: 1.36, y: 2.34}
 --- !u!64 &1392386704
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -127010,6 +127236,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b38def33ac4ee944a89a83b8708055d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardDrawingSurface
+  transparentInk: 0
+  physicalSize: {x: 1.36, y: 2.34}
 --- !u!64 &1431606122
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -130407,6 +130635,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b38def33ac4ee944a89a83b8708055d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardDrawingSurface
+  transparentInk: 0
+  physicalSize: {x: 1.36, y: 2.34}
 --- !u!64 &1485962612
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -148070,6 +148300,7 @@ GameObject:
   - component: {fileID: 1694917236}
   - component: {fileID: 1694917235}
   - component: {fileID: 1694917234}
+  - component: {fileID: 1694917237}
   m_Layer: 8
   m_Name: Canteen north wall
   m_TagString: Untagged
@@ -148177,6 +148408,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1694917232}
   m_Mesh: {fileID: 4300000, guid: b2c2b19dffae8e14f84d09f1c014efc4, type: 2}
+--- !u!114 &1694917237
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1694917232}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1001 &1695582882
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -155516,6 +155761,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b38def33ac4ee944a89a83b8708055d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardDrawingSurface
+  transparentInk: 0
+  physicalSize: {x: 1.36, y: 2.34}
 --- !u!64 &1753899291
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -156686,6 +156933,7 @@ GameObject:
   - component: {fileID: 1762229397}
   - component: {fileID: 1762229396}
   - component: {fileID: 1762229395}
+  - component: {fileID: 1762229398}
   m_Layer: 8
   m_Name: "Machine chassis \u2022 cardboard wall texture"
   m_TagString: Untagged
@@ -156786,6 +157034,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1762229393}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1762229398
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1762229393}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1 &1762270559
 GameObject:
   m_ObjectHideFlags: 0
@@ -162527,6 +162789,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b38def33ac4ee944a89a83b8708055d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardDrawingSurface
+  transparentInk: 0
+  physicalSize: {x: 1.36, y: 2.34}
 --- !u!64 &1830946474
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -164373,6 +164637,7 @@ GameObject:
   - component: {fileID: 1869646771}
   - component: {fileID: 1869646770}
   - component: {fileID: 1869646769}
+  - component: {fileID: 1869646772}
   m_Layer: 8
   m_Name: Canteen passage side wall
   m_TagString: Untagged
@@ -164480,6 +164745,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1869646767}
   m_Mesh: {fileID: 4300000, guid: 6bcd4fc9423ade844baf849032f1ae88, type: 2}
+--- !u!114 &1869646772
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1869646767}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1001 &1869728227
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -171695,6 +171974,7 @@ GameObject:
   - component: {fileID: 1944001130}
   - component: {fileID: 1944001129}
   - component: {fileID: 1944001128}
+  - component: {fileID: 1944001131}
   m_Layer: 8
   m_Name: South mechanism wall
   m_TagString: Untagged
@@ -171802,6 +172082,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1944001126}
   m_Mesh: {fileID: 4300000, guid: 02dc7e53b5205d546badb328cc6a07c1, type: 2}
+--- !u!114 &1944001131
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1944001126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57bfb1518ecdef446a718b3f7ffdb467, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.CardboardWallDrawing
+  inkMaterial: {fileID: 2100000, guid: aca7149d75252f74c87ff5359df28942, type: 2}
+  faceMesh: {fileID: 4300000, guid: 2f3245fa21ccaf145997ddba6d2aea6d, type: 2}
 --- !u!1001 &1944837136
 PrefabInstance:
   m_ObjectHideFlags: 0
