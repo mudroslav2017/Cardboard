@@ -65,7 +65,9 @@ namespace Cardboard
                         (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed?1:0)-(keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed?1:0));
                     Vector3 forward=Quaternion.Euler(0,Camera.main?Camera.main.transform.eulerAngles.y:180,0)*Vector3.forward;
                     Vector3 right=Vector3.Cross(Vector3.up,forward);
-                    wish=(forward*input.y+right*input.x).normalized*(factory && factory.HandsBusy?1.8f:factory && factory.Pretending?1.35f:keyboard.leftShiftKey.isPressed?6:3.2f);
+                    float moveSpeed=factory && factory.lunch && factory.lunch.Carrying?1.3f:
+                        factory && factory.HandsBusy?1.8f:factory && factory.Pretending?1.35f:keyboard.leftShiftKey.isPressed?6:3.2f;
+                    wish=(forward*input.y+right*input.x).normalized*moveSpeed;
                     if (keyboard.spaceKey.wasPressedThisFrame && jumpHeight<=.001f && (!factory || !factory.HandsBusy)) jumpVelocity=5.5f;
                     if (!factory && keyboard.eKey.wasPressedThisFrame) Whistle();
                     if (!factory && keyboard.rKey.wasPressedThisFrame) Party();
@@ -100,6 +102,8 @@ namespace Cardboard
             if(!isPlayer && Time.time<paintHoldUntil && !chasing) velocity=Vector3.zero;
             if(factory && !isPlayer)FactoryDoor.OpenForWorker(transform.position,wish);
             velocity=Vector3.Lerp(velocity,wish,1-Mathf.Exp(-9*dt)); speed=velocity.magnitude;
+            if(isPlayer && factory && factory.lunch && factory.lunch.Carrying)
+            {velocity=Vector3.ClampMagnitude(velocity,1.3f);speed=velocity.magnitude;}
             Vector3 position=transform.position+velocity*dt;
             if(factory)
             {

@@ -110,8 +110,8 @@ namespace Cardboard.Editor
                 }
                 Check(game.lunch.Carrying && tray.contents.All(item=>(Quaternion.Inverse(tray.body.rotation)*(item.worldCenterOfMass-tray.body.position)).y>-.1f),"Meal survives 30-second walk, turn and vertical look");
                 report.Add("DETAIL contents: "+string.Join("; ",tray.contents.Select(item=>item.name+" "+(Quaternion.Inverse(tray.body.rotation)*(item.worldCenterOfMass-tray.body.position)))));
-                tray.Aim(tray.body.position,Quaternion.Euler(0,0,65));
-                for(int i=0;i<250 && game.lunch.Carrying;i++){tray.TickSupport(.02f);Physics.Simulate(.02f);}
+                for(int i=0;i<750 && game.lunch.Carrying;i++)
+                {game.lunch.TickBalance(.02f,false,true);tray.TickSupport(.02f);Physics.Simulate(.02f);}
                 Check(game.lunch.State==LunchState.Spilled,"Severe tilt can still spill the meal");
                 game.ResetShift();Check(tray.contents.All(item=>item.isKinematic && item.transform.parent==tray.transform),"Restart restores all dishes");
             }

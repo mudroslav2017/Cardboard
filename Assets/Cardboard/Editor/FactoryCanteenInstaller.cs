@@ -53,7 +53,7 @@ namespace Cardboard.Editor
             {
                 var place=lunch.diners.places[i];Chair(place.position-place.forward*.82f,place.eulerAngles.y,"Worker dining chair "+(i+1));
             }
-            Chair(new Vector3(-7,0,-21.75f),180,"Player dining chair");
+            Chair(new Vector3(-7,0,-32.25f),0,"Player dining chair");
             var ceiling=furniture.Find("Canteen ceiling");if(ceiling)Object.DestroyImmediate(ceiling.gameObject);
             var roof=GameObject.CreatePrimitive(PrimitiveType.Cube);roof.name="Canteen ceiling";roof.transform.SetParent(furniture,false);
             roof.transform.localPosition=new Vector3(-13,5.65f,-25);roof.transform.localScale=new Vector3(26,.18f,18);roof.layer=8;
@@ -83,23 +83,65 @@ namespace Cardboard.Editor
             foreach(var lamp in game.GetComponentsInChildren<Light>(true))
             {
                 if(lamp.name!="Canteen warm light")continue;
-                lamp.intensity=Mathf.Max(lamp.intensity,4.5f);lamp.range=Mathf.Max(lamp.range,13);
+                lamp.intensity=Mathf.Max(lamp.intensity,6);lamp.range=Mathf.Max(lamp.range,14);
                 EditorUtility.SetDirty(lamp);
             }
             var root=game.transform.Find("Canteen lunch lighting");
             if(!root){root=new GameObject("Canteen lunch lighting").transform;root.SetParent(game.transform,false);}
-            var positions=new[]{new Vector3(-21,3.5f,-20),new Vector3(-5,3.5f,-20),new Vector3(-21,3.5f,-29),new Vector3(-5,3.5f,-29)};
+            var positions=new[]{new Vector3(-21,3.8f,-20),new Vector3(-5,3.8f,-20),new Vector3(-21,3.8f,-29),new Vector3(-5,3.8f,-29),new Vector3(-13,3.8f,-21),new Vector3(-13,3.8f,-30)};
             for(int i=0;i<positions.Length;i++)
             {
                 string name="Canteen fill light "+(i+1);var node=root.Find(name);
                 if(!node){node=new GameObject(name).transform;node.SetParent(root,false);}
                 node.position=positions[i];var light=node.GetComponent<Light>();if(!light)light=node.gameObject.AddComponent<Light>();
-                light.type=LightType.Point;light.color=new Color(1,.91f,.73f);light.intensity=2.8f;light.range=11;
+                light.type=LightType.Point;light.color=new Color(1,.94f,.82f);light.intensity=4.2f;light.range=12;
                 light.shadows=LightShadows.None;light.renderMode=LightRenderMode.ForcePixel;light.lightmapBakeType=LightmapBakeType.Realtime;
                 light.cullingMask=~((1<<10)|(1<<FactoryInventorySlot.Layer)|(1<<FactoryDeathPresentation.Layer));EditorUtility.SetDirty(light);
             }
+            DeliveryLighting(game);
             game.lunch.EnsureTraySpotlight();game.lunch.traySpotlight.renderMode=LightRenderMode.ForcePixel;
             game.lunch.RefreshTrayLight();EditorUtility.SetDirty(game.lunch.traySpotlight);EditorUtility.SetDirty(game.lunch);
+        }
+        public static void DeliveryLighting(CardboardFactoryGame game)
+        {
+            var lunch=game.lunch;
+            foreach(var node in lunch.GetComponentsInChildren<Transform>(true))
+                if(node.name=="Put tray here • placeholder" || node.name=="Stand here to eat • placeholder")
+                    Object.DestroyImmediate(node.gameObject);
+            var root=game.transform.Find("Canteen lunch lighting");
+            if(!root){root=new GameObject("Canteen lunch lighting").transform;root.SetParent(game.transform,false);}
+            var spot=root.Find("Canteen delivery spotlight");
+            if(!spot){spot=new GameObject("Canteen delivery spotlight").transform;spot.SetParent(root,false);}
+            spot.SetPositionAndRotation(lunch.destination.position+Vector3.up*3.8f,Quaternion.Euler(90,0,0));
+            var light=spot.GetComponent<Light>();if(!light)light=spot.gameObject.AddComponent<Light>();
+            light.type=LightType.Spot;light.color=new Color(1,.97f,.86f);light.intensity=24;light.range=7;
+            light.spotAngle=75;light.innerSpotAngle=48;light.shadows=LightShadows.Soft;
+            light.shadowBias=.02f;light.shadowNormalBias=.05f;light.renderMode=LightRenderMode.ForcePixel;
+            light.lightmapBakeType=LightmapBakeType.Realtime;
+            light.cullingMask=~((1<<10)|(1<<FactoryInventorySlot.Layer)|(1<<FactoryDeathPresentation.Layer));EditorUtility.SetDirty(light);
+        }
+        public static void CarryUpdate(CardboardFactoryGame game)
+        {
+            var lunch=game.lunch;
+            lunch.destination.position=new Vector3(-7,lunch.destination.position.y,-30.45f);
+            lunch.destinationHit.transform.position=new Vector3(-7,lunch.destinationHit.transform.position.y,-30.45f);
+            var chair=game.transform.Find("Canteen furniture/Dining chairs/Player dining chair");
+            if(chair)chair.SetPositionAndRotation(new Vector3(-7,chair.position.y,-32.25f),Quaternion.Euler(0,90,0));
+            lunch.physicsTray.ResetContents();
+            var hud=game.GetComponentInChildren<FactoryLunchHUD>(true);
+            if(hud && hud.hint && !hud.hint.GetComponent<UnityEngine.UI.Shadow>())
+            {
+                var shadow=hud.hint.gameObject.AddComponent<UnityEngine.UI.Shadow>();
+                shadow.effectColor=new Color(0,0,0,.9f);shadow.effectDistance=new Vector2(1.5f,-2);
+            }
+            Lighting(game);EditorUtility.SetDirty(lunch);EditorUtility.SetDirty(lunch.physicsTray);
+        }
+        [MenuItem("Cardboard/Update canteen tray carrying and lighting")]
+        public static void CarryUpdateCurrent()
+        {
+            if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Update tray carrying in Edit Mode.");
+            var game=Object.FindFirstObjectByType<CardboardFactoryGame>();CarryUpdate(game);
+            EditorSceneManager.MarkSceneDirty(game.gameObject.scene);EditorSceneManager.SaveScene(game.gameObject.scene);
         }
         public static void ShortLunchCurrent()
         {
@@ -114,7 +156,7 @@ namespace Cardboard.Editor
             if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Update lunch lighting in Edit Mode.");
             var game=Object.FindFirstObjectByType<CardboardFactoryGame>();Lighting(game);
             EditorSceneManager.MarkSceneDirty(game.gameObject.scene);EditorSceneManager.SaveScene(game.gameObject.scene);
-            File.WriteAllText("Library/FactoryLunchLighting.txt","SUCCESS: brighter canteen ceiling lamps, four warm fill lights and a dedicated bright tray spotlight.");
+            File.WriteAllText("Library/FactoryLunchLighting.txt","SUCCESS: brighter canteen ceiling lamps, six warm fill lights and a dedicated bright tray spotlight.");
         }
         public static void ApplyCurrent()
         {

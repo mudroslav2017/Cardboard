@@ -12,6 +12,29 @@ namespace Cardboard
     {
 #if UNITY_EDITOR
         const string Models = "Assets/Game_Assets/Cardboard/";
+        public static Material GrilleButtonMaterial(Material source)
+        {
+            const string path="Assets/Cardboard/Generated/GrilleLiftButton.mat";
+            var material=AssetDatabase.LoadAssetAtPath<Material>(path);
+            if(!material){material=new Material(source){name="Grille lift button green"};AssetDatabase.CreateAsset(material,path);}
+            else if(material!=source)material.CopyPropertiesFromMaterial(source);
+            material.SetColor("_BaseColor",new Color(.30f,.72f,.36f));
+            CardboardSurface.Configure(material);EditorUtility.SetDirty(material);return material;
+        }
+        public static void SeatGrilleButton(FactoryWorkstation station)
+        {
+            var button=station.transform.Find("Grille lift button left of press");
+            float tableTop=BoundsIn(station.transform.Find("Table"),station.transform).max.y;
+            float baseBottom=BoundsIn(button.Find("Button bezel"),station.transform).min.y;
+            button.localPosition+=Vector3.up*(tableTop-baseBottom);
+            foreach(var control in station.GetComponentsInChildren<FactoryStationControl>(true))
+                if(control.part==StationPart.Guard)
+                {
+                    var position=control.transform.localPosition;position.y=button.localPosition.y+.07f;
+                    control.transform.localPosition=position;EditorUtility.SetDirty(control.transform);
+                }
+            EditorUtility.SetDirty(button);
+        }
         static Transform Model(string name, string path, Transform parent, Material material, float yaw = 90)
         {
             var asset = AssetDatabase.LoadAssetAtPath<GameObject>(Models + path);
@@ -128,10 +151,11 @@ namespace Cardboard
             var guardCollision = Group("Guard collision", root, Vector3.zero);
             station.guardHit = guardCollision.gameObject.AddComponent<BoxCollider>();
             var button = Group("Grille lift button left of press", root, new Vector3(-.67f, 1.03f, -.34f));
-            button.localRotation = Quaternion.Euler(90, 0, 0);
+            button.localRotation = Quaternion.Euler(-90, 0, 0);
             Disc("Button bezel", button, Vector3.zero, .14f, .045f, Ink);
-            Disc("Grille lift button", button, new Vector3(0, 0, .035f), .105f, .055f, Gold);
+            Disc("Grille lift button", button, new Vector3(0, 0, .035f), .105f, .055f, GrilleButtonMaterial(Gold));
             Control(root, station, StationPart.Guard, new Vector3(-.67f, 1.08f, -.34f), new Vector3(.31f, .20f, .31f));
+            SeatGrilleButton(station);
 
             var wheelAssembly = Model("Shturval assembly", "Shturval/Shturval.fbx", root, Edge);
             Transform rim = null;

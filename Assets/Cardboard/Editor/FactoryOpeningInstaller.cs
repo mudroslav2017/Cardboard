@@ -86,7 +86,11 @@ namespace Cardboard.Editor
                     var mesh=control.transform.parent.Find("Imported Box vessel");var bounds=BoundsIn(mesh,control.transform.parent);
                     control.transform.localPosition=new Vector3(bounds.center.x,bounds.max.y+.08f,bounds.center.z);collider.center=Vector3.zero;collider.size=new Vector3(bounds.size.x+.16f,.50f,bounds.size.z+.16f);
                 }
-                else if(control.part==StationPart.Guard){control.transform.localPosition=new Vector3(-.67f,1.10f,-.49f);collider.size=new Vector3(.5f,.36f,.5f);}
+                else if(control.part==StationPart.Guard)
+                {
+                    float buttonHeight=station.transform.Find("Grille lift button left of press").localPosition.y;
+                    control.transform.localPosition=new Vector3(-.67f,buttonHeight+.07f,-.49f);collider.size=new Vector3(.5f,.36f,.5f);
+                }
                 EditorUtility.SetDirty(control.transform);EditorUtility.SetDirty(collider);
             }
             // The portal side infills duplicate the continuous passage walls exactly.
@@ -113,6 +117,36 @@ namespace Cardboard.Editor
             foreach(var text in game.GetComponentsInChildren<Text>(true)){text.text=FactoryEnglish.Text(text.text);EditorUtility.SetDirty(text);}
             foreach(var target in game.GetComponentsInChildren<FactoryInteractable>(true)){target.prompt=FactoryEnglish.Text(target.prompt);EditorUtility.SetDirty(target);}
             foreach(var prop in game.GetComponentsInChildren<FactoryPhysicsProp>(true)){prop.itemName=FactoryEnglish.Text(prop.itemName);EditorUtility.SetDirty(prop);}
+        }
+        [MenuItem("Cardboard/Fix grille lift button orientation and tint")]
+        public static void FixGrilleButtonCurrent()
+        {
+            if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Fix grille buttons in Edit Mode.");
+            var game=Object.FindFirstObjectByType<CardboardFactoryGame>();int count=0;
+            foreach(var station in game.GetComponentsInChildren<FactoryWorkstation>(true))
+            {
+                var button=station.transform.Find("Grille lift button left of press");if(!button)continue;
+                button.localRotation=Quaternion.Euler(-90,0,0);EditorUtility.SetDirty(button);
+                var renderer=button.Find("Grille lift button").GetComponent<Renderer>();
+                var materials=renderer.sharedMaterials;materials[0]=FactoryWorkstationBuilder.GrilleButtonMaterial(materials[0]);
+                renderer.sharedMaterials=materials;EditorUtility.SetDirty(renderer);
+                FactoryWorkstationBuilder.SeatGrilleButton(station);count++;
+            }
+            Physics.SyncTransforms();
+            var camera=Camera.main;var position=camera.transform.position;var rotation=camera.transform.rotation;float fov=camera.fieldOfView;
+            try
+            {
+                var button=game.station.transform.Find("Grille lift button left of press");
+                var eye=game.station.transform.TransformPoint(new Vector3(-.67f,1.45f,-1.1f));
+                camera.fieldOfView=45;camera.transform.SetPositionAndRotation(eye,Quaternion.LookRotation(button.position+Vector3.up*.035f-eye));
+                CardboardFactorySceneBuilder.Capture("GrilleButtonUpright");
+                var target=game.TargetForRay(new Ray(eye,button.position+Vector3.up*.035f-eye));
+                bool reachable=target && target.GetComponent<FactoryStationControl>() && target.GetComponent<FactoryStationControl>().part==StationPart.Guard;
+                float gap=BoundsIn(button.Find("Button bezel"),game.station.transform).min.y-BoundsIn(game.station.transform.Find("Table"),game.station.transform).max.y;
+                File.WriteAllText("Library/FactoryGrilleButtonOrientation.txt","Updated "+count+" grille button assemblies; button seated on tabletop with green tint; bezel materials preserved; gap="+gap+"; player interaction reachable="+reachable);
+            }
+            finally{camera.fieldOfView=fov;camera.transform.SetPositionAndRotation(position,rotation);}
+            AssetDatabase.SaveAssets();EditorSceneManager.MarkSceneDirty(game.gameObject.scene);EditorSceneManager.SaveScene(game.gameObject.scene);
         }
         public static void ApplyCurrent()
         {

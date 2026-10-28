@@ -108,15 +108,13 @@ namespace Cardboard.Editor
             Cube("Lunch table • placeholder",root,new Vector3(-7,.32f,-24),new Vector3(4.4f,.95f,1.8f),wood,true);
             Cube("Shared lunch table west • placeholder",root,new Vector3(-20,.32f,-29),new Vector3(5,.95f,1.8f),wood,true);
             Cube("Shared lunch table east • placeholder",root,new Vector3(-7,.32f,-30),new Vector3(5,.95f,1.8f),wood,true);
-            Cube("Put tray here • placeholder",root,new Vector3(-7,.803f,-23.55f),new Vector3(.86f,.025f,.6f),gold);
-            Cube("Stand here to eat • placeholder",root,new Vector3(-7,-.13f,-22.5f),new Vector3(.9f,.025f,.9f),gold);
             lunch.pickup=Group("Lunch pickup pose",root,new Vector3(-19,1.01f,-19.2f));
-            lunch.destination=Group("Lunch served pose",root,new Vector3(-7,.83f,-23.55f));
+            lunch.destination=Group("Lunch served pose",root,new Vector3(-7,.83f,-30.45f));
             lunch.tray=Tray(root,trayMaterial,out float trayHeight);
             lunch.food=new[]{FactoryLunchProps.Cup(lunch.tray)};
             lunch.tray.position=lunch.pickup.position;
             Control(root,lunch,false,new Vector3(-19,1.08f,-19.2f),new Vector3(.85f,.28f,.6f));
-            Control(root,lunch,true,new Vector3(-7,.98f,-23.55f),new Vector3(1.4f,.45f,.9f));lunch.destinationHit.SetActive(false);
+            Control(root,lunch,true,new Vector3(-7,.98f,-30.45f),new Vector3(1.4f,.45f,.9f));lunch.destinationHit.SetActive(false);
             CreateDiners(root,lunch);
             foreach(float x in new[]{-20f,-7f})
             {
@@ -124,6 +122,7 @@ namespace Cardboard.Editor
                 var light=Group("Canteen warm light",root,new Vector3(x,4.2f,-27)).gameObject.AddComponent<Light>();
                 light.type=LightType.Point;light.range=14;light.intensity=2;light.color=Hex("FFE2B0");
             }
+            FactoryCanteenInstaller.DeliveryLighting(game);
             HUD(lunch,world.GetComponentInChildren<FactoryMistakeHUD>(true));
         }
         static void ExpandCanteen(Transform world)
