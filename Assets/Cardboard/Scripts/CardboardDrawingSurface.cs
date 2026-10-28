@@ -9,8 +9,24 @@ namespace Cardboard
         public bool transparentInk;
         public Vector2 physicalSize=new Vector2(1.36f,2.34f);
         public CardboardRunner Runner => GetComponentInParent<CardboardRunner>();
+        // Character atlases are a single texture; wall faces store ink in small, lazy canvases.
         public Texture2D DrawingTexture => textures[0];
         public Texture2D BackDrawingTexture => textures[TextureSlot(1)];
+        public const int WallPixelsPerMetre=1024;
+        const float WallTileMetres=1;
+        const int WallTextureBorder=4;
+        readonly Dictionary<Vector2Int,CardboardDrawingSurface> wallTiles=new Dictionary<Vector2Int,CardboardDrawingSurface>();
+        bool wallTile;
+        bool TiledWall => transparentInk && !wallTile;
+        public int AllocatedCanvasCount => TiledWall?wallTiles.Count:(textures[0]?1:0)+(textures[1]?1:0);
+        public bool HasVisibleDrawing
+        {
+            get
+            {
+                if(TiledWall){foreach(var tile in wallTiles.Values)if(tile.HasVisibleDrawing)return true;return false;}
+                return display && display.enabled && (textures[0] || textures[1]);
+            }
+        }
         readonly Material[] instances=new Material[2];
         readonly Texture2D[] textures=new Texture2D[2];
         readonly Color32[][] pixels=new Color32[2][];
@@ -18,6 +34,56 @@ namespace Cardboard
         Material[] originals;
         readonly Dictionary<int,Color>[] inkLayers={new Dictionary<int,Color>(),new Dictionary<int,Color>()};
         MeshRenderer display;
+
+        Vector2Int WallTileAt(Vector2 metres)
+        {
+            return new Vector2Int(Mathf.Clamp(Mathf.FloorToInt(metres.x/WallTileMetres),0,Mathf.CeilToInt(physicalSize.x/WallTileMetres)-1),
+                Mathf.Clamp(Mathf.FloorToInt(metres.y/WallTileMetres),0,Mathf.CeilToInt(physicalSize.y/WallTileMetres)-1));
+        }
+        public Color SampleDrawing(Vector2 uv,int side=0)
+        {
+            if(TiledWall)
+            {
+                Vector2 metres=Vector2.Scale(uv,physicalSize);var key=WallTileAt(metres);
+                if(!wallTiles.TryGetValue(key,out var tile))return Color.clear;
+                return tile.SampleDrawing(new Vector2((metres.x-key.x*WallTileMetres)/tile.physicalSize.x,(metres.y-key.y*WallTileMetres)/tile.physicalSize.y));
+            }
+            var texture=textures[TextureSlot(side)];if(!texture)return Color.clear;
+            if(wallTile)uv=new Vector2((uv.x*(texture.width-2*WallTextureBorder)+WallTextureBorder)/texture.width,
+                (uv.y*(texture.height-2*WallTextureBorder)+WallTextureBorder)/texture.height);
+            return texture.GetPixelBilinear(uv.x,uv.y);
+        }
+        void ApplyWallStroke(Vector2 from,Vector2 to,Color color,float radius,bool erase)
+        {
+            Vector2 a=Vector2.Scale(from,physicalSize),b=Vector2.Scale(to,physicalSize);
+            // Paint the same segment into adjoining canvases, including their filtering gutters.
+            float padding=radius+(float)WallTextureBorder/WallPixelsPerMetre;
+            var first=WallTileAt(Vector2.Min(a,b)-Vector2.one*padding);var last=WallTileAt(Vector2.Max(a,b)+Vector2.one*padding);
+            for(int y=first.y;y<=last.y;y++)
+            for(int x=first.x;x<=last.x;x++)
+            {
+                var key=new Vector2Int(x,y);var origin=new Vector2(x*WallTileMetres,y*WallTileMetres);
+                if(!wallTiles.TryGetValue(key,out var tile))
+                {
+                    if(erase)continue;
+                    if(!display)display=GetComponent<MeshRenderer>();
+                    Vector2 size=Vector2.Min(Vector2.one*WallTileMetres,physicalSize-origin);
+                    var node=new GameObject("Wall ink "+x+","+y,typeof(MeshFilter),typeof(MeshRenderer));
+                    node.layer=gameObject.layer;node.transform.SetParent(transform,false);
+                    node.transform.localPosition=new Vector3((origin.x+size.x*.5f)/physicalSize.x-.5f,(origin.y+size.y*.5f)/physicalSize.y-.5f,0);
+                    node.transform.localScale=new Vector3(size.x/physicalSize.x,size.y/physicalSize.y,1);
+                    node.GetComponent<MeshFilter>().sharedMesh=GetComponent<MeshFilter>().sharedMesh;
+                    var renderer=node.GetComponent<MeshRenderer>();renderer.sharedMaterial=display.sharedMaterial;
+                    renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;renderer.enabled=false;
+                    tile=node.AddComponent<CardboardDrawingSurface>();tile.transparentInk=true;tile.wallTile=true;tile.physicalSize=size;
+                    // The original face remains the single, continuous drawing target.
+                    node.GetComponent<MeshCollider>().enabled=false;wallTiles.Add(key,tile);
+                }
+                var start=new Vector2((a.x-origin.x)/tile.physicalSize.x,(a.y-origin.y)/tile.physicalSize.y);
+                var end=new Vector2((b.x-origin.x)/tile.physicalSize.x,(b.y-origin.y)/tile.physicalSize.y);
+                tile.ApplyStroke(start,end,color,radius,0,erase);
+            }
+        }
 
         int TextureSlot(int side)
         {
@@ -54,10 +120,10 @@ namespace Cardboard
             if(originals==null || originals.Length==0) originals=display.sharedMaterials;
             if(transparentInk)
             {
-                int width=Mathf.Clamp(Mathf.CeilToInt(physicalSize.x*128),32,4096);
-                int height=Mathf.Clamp(Mathf.CeilToInt(physicalSize.y*128),32,4096);
+                int width=Mathf.CeilToInt(physicalSize.x*WallPixelsPerMetre)+2*WallTextureBorder;
+                int height=Mathf.CeilToInt(physicalSize.y*WallPixelsPerMetre)+2*WallTextureBorder;
                 textures[side]=new Texture2D(width,height,TextureFormat.RGBA32,true)
-                    {wrapMode=TextureWrapMode.Clamp,filterMode=FilterMode.Bilinear};
+                    {wrapMode=TextureWrapMode.Clamp,filterMode=FilterMode.Trilinear,anisoLevel=4};
                 pixels[side]=new Color32[width*height];textures[side].SetPixels32(pixels[side]);
                 display.enabled=true;
             }
@@ -69,6 +135,12 @@ namespace Cardboard
             textures[side].name=name+(side==0?" front":" back")+" • individual marker drawing";
             instances[side]=new Material(originals[side]) {name=name+" • marker ink "+side};
             instances[side].mainTexture=textures[side];instances[side].SetTexture("_BaseMap",textures[side]);
+            if(wallTile)
+            {
+                var texture=textures[side];
+                instances[side].SetTextureScale("_BaseMap",new Vector2((float)(texture.width-2*WallTextureBorder)/texture.width,(float)(texture.height-2*WallTextureBorder)/texture.height));
+                instances[side].SetTextureOffset("_BaseMap",new Vector2((float)WallTextureBorder/texture.width,(float)WallTextureBorder/texture.height));
+            }
             var materials=display.sharedMaterials;materials[side]=instances[side];display.sharedMaterials=materials;
         }
 
@@ -79,15 +151,18 @@ namespace Cardboard
         {ApplyStroke(from,to,Color.clear,radius,side,true);}
         void ApplyStroke(Vector2 from,Vector2 to,Color color,float radius,int side,bool erase)
         {
+            if(TiledWall){ApplyWallStroke(from,to,color,radius,erase);return;}
             side=TextureSlot(side);
             if(erase && !textures[side])return;
             EnsureTexture(side);
             if(transparentInk && !erase)display.enabled=true;
             var texture=textures[side];var inkPixels=pixels[side];
             int width=texture.width,height=texture.height;
-            Vector2 a=new Vector2(from.x*(width-1),from.y*(height-1));
-            Vector2 b=new Vector2(to.x*(width-1),to.y*(height-1));
-            float rx=Mathf.Max(1,radius/Mathf.Max(.01f,physicalSize.x)*width),ry=Mathf.Max(1,radius/Mathf.Max(.01f,physicalSize.y)*height);
+            int spanX=wallTile?width-2*WallTextureBorder:width-1,spanY=wallTile?height-2*WallTextureBorder:height-1;
+            float inset=wallTile?WallTextureBorder-.5f:0;
+            Vector2 a=new Vector2(from.x*spanX+inset,from.y*spanY+inset);
+            Vector2 b=new Vector2(to.x*spanX+inset,to.y*spanY+inset);
+            float rx=Mathf.Max(1,radius/Mathf.Max(.01f,physicalSize.x)*(wallTile?spanX:width)),ry=Mathf.Max(1,radius/Mathf.Max(.01f,physicalSize.y)*(wallTile?spanY:height));
             int steps=Mathf.Clamp(Mathf.CeilToInt(Vector2.Distance(a,b)/(Mathf.Min(rx,ry)*.45f)),1,2048);
             int minX=width,minY=height,maxX=-1,maxY=-1;
             for(int s=0;s<=steps;s++)
@@ -150,6 +225,11 @@ namespace Cardboard
         }
         public void ClearDrawing()
         {
+            if(TiledWall)
+            {
+                foreach(var tile in wallTiles.Values){tile.gameObject.SetActive(false);Destroy(tile.gameObject);}
+                wallTiles.Clear();return;
+            }
             for(int side=0;side<2;side++)
             {
                 inkLayers[side].Clear();
