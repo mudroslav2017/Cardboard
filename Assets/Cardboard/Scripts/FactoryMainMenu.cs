@@ -53,6 +53,16 @@ namespace Cardboard
         {
             shiftStarted=false;Show();
         }
+        public void CloseForFilming()
+        {
+            if(!BlocksGameplay)return;
+            if(paused)
+            {
+                lens.transform.SetPositionAndRotation(savedCameraPosition,savedCameraRotation);
+                lens.GetComponent<CardboardCamera>().AdoptCurrentView();
+            }
+            Close();
+        }
         public void ReturnToMenu()
         {
             if(!BlocksGameplay)Show();
@@ -169,7 +179,7 @@ namespace Cardboard
                     Close();return;
                 }
                 visuals.gameObject.SetActive(false);settingsPanel.gameObject.SetActive(false);
-                if(!shiftStarted || game.Ended)
+                if((!shiftStarted || game.Ended) && !game.DanceActive)
                 {
                     game.ResetShift();lens.GetComponent<CardboardCamera>().ResetView(0);
                     if(game.intro)game.intro.Begin();

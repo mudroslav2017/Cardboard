@@ -32,7 +32,7 @@ namespace Cardboard
 
         void Update()
         {
-            if(CardboardFactoryGame.Instance && (CardboardFactoryGame.Instance.PlayerBlocked || CardboardFactoryGame.Instance.HandsBusy))
+            if(CardboardFactoryGame.Instance && (CardboardFactoryGame.Instance.DanceActive || CardboardFactoryGame.Instance.PlayerBlocked || CardboardFactoryGame.Instance.HandsBusy))
             { if(drawing) SetDrawingMode(false,false);return; }
             var keyboard=Keyboard.current;var mouse=Mouse.current;
             if(keyboard==null) return;

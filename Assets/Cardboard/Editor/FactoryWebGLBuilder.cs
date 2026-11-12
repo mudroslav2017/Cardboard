@@ -18,7 +18,10 @@ namespace Cardboard.Editor
         // Unity -batchmode -buildTarget WebGL -executeMethod Cardboard.Editor.FactoryWebGLBuilder.BuildBatch
         public static void BuildBatch()
         {
-            Build(Path.GetFullPath("Builds/WebGL"));
+            var args=Environment.GetCommandLineArgs();int option=Array.IndexOf(args,"-factoryBuildPath");
+            if(option>=0 && (option+1>=args.Length || args[option+1].StartsWith("-")))
+                throw new ArgumentException("Missing -factoryBuildPath destination.");
+            Build(Path.GetFullPath(option>=0?args[option+1]:"Builds/WebGL"));
             if(!File.ReadAllText(Report).StartsWith("RESULT: Succeeded"))
                 throw new InvalidOperationException("WebGL build failed. See "+Report);
         }

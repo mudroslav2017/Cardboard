@@ -35,7 +35,7 @@ namespace Cardboard
         }
         void Update()
         {
-            if(!Held && !game.HasPart){return;}
+            if(game.DanceActive)return;if(!Held && !game.HasPart){return;}
             if(game.CaptureActive || game.Ended){if(Held)Release(false);return;}
             if(game.MenuActive || game.PlayerBlocked || CardboardMarker.DrawingMode){return;}
             if(Time.frameCount==pickupFrame)return;

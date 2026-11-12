@@ -23,26 +23,35 @@ namespace Cardboard
             yaw=transform.eulerAngles.y;pitch=Mathf.DeltaAngle(0,transform.eulerAngles.x);
             if(player){controller=player.GetComponent<CardboardRunner>();previousPosition=player.position;}
             var lens=GetComponent<Camera>();lens.orthographic=false;lens.fieldOfView=GameplayFov;lens.nearClipPlane=.05f;
+            CardboardWebMouse.Configure(false,false);
             bool menu=CardboardFactoryGame.Instance && CardboardFactoryGame.Instance.MenuActive;
             Cursor.lockState=menu?CursorLockMode.None:CursorLockMode.Locked;FactoryVolumeCursor.SetSystemVisible(menu);
         }
         void Update()
         {
             var factory=CardboardFactoryGame.Instance;
+            bool capture=Cursor.lockState==CursorLockMode.Locked;
+            CardboardWebMouse.Configure(capture,Application.isFocused && !CardboardMarker.DrawingMode &&
+                (!factory || (!factory.CameraOverride && !factory.PlayerBlocked)));
             if(factory && factory.CameraOverride)
             {transform.SetPositionAndRotation(factory.CameraPosition,factory.CameraRotation);return;}
             if(factory && factory.PlayerBlocked)return;
             var mouse=Mouse.current;var keyboard=Keyboard.current;
             if(CardboardMarker.DrawingMode)return;
             if(keyboard!=null && keyboard.escapeKey.wasPressedThisFrame)Release();
-            else if(mouse!=null && mouse.leftButton.wasPressedThisFrame && Application.isFocused)
+            else if(mouse!=null && mouse.leftButton.wasPressedThisFrame && Application.isFocused && Cursor.lockState!=CursorLockMode.Locked)
             {Cursor.lockState=CursorLockMode.Locked;FactoryVolumeCursor.SetSystemVisible(false);}
             if(mouse!=null && Cursor.lockState==CursorLockMode.Locked)
             {
-                Vector2 delta=mouse.delta.ReadValue();yaw+=delta.x*sensitivity;
-                pitch=Mathf.Clamp(pitch-delta.y*sensitivity,-80,80);
+                ApplyLookDelta(CardboardWebMouse.ReadDelta());
             }
             transform.rotation=Quaternion.Euler(pitch,yaw,0);
+        }
+        public void ApplyLookDelta(Vector2 delta)
+        {
+            if(float.IsNaN(delta.x) || float.IsInfinity(delta.x) || float.IsNaN(delta.y) || float.IsInfinity(delta.y))return;
+            yaw=Mathf.Repeat(yaw+delta.x*sensitivity,360);
+            pitch=Mathf.Clamp(pitch-delta.y*sensitivity,-80,80);
         }
         public void TickWalkingMotion(float dt,float speed,bool grounded)
         {
@@ -77,11 +86,11 @@ namespace Cardboard
             transform.rotation=Quaternion.Euler(pitch,yaw,0)*WalkingRotation*Quaternion.Euler(0,0,roll);
         }
         public void AdoptCurrentView()
-        {yaw=transform.eulerAngles.y;pitch=Mathf.DeltaAngle(0,transform.eulerAngles.x);ResetWalkingMotion();}
+        {CardboardWebMouse.Configure(false,false);yaw=transform.eulerAngles.y;pitch=Mathf.DeltaAngle(0,transform.eulerAngles.x);ResetWalkingMotion();}
         public void ResetView(float direction)
-        {yaw=direction;pitch=0;ResetWalkingMotion();transform.rotation=Quaternion.Euler(0,yaw,0);}
+        {CardboardWebMouse.Configure(false,false);yaw=direction;pitch=0;ResetWalkingMotion();transform.rotation=Quaternion.Euler(0,yaw,0);}
         void OnDisable(){Release();}
         void OnApplicationFocus(bool focused){if(!focused)Release();}
-        static void Release(){Cursor.lockState=CursorLockMode.None;FactoryVolumeCursor.SetSystemVisible(true);}
+        static void Release(){CardboardWebMouse.Configure(false,false);Cursor.lockState=CursorLockMode.None;FactoryVolumeCursor.SetSystemVisible(true);}
     }
 }

@@ -14,6 +14,10 @@ namespace Cardboard
         public FactoryWorkerExpressions expressions;
         public FactoryIntro intro;
         public FactoryEnding ending;
+        public FactoryCircleDance circleDance;
+        public FactoryGuitarPerformance guitarPerformance;
+        public bool GuitarActive=>guitarPerformance && guitarPerformance.Active;
+        public bool DanceActive=>circleDance && circleDance.Active;
         public bool EndingBusy=>ending && ending.Active;
         public bool IntroBusy=>intro && intro.BlocksControls;
         public bool IntroActive=>intro && intro.Active;
@@ -60,10 +64,10 @@ namespace Cardboard
         public float MessageUntil {get;private set;}
         public bool Pretending {get;private set;}
         public bool Ended => State==FactoryState.Captured || State==FactoryState.Dead || State==FactoryState.Escaped;
-        public bool PlayerBlocked => MenuActive || Ended || IntroBusy || EndingBusy || (!CaptureActive && (DippingPart || (workbench && workbench.ConsumesMouse) || (station && station.ConsumesMouse)));
-        public bool CameraOverride => (mainMenu && mainMenu.OwnsCamera) || (captureSequence && captureSequence.CameraControlled) || IntroBusy || (ending && ending.CameraControlled);
-        public Vector3 CameraPosition => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraPosition:IntroBusy?intro.CameraPosition:ending && ending.CameraControlled?ending.CameraPosition:captureSequence.CameraPosition;
-        public Quaternion CameraRotation => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraRotation:IntroBusy?intro.CameraRotation:ending && ending.CameraControlled?ending.CameraRotation:captureSequence.CameraRotation;
+        public bool PlayerBlocked => MenuActive || GuitarActive || (!DanceActive && (Ended || IntroBusy || EndingBusy || (!CaptureActive && (DippingPart || (workbench && workbench.ConsumesMouse) || (station && station.ConsumesMouse)))));
+        public bool CameraOverride => (mainMenu && mainMenu.OwnsCamera) || GuitarActive || (!DanceActive && ((captureSequence && captureSequence.CameraControlled) || IntroBusy || (ending && ending.CameraControlled)));
+        public Vector3 CameraPosition => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraPosition:GuitarActive?guitarPerformance.CameraPosition:IntroBusy?intro.CameraPosition:ending && ending.CameraControlled?ending.CameraPosition:captureSequence.CameraPosition;
+        public Quaternion CameraRotation => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraRotation:GuitarActive?guitarPerformance.CameraRotation:IntroBusy?intro.CameraRotation:ending && ending.CameraControlled?ending.CameraRotation:captureSequence.CameraRotation;
         public bool ReadyToLeave => RepairGoal>0 && Repairs>=RepairGoal && WorkingGears==gears.Length;
         public int WorkingGears {get { int count=0;foreach(var gear in gears) if(!gear.broken) count++;return count; } }
         float jumpWatch,runSeen,runGrace;
@@ -72,7 +76,13 @@ namespace Cardboard
         FactorySound sound;
         Vector3 pressHome,gateHome;
 
-        void Awake() { Instance=this; }
+        void Awake()
+        {
+            Instance=this;circleDance=GetComponent<FactoryCircleDance>();
+            if(!circleDance)circleDance=gameObject.AddComponent<FactoryCircleDance>();
+            guitarPerformance=GetComponent<FactoryGuitarPerformance>();
+            if(!guitarPerformance)guitarPerformance=gameObject.AddComponent<FactoryGuitarPerformance>();
+        }
         void Start()
         {
             sound=gameObject.AddComponent<FactorySound>();
@@ -81,7 +91,7 @@ namespace Cardboard
         }
         public void ResetShift()
         {
-            if(ending)ending.Cancel();
+            if(guitarPerformance)guitarPerformance.Stop(false);if(circleDance)circleDance.Stop(false);if(ending)ending.Cancel();
             if(intro)intro.Cancel();
             if(captureSequence) captureSequence.Cancel();
             State=FactoryState.Working;Suspicion=0;Disguise=100;Repairs=0;Mistakes=0;ShiftRemaining=240;
@@ -111,7 +121,7 @@ namespace Cardboard
             var keyboard=Keyboard.current;
             if(!MenuActive && mainMenu && keyboard!=null && keyboard.escapeKey.wasPressedThisFrame)
             {mainMenu.ReturnToMenu();return;}
-            if(MenuActive || CaptureActive || IntroBusy || EndingBusy) return;
+            if(DanceActive){Focus=null;return;}if(MenuActive || CaptureActive || IntroBusy || EndingBusy) return;
             if(Ended)
             {
                 if((State==FactoryState.Dead || State==FactoryState.Escaped) && keyboard!=null && keyboard.enterKey.wasPressedThisFrame) Restart();

@@ -2,18 +2,18 @@ using UnityEngine;
 
 namespace Cardboard
 {
-    public enum FactoryFaceState { Normal,Suspicious,Angry }
+    public enum FactoryFaceState { Normal,Suspicious,Angry,Surprised }
 
     public class FactoryWorkerAppearance : MonoBehaviour
     {
-        public Material normal,suspicious,angry;
+        public Material normal,suspicious,angry,surprised;
         public FactoryFaceState State {get;private set;}=(FactoryFaceState)(-1);
         Renderer display;
         CardboardDrawingSurface drawing;
         public void SetState(FactoryFaceState state)
         {
             if(State==state)return;
-            var material=state==FactoryFaceState.Angry?angry:state==FactoryFaceState.Suspicious?suspicious:normal;
+            var material=state==FactoryFaceState.Surprised?(surprised?surprised:suspicious):state==FactoryFaceState.Angry?angry:state==FactoryFaceState.Suspicious?suspicious:normal;
             if(!material)return;
             if(!display)display=GetComponent<Renderer>();
             if(!drawing)drawing=GetComponent<CardboardDrawingSurface>();
