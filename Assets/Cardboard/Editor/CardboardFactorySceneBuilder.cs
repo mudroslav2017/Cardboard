@@ -66,12 +66,11 @@ namespace Cardboard.Editor
             else if(command=="lunch-carry-verify") FactoryLunchCarryVerification.Run();
             else if(command=="canteen-update") FactoryCanteenInstaller.ApplyCurrent();
             else if(command=="canteen-audit") FactoryFinaleInstaller.Audit();
-            else if(command=="guitar-verify") FactoryGuitarVerification.Run();
-            else if(command=="guitar-record") FactoryGuitarVerification.Record();
-            else if(command=="guitar-assets") FactoryGuitarAssets.Prepare();
-            else if(command=="guitar-audit") FactoryGuitarAssets.Audit();
-            else if(command=="dance-verify") FactoryCircleDanceVerification.Run();
-            else if(command=="dance-record") FactoryCircleDanceVerification.StartRecording();
+            else if(command=="drama-controls") FactoryPaperDramaVerification.Controls();
+            else if(command=="drama-verify") FactoryPaperDramaVerification.Run();
+            else if(command=="drama-record") FactoryPaperDramaVerification.Record();
+            else if(command=="drama-assets") FactoryPaperDramaAssets.Prepare();
+            else if(command=="drama-audit") FactoryPaperDramaAssets.Audit();
             else if(command=="shift-loop-verify") FactoryShiftLoopVerification.Run();
             else if(command=="session-verify") FactorySessionVerification.Run();
             else if(command=="opening-verify") FactoryOpeningVerification.Run();

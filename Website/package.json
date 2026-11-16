@@ -1,0 +1,14 @@
+{
+  "name": "among-flat-landing",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "build:models": "node scripts/build-models.mjs",
+    "check:suspension": "node scripts/check-suspension.mjs",
+    "build:font": "node scripts/build-web-font.mjs"
+  },
+  "dependencies": {"three":"0.180.0"},
+  "devDependencies": {"sharp":"^0.34.5"}
+}

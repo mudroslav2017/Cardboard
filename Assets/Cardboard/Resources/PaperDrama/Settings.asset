@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 816ec329c6c56a240ac7098d04817755, type: 3}
+  m_Name: Settings
+  m_EditorClassIdentifier: Assembly-CSharp::Cardboard.FactoryPaperDramaSettings
+  house1: {fileID: 7606203620141605669, guid: eb36b41a26dad054e906e3209ccfebf2, type: 3}
+  house2: {fileID: 8718326462148273233, guid: 01911854861142e4ca4abe08c73c72e3, type: 3}
+  sofa: {fileID: 7521661641324306808, guid: 84cfec3f2508ba340ae1d4d09a934249, type: 3}
+  flowers: {fileID: 2572759569389705455, guid: a66810e4d1acf8546ba01bc726135bf1, type: 3}
+  badge: {fileID: 7820447550585358004, guid: 96ba2e3769a0761499ba9857dedde02c, type: 3}
+  boss: {fileID: 2100000, guid: 932c3d926e2ef7244a7dc5afbc840ca1, type: 2}
+  floor: {fileID: 2100000, guid: e81e747cc458bab458399e331ba713b5, type: 2}
+  paper: {fileID: 2100000, guid: 5040aa5a68a35fe46bd40db58172c179, type: 2}
+  ink: {fileID: 2100000, guid: 424f2d6254845a444b75ff763bbd8b1b, type: 2}
+  cream: {fileID: 2100000, guid: ef6d7d5f395567c4980f760bb8effbff, type: 2}
+  heart: {fileID: 2100000, guid: fc186c53da27c1342ad39d017df0e4ec, type: 2}
+  rain: {fileID: 2100000, guid: b4c5e3395834cb643828e98d3cbf07fb, type: 2}
+  dialogueVoices:
+  - {fileID: 8300000, guid: 378967c2fda054f43aa4a2860c79bc7a, type: 3}
+  - {fileID: 8300000, guid: 20f16667b46646943bae784e5ac4b1cb, type: 3}
+  - {fileID: 8300000, guid: 4e66db49924c98e46af4867c373e6bc7, type: 3}
+  plop: {fileID: 8300000, guid: d2d63bc07f64a2345bb15f573751e135, type: 3}
+  whoosh: {fileID: 8300000, guid: 278f26a50551c1748974fcde46e4174d, type: 3}
+  thunder: {fileID: 8300000, guid: 1b18a404f4959ea48a03ebe14713a954, type: 3}
+  rainLoop: {fileID: 8300000, guid: 461dab73e1fe43749bbfd17a187836e8, type: 3}

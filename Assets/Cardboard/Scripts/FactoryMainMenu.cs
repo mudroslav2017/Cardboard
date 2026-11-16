@@ -179,7 +179,7 @@ namespace Cardboard
                     Close();return;
                 }
                 visuals.gameObject.SetActive(false);settingsPanel.gameObject.SetActive(false);
-                if((!shiftStarted || game.Ended) && !game.DanceActive)
+                if((!shiftStarted || game.Ended) && !game.FilmActive)
                 {
                     game.ResetShift();lens.GetComponent<CardboardCamera>().ResetView(0);
                     if(game.intro)game.intro.Begin();
