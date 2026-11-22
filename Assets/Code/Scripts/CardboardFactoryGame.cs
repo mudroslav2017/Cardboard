@@ -19,6 +19,7 @@ namespace Cardboard
         public FactoryNastyaLeraTrend nastyaLeraTrend {get;private set;}
         public FactoryForeheadTrend foreheadTrend {get;private set;}
         public FactoryLuciaTrend luciaTrend {get;private set;}
+        public FactoryBeesTrend beesTrend {get;private set;}
         public bool FilmActive=>filmSession && filmSession.Active;
         public bool EndingBusy=>ending && ending.Active;
         public bool IntroBusy=>intro && intro.BlocksControls;
@@ -88,6 +89,7 @@ namespace Cardboard
             nastyaLeraTrend=gameObject.AddComponent<FactoryNastyaLeraTrend>();
             foreheadTrend=gameObject.AddComponent<FactoryForeheadTrend>();
             luciaTrend=gameObject.AddComponent<FactoryLuciaTrend>();
+            beesTrend=gameObject.AddComponent<FactoryBeesTrend>();
         }
         void Start()
         {
@@ -100,6 +102,7 @@ namespace Cardboard
             if(nastyaLeraTrend)nastyaLeraTrend.Stop(false);
             if(foreheadTrend)foreheadTrend.Stop(false);
             if(luciaTrend)luciaTrend.Stop(false);
+            if(beesTrend)beesTrend.Stop(false);
             if(paperDrama)paperDrama.Stop(false);if(filmSession)filmSession.Stop(false);if(ending)ending.Cancel();
             if(intro)intro.Cancel();
             if(captureSequence) captureSequence.Cancel();
@@ -133,6 +136,7 @@ namespace Cardboard
                 if(nastyaLeraTrend && nastyaLeraTrend.Active) nastyaLeraTrend.Stop();
                 if(foreheadTrend && foreheadTrend.Active) foreheadTrend.Stop();
                 if(luciaTrend && luciaTrend.Active) luciaTrend.Stop();
+                if(beesTrend && beesTrend.Active) beesTrend.Stop();
                 mainMenu.ReturnToMenu();return;
             }
             if(FilmActive){Focus=null;return;}if(MenuActive || CaptureActive || IntroBusy || EndingBusy) return;
