@@ -11,12 +11,17 @@ namespace Cardboard
         public float speed;
         public float JumpHeight => jumpHeight;
         public Vector3 Velocity => velocity;
+        public bool InSewer => sewerReturn;
         public bool IsResting => !isPlayer && (Time.time<restUntil || Time.time<paintHoldUntil);
         float cycle, jumpHeight, jumpVelocity;
         float restUntil, nextRest, paintHoldUntil;
         System.Random restRandom;
         Vector3 velocity;
         CharacterController characterController;
+        Transform sewerReturn;
+        float fallSpeed;
+        float sewerFallLimit;
+        float surfaceStepOffset;
         public static CardboardRunner Player;
         public static float PartyUntil, FollowUntil;
         public static int Steps;
@@ -71,7 +76,7 @@ namespace Cardboard
                     float moveSpeed=factory && factory.lunch && factory.lunch.Carrying?1.3f:
                         factory && factory.HandsBusy?1.8f:factory && factory.Pretending?1.35f:keyboard.leftShiftKey.isPressed?6:3.2f;
                     wish=(forward*input.y+right*input.x).normalized*moveSpeed;
-                    if (keyboard.spaceKey.wasPressedThisFrame && jumpHeight<=.001f && (!factory || !factory.HandsBusy) && (!crane || !crane.OnCabFloor)) jumpVelocity=5.5f;
+                    if (keyboard.spaceKey.wasPressedThisFrame && !InSewer && jumpHeight<=.001f && (!factory || !factory.HandsBusy) && (!crane || !crane.OnCabFloor)) jumpVelocity=5.5f;
                     if (!factory && keyboard.eKey.wasPressedThisFrame) Whistle();
                     if (!factory && keyboard.rKey.wasPressedThisFrame) Party();
                 }
@@ -112,6 +117,16 @@ namespace Cardboard
             velocity=Vector3.Lerp(velocity,wish,1-Mathf.Exp(-9*dt)); speed=velocity.magnitude;
             if(isPlayer && factory && factory.lunch && factory.lunch.Carrying)
             {velocity=Vector3.ClampMagnitude(velocity,1.3f);speed=velocity.magnitude;}
+            if (InSewer && characterController && characterController.enabled)
+            {
+                fallSpeed = Mathf.Max(fallSpeed - 17f * dt, -12f);
+                var movement = velocity * dt + Vector3.up * (fallSpeed * dt);
+                if ((characterController.Move(movement) & CollisionFlags.Below) != 0)
+                    fallSpeed = -1f;
+                if (transform.position.y < sewerFallLimit)
+                    LeaveSewer();
+                return;
+            }
             Vector3 position=transform.position+velocity*dt;
             if(factory)
             {
@@ -150,6 +165,34 @@ namespace Cardboard
             cycle+=dt*speed*3;
             if (isPlayer && speed>.2f && Mathf.FloorToInt(oldCycle/Mathf.PI)!=Mathf.FloorToInt(cycle/Mathf.PI)) Steps++;
             Pose(cycle,Mathf.Clamp01(speed/1.5f));
+        }
+
+        public void UseSewerAccess(Transform landing, Transform returnLanding = null)
+        {
+            if (!characterController) characterController = GetComponent<CharacterController>();
+            if (returnLanding)
+            {
+                sewerReturn = returnLanding;
+                sewerFallLimit = landing.position.y - 12f;
+                surfaceStepOffset = characterController.stepOffset;
+                characterController.stepOffset = .32f;
+            }
+            else
+            {
+                sewerReturn = null;
+                characterController.stepOffset = surfaceStepOffset;
+            }
+            characterController.enabled = false;
+            transform.position = landing.position;
+            characterController.enabled = true;
+            velocity = Vector3.zero;
+            speed = jumpHeight = jumpVelocity = 0;
+            fallSpeed = -1f;
+        }
+
+        public void LeaveSewer()
+        {
+            if (InSewer) UseSewerAccess(sewerReturn);
         }
 
         public void Pose(float phase,float walk)

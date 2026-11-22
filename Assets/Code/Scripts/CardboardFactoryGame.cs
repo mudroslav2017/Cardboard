@@ -37,6 +37,7 @@ namespace Cardboard
         public FactoryObjectCarry objectCarry;
         public FactoryDoor exitDoor;
         public CraneJob craneJob;
+        public FactoryRatHunt ratHunt;
         public bool HandsBusy => (lunch && lunch.Carrying) || (objectCarry && objectCarry.Held);
         public bool MenuActive => mainMenu && mainMenu.BlocksGameplay;
         public bool CaptureActive => captureSequence && captureSequence.Active;
@@ -99,6 +100,7 @@ namespace Cardboard
         }
         public void ResetShift()
         {
+            if (CardboardRunner.Player) CardboardRunner.Player.LeaveSewer();
             if(nastyaLeraTrend)nastyaLeraTrend.Stop(false);
             if(foreheadTrend)foreheadTrend.Stop(false);
             if(luciaTrend)luciaTrend.Stop(false);
@@ -107,6 +109,7 @@ namespace Cardboard
             if(intro)intro.Cancel();
             if(captureSequence) captureSequence.Cancel();
             State=FactoryState.Working;Suspicion=0;Disguise=100;Repairs=0;Mistakes=0;ShiftRemaining=240;
+            if(ratHunt) ratHunt.ResetHunt();
             mistakeReasons.Clear();LastMistakeReason="";runSeen=runGrace=0;runCharged=false;
             HasPart=false;Pretending=false;Memorized=null;
             DippingPart=false;
@@ -148,8 +151,13 @@ namespace Cardboard
             if(!CardboardRunner.Player) return;
             if(keyboard!=null && keyboard.tKey.isPressed && keyboard.uKey.isPressed && keyboard.oKey.isPressed &&
                 (keyboard.tKey.wasPressedThisFrame || keyboard.uKey.wasPressedThisFrame || keyboard.oKey.wasPressedThisFrame) && CompleteRepairsShortcut())return;
-            float dt=Time.deltaTime;if(IntroActive){UpdateFocus();if(keyboard!=null && keyboard.eKey.wasPressedThisFrame && !CardboardMarker.DrawingMode)Interact();return;}TickShiftClock(dt);if(Ended || CaptureActive) return;
-            TickFaults(dt);if(lunch) lunch.TickSchedule(dt);
+            float dt=Time.deltaTime;if(IntroActive){UpdateFocus();if(keyboard!=null && keyboard.eKey.wasPressedThisFrame && !CardboardMarker.DrawingMode)Interact();return;}
+            bool hunting = ratHunt && CardboardRunner.Player.InSewer;
+            if (!hunting)
+            {
+                TickShiftClock(dt);if(Ended || CaptureActive) return;
+                TickFaults(dt);if(lunch) lunch.TickSchedule(dt);
+            }
             Pretending=keyboard!=null && keyboard.cKey.isPressed && !CardboardMarker.DrawingMode && !PlayerBlocked;
             UpdateFocus();
             if(keyboard!=null)
@@ -157,6 +165,7 @@ namespace Cardboard
                 if(keyboard.eKey.wasPressedThisFrame && !PlayerBlocked && !CardboardMarker.DrawingMode) Interact();
                 // Mouse placement and fixed-strength throws are routed through FactoryObjectCarry.
             }
+            if(hunting || CaptureActive) return;
             if(ReadyToLeave && !exitDoor) exitGate.localPosition=Vector3.Lerp(exitGate.localPosition,gateHome+Vector3.right*2.5f,dt*2);
             bool watched=IsWatched();
             ObserveConduct(watched,CardboardRunner.Player.speed,CardboardRunner.Player.JumpHeight,station && station.IsPumpingPlayer,dt);
@@ -304,6 +313,11 @@ namespace Cardboard
                     }
                 }
                 var target=hit.collider.GetComponentInParent<FactoryInteractable>();
+                if (target && target.action == FactoryAction.RatFood &&
+                    (!ratHunt || !ratHunt.CanGrab || !target.GetComponent<FactoryRatTarget>().Available))
+                    continue;
+                if (target && target.action == FactoryAction.RatDelivery && (!ratHunt || !ratHunt.CanDeliver))
+                    continue;
                 return HandsBusy && target && target.action!=FactoryAction.Lunch && target.action!=FactoryAction.Door?null:target;
             }
             return null;
@@ -324,6 +338,7 @@ namespace Cardboard
                 if(Focus.action==FactoryAction.Door) return Focus.GetComponentInParent<FactoryDoor>().Prompt;
                 if(Focus.action==FactoryAction.Bench) return "";
                 if(Focus.action==FactoryAction.Gear) return Focus.gear.broken && HasPart?"E - INSTALL GEAR":"";
+                if(Focus.action==FactoryAction.SewerAccess && ratHunt && HasPart) return "Put the gear down before descending";
                 if(Focus.action==FactoryAction.Exit) return ReadyToLeave?"E - FINISH SHIFT AND LEAVE":"Exit unlocks after six repairs";
                 return Focus.prompt;
             }
@@ -360,6 +375,20 @@ namespace Cardboard
                     var lunchControl=Focus.GetComponent<FactoryLunchControl>();if(lunchControl) lunchControl.Use();break;
                 case FactoryAction.Crane:
                     if(craneJob)craneJob.Use(Focus);break;
+                case FactoryAction.SewerAccess:
+                    if (!IntroActive && State != FactoryState.Chased && (!ratHunt || !HasPart) && Focus.TryGetComponent(out FactorySewerAccess access))
+                    {
+                        access.Use(CardboardRunner.Player);
+                        Focus = null;
+                    }
+                    break;
+                case FactoryAction.RatFood:
+                    if (ratHunt && Focus.TryGetComponent(out FactoryRatTarget target) && ratHunt.TryCollect(target))
+                        Focus = null;
+                    break;
+                case FactoryAction.RatDelivery:
+                    if (ratHunt && ratHunt.Deliver()) Focus = null;
+                    break;
             }
         }
         public bool TryExit(bool atCorridorEnd=false)
@@ -474,6 +503,13 @@ namespace Cardboard
         public void Capture(FactoryDeath death)
         {
             if(Ended || CaptureActive) return;
+            var player = CardboardRunner.Player;
+            if (player && player.InSewer)
+            {
+                player.LeaveSewer();
+                if (Camera.main && Camera.main.TryGetComponent(out CardboardCamera view))
+                    view.RefreshPlayerPose(0);
+            }
             Death=FactoryDeath.Press;State=FactoryState.Chased;Pretending=false;
             if(lunch) lunch.CancelCarry();
             if(workbench) workbench.EndGrip(false);
