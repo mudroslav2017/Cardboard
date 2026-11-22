@@ -2,7 +2,7 @@ import fs from "node:fs";
 import vm from "node:vm";
 import assert from "node:assert/strict";
 
-const source = fs.readFileSync("Assets/Cardboard/Plugins/WebGL/CardboardWebMouse.jslib", "utf8");
+const source = fs.readFileSync("Assets/Code/Plugins/WebGL/CardboardWebMouse.jslib", "utf8");
 function fixture(request) {
   const handlers = new Map();
   const add = (name, fn) => handlers.set(name, [...(handlers.get(name) || []), fn]);
