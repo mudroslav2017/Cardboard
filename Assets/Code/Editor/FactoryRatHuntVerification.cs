@@ -71,17 +71,23 @@ namespace Cardboard.Editor
             Check(player.InSewer && hunt.CanGrab, "Hatch opens the task.");
             var first = live[0];
             Check(!first.Available, "A hidden rat cannot be grabbed.");
-            for (int i = 0; i < 65; i++) first.Tick(.04f, first.forage + Vector3.up * 12 + Vector3.left * 8);
-            Check(first.Available && Vector3.Distance(first.transform.position, first.forage) < .02f,
-                "Rat emerges and runs to the bank.");
+            foreach (var rat in live)
+            {
+                Check(rat.roamRoutes != null && rat.roamRoutes.Length > 0, "Every pipe has a route into the tunnels.");
+                for (int i = 0; i < 625 && Vector3.Distance(rat.transform.position, rat.mouth) < 12; i++)
+                    rat.Tick(.04f, rat.mouth + Vector3.up * 12);
+                Check(rat.Available && Vector3.Distance(rat.transform.position, rat.mouth) >= 12,
+                    "A roaming rat travels well beyond its pipe and remains catchable.");
+            }
             Vector3 before = first.transform.position;
-            first.Tick(.1f, before + Vector3.right * .5f);
-            Check(Vector3.Distance(first.transform.position, first.mouth) < Vector3.Distance(before, first.mouth),
-                "Approaching player sends the rat back to its own pipe.");
-            for (int i = 0; i < 32; i++) first.Tick(.04f, before);
+            first.Tick(.06f, before);
+            first.Tick(.06f, before);
+            Check(Vector3.Distance(first.transform.position, before) > .13f,
+                "A player approaching a roaming rat makes it run.");
+            for (int i = 0; i < 350 && first.gameObject.activeSelf; i++) first.Tick(.04f, before);
             Check(!first.Available && !first.gameObject.activeSelf && Vector3.Distance(first.transform.position, first.den) < .02f,
-                "Returning rat disappears inside the original pipe.");
-            for (int i = 0; i < 100; i++) first.Tick(.04f, first.forage);
+                "A rat flees from the corridor and disappears inside its original pipe.");
+            for (int i = 0; i < 145; i++) first.Tick(.04f, first.forage + Vector3.up * 12);
             Check(first.Available, "A rat reappears from the pipe.");
 
             Grab(wrong.First(target => target.food == FactoryRatFood.RottenRat));
@@ -91,7 +97,7 @@ namespace Cardboard.Editor
             foreach (var rat in live.Take(FactoryRatHunt.Quota))
             {
                 rat.ResetTarget();
-                for (int i = 0; i < 65; i++) rat.Tick(.04f, rat.forage + Vector3.left * 9);
+                for (int i = 0; i < 65; i++) rat.Tick(.04f, rat.forage + Vector3.up * 12);
                 Grab(rat);
             }
             Check(hunt.Food == FactoryRatHunt.Quota && !hunt.CanGrab && !hunt.CanDeliver &&
@@ -111,7 +117,7 @@ namespace Cardboard.Editor
             Check(hunt.Strikes == 3 && game.State == FactoryState.Chased && game.CaptureActive && !player.InSewer,
                 "Only the third strike starts the existing factory pursuit at the hatch.");
             game.captureSequence.Cancel();
-            Debug.Log("Kitchen rat hunt verified: emergence, fleeing, hiding, respawn, collection, quota, delivery, strikes and capture.");
+            Debug.Log("Kitchen rat hunt verified: roaming all passages' rat routes, fleeing back to the pipe, respawn, collection, quota, delivery, strikes and capture.");
         }
 
         static void Check(bool condition, string message)

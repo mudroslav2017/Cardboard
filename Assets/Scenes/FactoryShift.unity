@@ -13409,6 +13409,7 @@ MonoBehaviour:
   mouth: {x: 0, y: 0, z: 0}
   forage: {x: 0, y: 0, z: 0}
   firstEmergence: 0
+  roamRoutes: []
 --- !u!1001 &89073665
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -17212,6 +17213,15 @@ MonoBehaviour:
   mouth: {x: -28.887499, y: -16.188002, z: 10.2675}
   forage: {x: -26.637499, y: -16.188002, z: 11.467501}
   firstEmergence: 0.22
+  roamRoutes:
+  - points:
+    - {x: -28.8875, y: -16.2, z: 14.075001}
+    - {x: -28.8875, y: -16.2, z: 29.6}
+    - {x: -44.412502, y: -16.2, z: 29.6}
+  - points:
+    - {x: -28.8875, y: -16.2, z: 14.075001}
+    - {x: -44.412502, y: -16.2, z: 14.075001}
+    - {x: -44.412502, y: -16.2, z: 29.6}
 --- !u!1 &124758100
 GameObject:
   m_ObjectHideFlags: 0
@@ -33770,6 +33780,7 @@ MonoBehaviour:
   mouth: {x: 0, y: 0, z: 0}
   forage: {x: 0, y: 0, z: 0}
   firstEmergence: 0
+  roamRoutes: []
 --- !u!1 &293247627
 GameObject:
   m_ObjectHideFlags: 0
@@ -36543,6 +36554,15 @@ MonoBehaviour:
   mouth: {x: 17.687485, y: -16.187998, z: 33.40751}
   forage: {x: 15.437477, y: -16.187998, z: 32.20751}
   firstEmergence: 1.27
+  roamRoutes:
+  - points:
+    - {x: 17.6875, y: -16.2, z: 29.6}
+    - {x: 33.2125, y: -16.2, z: 29.6}
+    - {x: 48.737503, y: -16.2, z: 29.6}
+  - points:
+    - {x: 17.6875, y: -16.2, z: 29.6}
+    - {x: 2.1625004, y: -16.2, z: 29.6}
+    - {x: 2.1625004, y: -16.2, z: 14.075001}
 --- !u!1 &311940821
 GameObject:
   m_ObjectHideFlags: 0
@@ -45342,6 +45362,7 @@ MonoBehaviour:
   mouth: {x: 0, y: 0, z: 0}
   forage: {x: 0, y: 0, z: 0}
   firstEmergence: 0
+  roamRoutes: []
 --- !u!1 &387628999
 GameObject:
   m_ObjectHideFlags: 0
@@ -52187,6 +52208,15 @@ MonoBehaviour:
   mouth: {x: -40.604996, y: -16.187998, z: -1.4500222}
   forage: {x: -41.804996, y: -16.187998, z: 0.7999668}
   firstEmergence: 0.91999996
+  roamRoutes:
+  - points:
+    - {x: -44.412502, y: -16.2, z: -1.45}
+    - {x: -59.9375, y: -16.2, z: -1.45}
+    - {x: -59.9375, y: -16.2, z: -16.975}
+  - points:
+    - {x: -44.412502, y: -16.2, z: -1.45}
+    - {x: -44.412502, y: -16.2, z: 14.075001}
+    - {x: -44.412502, y: -16.2, z: 29.6}
 --- !u!1 &467324825
 GameObject:
   m_ObjectHideFlags: 0
@@ -56113,6 +56143,15 @@ MonoBehaviour:
   mouth: {x: 21.495014, y: -16.187998, z: -16.974995}
   forage: {x: 20.29502, y: -16.187998, z: -14.724991}
   firstEmergence: 1.27
+  roamRoutes:
+  - points:
+    - {x: 17.6875, y: -16.2, z: -16.975}
+    - {x: 2.1625004, y: -16.2, z: -16.975}
+    - {x: -13.3625, y: -16.2, z: -16.975}
+  - points:
+    - {x: 17.6875, y: -16.2, z: -16.975}
+    - {x: 17.6875, y: -16.2, z: -32.5}
+    - {x: 2.1625004, y: -16.2, z: -32.5}
 --- !u!1 &496209073
 GameObject:
   m_ObjectHideFlags: 0
@@ -57218,6 +57257,15 @@ MonoBehaviour:
   mouth: {x: -13.3625, y: -16.188002, z: -13.1675}
   forage: {x: -15.612499, y: -16.188002, z: -14.3675}
   firstEmergence: 0.91999996
+  roamRoutes:
+  - points:
+    - {x: -13.3625, y: -16.2, z: -16.975}
+    - {x: -13.3625, y: -16.2, z: -32.5}
+    - {x: -28.8875, y: -16.2, z: -32.5}
+  - points:
+    - {x: -13.3625, y: -16.2, z: -16.975}
+    - {x: -28.8875, y: -16.2, z: -16.975}
+    - {x: -44.412502, y: -16.2, z: -16.975}
 --- !u!1 &508205732
 GameObject:
   m_ObjectHideFlags: 0
@@ -62286,6 +62334,15 @@ MonoBehaviour:
   mouth: {x: -48.220016, y: -16.187998, z: -16.974974}
   forage: {x: -47.020027, y: -16.187998, z: -19.22496}
   firstEmergence: 0.57
+  roamRoutes:
+  - points:
+    - {x: -44.412502, y: -16.2, z: -16.975}
+    - {x: -28.8875, y: -16.2, z: -16.975}
+    - {x: -13.3625, y: -16.2, z: -16.975}
+  - points:
+    - {x: -44.412502, y: -16.2, z: -16.975}
+    - {x: -44.412502, y: -16.2, z: -32.5}
+    - {x: -28.8875, y: -16.2, z: -32.5}
 --- !u!1 &568494711
 GameObject:
   m_ObjectHideFlags: 0
@@ -63139,6 +63196,15 @@ MonoBehaviour:
   mouth: {x: -28.887499, y: -16.188002, z: 33.4075}
   forage: {x: -31.137499, y: -16.188002, z: 32.2075}
   firstEmergence: 0.57
+  roamRoutes:
+  - points:
+    - {x: -28.8875, y: -16.2, z: 29.6}
+    - {x: -28.8875, y: -16.2, z: 14.075001}
+    - {x: -44.412502, y: -16.2, z: 14.075001}
+  - points:
+    - {x: -28.8875, y: -16.2, z: 29.6}
+    - {x: -44.412502, y: -16.2, z: 29.6}
+    - {x: -44.412502, y: -16.2, z: 14.075001}
 --- !u!1 &576726338
 GameObject:
   m_ObjectHideFlags: 0
@@ -71108,6 +71174,15 @@ MonoBehaviour:
   mouth: {x: 37.02001, y: -16.187998, z: -1.449985}
   forage: {x: 35.820015, y: -16.187998, z: 0.8000221}
   firstEmergence: 0.22
+  roamRoutes:
+  - points:
+    - {x: 33.2125, y: -16.2, z: -1.45}
+    - {x: 17.6875, y: -16.2, z: -1.45}
+    - {x: 17.6875, y: -16.2, z: -16.975}
+  - points:
+    - {x: 33.2125, y: -16.2, z: -1.45}
+    - {x: 33.2125, y: -16.2, z: -16.975}
+    - {x: 33.2125, y: -16.2, z: -32.5}
 --- !u!1 &677575865
 GameObject:
   m_ObjectHideFlags: 0
@@ -71813,6 +71888,7 @@ MonoBehaviour:
   mouth: {x: 0, y: 0, z: 0}
   forage: {x: 0, y: 0, z: 0}
   firstEmergence: 0
+  roamRoutes: []
 --- !u!1 &683337761
 GameObject:
   m_ObjectHideFlags: 0
@@ -79323,6 +79399,7 @@ MonoBehaviour:
   mouth: {x: 0, y: 0, z: 0}
   forage: {x: 0, y: 0, z: 0}
   firstEmergence: 0
+  roamRoutes: []
 --- !u!114 &769830086
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -81167,6 +81244,7 @@ MonoBehaviour:
   mouth: {x: 0, y: 0, z: 0}
   forage: {x: 0, y: 0, z: 0}
   firstEmergence: 0
+  roamRoutes: []
 --- !u!1 &779640842
 GameObject:
   m_ObjectHideFlags: 0
@@ -83126,6 +83204,7 @@ MonoBehaviour:
   mouth: {x: 0, y: 0, z: 0}
   forage: {x: 0, y: 0, z: 0}
   firstEmergence: 0
+  roamRoutes: []
 --- !u!1 &791731024
 GameObject:
   m_ObjectHideFlags: 0
@@ -83218,6 +83297,7 @@ MonoBehaviour:
   mouth: {x: 0, y: 0, z: 0}
   forage: {x: 0, y: 0, z: 0}
   firstEmergence: 0
+  roamRoutes: []
 --- !u!1001 &792019282
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -95931,6 +96011,15 @@ MonoBehaviour:
   mouth: {x: -13.362501, y: -16.188002, z: -36.307503}
   forage: {x: -11.112501, y: -16.188002, z: -35.107502}
   firstEmergence: 0.22
+  roamRoutes:
+  - points:
+    - {x: -13.3625, y: -16.2, z: -32.5}
+    - {x: -13.3625, y: -16.2, z: -16.975}
+    - {x: 2.1625004, y: -16.2, z: -16.975}
+  - points:
+    - {x: -13.3625, y: -16.2, z: -32.5}
+    - {x: 2.1625004, y: -16.2, z: -32.5}
+    - {x: 17.6875, y: -16.2, z: -32.5}
 --- !u!1 &927785599
 GameObject:
   m_ObjectHideFlags: 0
@@ -106496,6 +106585,15 @@ MonoBehaviour:
   mouth: {x: -13.3625, y: -16.188002, z: 31.854998}
   forage: {x: -15.612501, y: -16.188002, z: 30.654997}
   firstEmergence: 0.91999996
+  roamRoutes:
+  - points:
+    - {x: -13.3625, y: -16.2, z: 29.6}
+    - {x: -13.3625, y: -16.2, z: 14.075001}
+    - {x: -13.3625, y: -16.2, z: -1.45}
+  - points:
+    - {x: -13.3625, y: -16.2, z: 29.6}
+    - {x: -28.8875, y: -16.2, z: 29.6}
+    - {x: -44.412502, y: -16.2, z: 29.6}
 --- !u!1 &1014751245
 GameObject:
   m_ObjectHideFlags: 0
@@ -120258,6 +120356,7 @@ MonoBehaviour:
   mouth: {x: 0, y: 0, z: 0}
   forage: {x: 0, y: 0, z: 0}
   firstEmergence: 0
+  roamRoutes: []
 --- !u!1 &1157576071
 GameObject:
   m_ObjectHideFlags: 0
@@ -133479,6 +133578,7 @@ MonoBehaviour:
   mouth: {x: 0, y: 0, z: 0}
   forage: {x: 0, y: 0, z: 0}
   firstEmergence: 0
+  roamRoutes: []
 --- !u!1 &1280408256 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 2853276081302331699, guid: f8d57a0f59001b84195d7e7021bc67db, type: 3}
@@ -136924,6 +137024,15 @@ MonoBehaviour:
   mouth: {x: -44.412502, y: -16.188002, z: 33.4075}
   forage: {x: -46.662502, y: -16.188002, z: 32.2075}
   firstEmergence: 0.22
+  roamRoutes:
+  - points:
+    - {x: -44.412502, y: -16.2, z: 29.6}
+    - {x: -44.412502, y: -16.2, z: 14.075001}
+    - {x: -44.412502, y: -16.2, z: -1.45}
+  - points:
+    - {x: -44.412502, y: -16.2, z: 29.6}
+    - {x: -28.8875, y: -16.2, z: 29.6}
+    - {x: -13.3625, y: -16.2, z: 29.6}
 --- !u!1 &1311554474
 GameObject:
   m_ObjectHideFlags: 0
@@ -145649,6 +145758,7 @@ MonoBehaviour:
   mouth: {x: 0, y: 0, z: 0}
   forage: {x: 0, y: 0, z: 0}
   firstEmergence: 0
+  roamRoutes: []
 --- !u!1 &1379520177
 GameObject:
   m_ObjectHideFlags: 0
@@ -164378,6 +164488,15 @@ MonoBehaviour:
   mouth: {x: 33.2125, y: -16.188002, z: -36.307503}
   forage: {x: 35.462498, y: -16.188002, z: -35.107502}
   firstEmergence: 0.57
+  roamRoutes:
+  - points:
+    - {x: 33.2125, y: -16.2, z: -32.5}
+    - {x: 33.2125, y: -16.2, z: -16.975}
+    - {x: 33.2125, y: -16.2, z: -1.45}
+  - points:
+    - {x: 33.2125, y: -16.2, z: -32.5}
+    - {x: 17.6875, y: -16.2, z: -32.5}
+    - {x: 2.1625004, y: -16.2, z: -32.5}
 --- !u!1 &1503264233
 GameObject:
   m_ObjectHideFlags: 0
@@ -168529,6 +168648,7 @@ MonoBehaviour:
   mouth: {x: 0, y: 0, z: 0}
   forage: {x: 0, y: 0, z: 0}
   firstEmergence: 0
+  roamRoutes: []
 --- !u!1 &1552334717
 GameObject:
   m_ObjectHideFlags: 0
@@ -181320,6 +181440,7 @@ MonoBehaviour:
   mouth: {x: 0, y: 0, z: 0}
   forage: {x: 0, y: 0, z: 0}
   firstEmergence: 0
+  roamRoutes: []
 --- !u!1 &1699180225
 GameObject:
   m_ObjectHideFlags: 0
@@ -181524,6 +181645,15 @@ MonoBehaviour:
   mouth: {x: -1.6450002, y: -16.188002, z: -1.4500003}
   forage: {x: -0.44500017, y: -16.188002, z: -3.7000003}
   firstEmergence: 1.27
+  roamRoutes:
+  - points:
+    - {x: 2.1625004, y: -16.2, z: -1.45}
+    - {x: 2.1625004, y: -16.2, z: 14.075001}
+    - {x: 2.1625004, y: -16.2, z: 29.6}
+  - points:
+    - {x: 2.1625004, y: -16.2, z: -1.45}
+    - {x: 2.1625004, y: -16.2, z: -16.975}
+    - {x: 17.6875, y: -16.2, z: -16.975}
 --- !u!1 &1701323464
 GameObject:
   m_ObjectHideFlags: 0
@@ -195364,6 +195494,15 @@ MonoBehaviour:
   mouth: {x: 17.687498, y: -16.187998, z: 10.267499}
   forage: {x: 19.937496, y: -16.187998, z: 11.467503}
   firstEmergence: 0.57
+  roamRoutes:
+  - points:
+    - {x: 17.6875, y: -16.2, z: 14.075001}
+    - {x: 33.2125, y: -16.2, z: 14.075001}
+    - {x: 33.2125, y: -16.2, z: 29.6}
+  - points:
+    - {x: 17.6875, y: -16.2, z: 14.075001}
+    - {x: 2.1625004, y: -16.2, z: 14.075001}
+    - {x: 2.1625004, y: -16.2, z: 29.6}
 --- !u!1 &1802746106
 GameObject:
   m_ObjectHideFlags: 0
@@ -197614,6 +197753,7 @@ MonoBehaviour:
   mouth: {x: 0, y: 0, z: 0}
   forage: {x: 0, y: 0, z: 0}
   firstEmergence: 0
+  roamRoutes: []
 --- !u!1 &1830946471
 GameObject:
   m_ObjectHideFlags: 0

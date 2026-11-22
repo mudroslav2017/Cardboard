@@ -55,6 +55,7 @@ namespace Cardboard.Editor
             game.ratHunt = hunt;
             var props = new Props();
             hunt.targets = BuildPipes(hunt.transform, sewer, props);
+            FactoryRatRoamingBuilder.Bake(hunt);
             BuildEquipment(hunt, Group(RootName, camera, Vector3.zero), props);
             BuildDelivery(hunt.transform, game, props);
             hunt.ResetHunt();
@@ -154,7 +155,7 @@ namespace Cardboard.Editor
             return false;
         }
 
-        static bool FloorAt(Vector3 point, out Vector3 floor)
+        internal static bool FloorAt(Vector3 point, out Vector3 floor)
         {
             bool hit = Physics.Raycast(point + Vector3.up * .48f, Vector3.down, out var ray, 1.15f, Environment,
                 QueryTriggerInteraction.Ignore);

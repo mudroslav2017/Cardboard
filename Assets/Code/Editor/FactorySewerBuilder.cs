@@ -86,6 +86,23 @@ namespace Cardboard.Editor
             _ => 0
         };
 
+        internal static IEnumerable<(string from, string to)> TunnelConnections()
+        {
+            for (int row = 0; row < Layout.Length; row++)
+            for (int column = 0; column < Layout[row].Length; column++)
+            {
+                char tile = Layout[row][column];
+                if (tile == 'A' || tile == 'B') continue;
+                int openings = Openings(tile);
+                if ((openings & East) != 0 && Layout[row][column + 1] != 'B')
+                    yield return (TileName(row, column), TileName(row, column + 1));
+                if ((openings & South) != 0)
+                    yield return (TileName(row, column), TileName(row + 1, column));
+            }
+        }
+
+        static string TileName(int row, int column) => $"{row + 1:D2}.{column + 1:D2}";
+
         static Vector3 Cell(int column, int row)
         {
             float x = CardboardFactoryWorld.WorkshopCenterX + (column - (Layout[0].Length - 1) * .5f) * Pitch;
@@ -151,7 +168,7 @@ namespace Cardboard.Editor
                     if (openings == 0) continue;
                     bool blue = WaterRoute[row][column] == '+';
                     var center = Cell(column, row);
-                    string label = $"{row + 1:D2}.{column + 1:D2}";
+                    string label = TileName(row, column);
                     if (tile == 'A' || tile == 'B')
                     {
                         var inward = tile == 'A' ? Vector3.right : Vector3.left;
