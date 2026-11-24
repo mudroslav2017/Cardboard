@@ -20,6 +20,7 @@ namespace Cardboard
         public bool Take(FactoryPhysicsProp prop)
         {
             if(Held || !prop || !Camera.main || game.HandsBusy || game.HasPart || game.PlayerBlocked || game.CaptureActive)return false;
+            if(prop.TryGetComponent(out FactoryKitchenTool kitchenTool))kitchenTool.Undock();
             Held=prop;ItemReceived();prop.BeginCarry();
             if(CardboardMarker.Instance)CardboardMarker.Instance.SetDrawingMode(false);
             var body=prop.Body;
@@ -30,7 +31,7 @@ namespace Cardboard
             HoldDistance=prop.instructionSheet?.72f:Mathf.Clamp(1.05f+radius*.8f,1.2f,2);
             if(prop.instructionSheet && game.instruction)game.instruction.MarkPickedUp();
             gripRotation=prop.instructionSheet?Quaternion.identity:Quaternion.Inverse(Camera.main.transform.rotation)*body.rotation;
-            game.Toast(Prompt,5);
+            if(!game.kitchen || !game.kitchen.OwnsHeld(prop))game.Toast(Prompt,5);
             return true;
         }
         void Update()
@@ -40,7 +41,8 @@ namespace Cardboard
             if(game.MenuActive || game.PlayerBlocked || CardboardMarker.DrawingMode){return;}
             if(Time.frameCount==pickupFrame)return;
             var mouse=Mouse.current;if(mouse==null){return;}
-            TickInput(mouse.leftButton.wasPressedThisFrame,mouse.rightButton.wasPressedThisFrame);
+            bool kitchenTool=Held && Held.GetComponent<FactoryKitchenTool>();
+            TickInput(!kitchenTool && mouse.leftButton.wasPressedThisFrame,mouse.rightButton.wasPressedThisFrame);
         }
         public void TickInput(bool throwPressed,bool putDownPressed)
         {
@@ -59,6 +61,12 @@ namespace Cardboard
             var lens=Camera.main.transform;var body=Held.Body;
             TargetRotation=lens.rotation*gripRotation;
             Vector3 center=lens.TransformPoint(new Vector3(0,Held.instructionSheet?-.075f:-.20f,HoldDistance));
+            if(Held.TryGetComponent(out FactoryKitchenTool kitchenTool))
+            {
+                Quaternion heading=Quaternion.Euler(0,lens.eulerAngles.y,0);
+                center=lens.position+heading*new Vector3(0,kitchenTool.pan?-.39f:-.53f,1.02f);
+                TargetRotation=heading*Quaternion.Euler(kitchenTool.CarryPitch,0,0);
+            }
             TargetPosition=center-TargetRotation*localCenter;
             Vector3 wish=Vector3.ClampMagnitude((TargetPosition-body.position)*13,12);
             Vector3 acceleration=Vector3.ClampMagnitude((wish-body.linearVelocity)*13,95);
@@ -77,6 +85,7 @@ namespace Cardboard
         public void Release(bool thrown)
         {
             if(!Held)return;
+            if(game.kitchen && game.kitchen.OwnsHeld(Held))game.kitchen.CancelFlick();
             var prop=Held;Held=null;
             Vector3 velocity=Vector3.ClampMagnitude(prop.Body.linearVelocity,.55f);
             if(thrown)

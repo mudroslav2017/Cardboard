@@ -30,13 +30,16 @@ namespace Cardboard
         void Update()
         {
             var factory=CardboardFactoryGame.Instance;
+            var mouse=Mouse.current;var keyboard=Keyboard.current;
+            bool kitchenMouse=factory && factory.kitchen && mouse!=null && factory.kitchen.ConsumesMouse(mouse);
             bool capture=Cursor.lockState==CursorLockMode.Locked;
             CardboardWebMouse.Configure(capture,Application.isFocused && !CardboardMarker.DrawingMode &&
-                (!factory || (!factory.CameraOverride && !factory.PlayerBlocked)));
+                (!factory || (!factory.CameraOverride && (!factory.PlayerBlocked || kitchenMouse))));
             if(factory && factory.CameraOverride)
             {transform.SetPositionAndRotation(factory.CameraPosition,factory.CameraRotation);return;}
+            if(kitchenMouse && Application.isFocused)
+            {factory.kitchen.HandleMouse(mouse,CardboardWebMouse.ReadDelta());return;}
             if(factory && factory.PlayerBlocked)return;
-            var mouse=Mouse.current;var keyboard=Keyboard.current;
             if(CardboardMarker.DrawingMode)return;
             if(keyboard!=null && keyboard.escapeKey.wasPressedThisFrame)Release();
             else if(mouse!=null && mouse.leftButton.wasPressedThisFrame && Application.isFocused && Cursor.lockState!=CursorLockMode.Locked)
@@ -74,6 +77,8 @@ namespace Cardboard
             var factory=CardboardFactoryGame.Instance;
             if(factory && factory.CameraOverride)
             {ResetWalkingMotion();transform.SetPositionAndRotation(factory.CameraPosition,factory.CameraRotation);return;}
+            if(factory && factory.kitchen && factory.kitchen.Preparing)
+            {ResetWalkingMotion();transform.SetPositionAndRotation(factory.kitchen.PrepCameraPosition,factory.kitchen.PrepCameraRotation);return;}
             if(!player)return;
             Vector3 movement=player.position-previousPosition;movement.y=0;previousPosition=player.position;
             bool active=(!factory || !factory.PlayerBlocked) && !CardboardMarker.DrawingMode;

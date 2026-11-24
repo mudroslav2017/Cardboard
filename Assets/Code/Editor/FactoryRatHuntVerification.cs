@@ -108,6 +108,8 @@ namespace Cardboard.Editor
             Use(delivery, delivery.transform.position + new Vector3(0, .62f, 1.45f));
             Check(hunt.Delivered && !hunt.Deliver() && hunt.basketContents.All(rat => !rat.activeSelf),
                 "Kitchen accepts the full basket once.");
+            Check(!game.kitchen || game.kitchen.RatStock == FactoryRatHunt.Quota,
+                "Delivering the basket stocks the cooking bench once.");
 
             hunt.ResetHunt();
             Check(hunt.Food == 0 && hunt.Strikes == 0 && !hunt.Delivered && wrong.All(item => item.Available),
