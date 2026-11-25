@@ -37,6 +37,7 @@ namespace Cardboard
         public FactoryObjectCarry objectCarry;
         public FactoryDoor exitDoor;
         public FactoryRatHunt ratHunt;
+        public FactoryKitchen kitchen;
         public bool HandsBusy => (lunch && lunch.Carrying) || (objectCarry && objectCarry.Held);
         public bool MenuActive => mainMenu && mainMenu.BlocksGameplay;
         public bool CaptureActive => captureSequence && captureSequence.Active;
@@ -68,7 +69,7 @@ namespace Cardboard
         public float MessageUntil {get;private set;}
         public bool Pretending {get;private set;}
         public bool Ended => State==FactoryState.Captured || State==FactoryState.Dead || State==FactoryState.Escaped;
-        public bool PlayerBlocked => MenuActive || FilmActive || Ended || IntroBusy || EndingBusy || (!CaptureActive && (DippingPart || (workbench && workbench.ConsumesMouse) || (station && station.ConsumesMouse)));
+        public bool PlayerBlocked => MenuActive || FilmActive || Ended || IntroBusy || EndingBusy || (!CaptureActive && (DippingPart || (workbench && workbench.ConsumesMouse) || (station && station.ConsumesMouse) || (kitchen && kitchen.Preparing)));
         public bool CameraOverride => (mainMenu && mainMenu.OwnsCamera) || (paperDrama && paperDrama.Active) || (!FilmActive && ((captureSequence && captureSequence.CameraControlled) || IntroBusy || (ending && ending.CameraControlled)));
         public Vector3 CameraPosition => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraPosition:(paperDrama && paperDrama.Active)?paperDrama.CameraPosition:IntroBusy?intro.CameraPosition:ending && ending.CameraControlled?ending.CameraPosition:captureSequence.CameraPosition;
         public Quaternion CameraRotation => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraRotation:(paperDrama && paperDrama.Active)?paperDrama.CameraRotation:IntroBusy?intro.CameraRotation:ending && ending.CameraControlled?ending.CameraRotation:captureSequence.CameraRotation;
@@ -114,8 +115,12 @@ namespace Cardboard
             DippingPart=false;
             if(lunch) lunch.ResetLunch();
             if(objectCarry)objectCarry.Clear();
+            if(kitchen) kitchen.ResetKitchen();
             foreach(var prop in GetComponentsInChildren<FactoryPhysicsProp>(true))
-            {if(prop.workbenchPart)Destroy(prop.gameObject);else prop.ResetHome();}
+            {
+                if(prop.GetComponent<FactoryKitchenTool>() || prop.GetComponent<FactoryKitchenFood>())continue;
+                if(prop.workbenchPart)Destroy(prop.gameObject);else prop.ResetHome();
+            }
             foreach(var reaction in GetComponentsInChildren<FactoryWorkerImpact>())reaction.ResetReaction();
             if(instruction) instruction.ResetFloor();
             if(workbench) workbench.ResetMachine();
@@ -290,6 +295,8 @@ namespace Cardboard
             for(int i=0;i<count;i++)
             {
                 var hit=hits[i];
+                if(kitchen && objectCarry && objectCarry.Held && kitchen.OwnsHeld(objectCarry.Held) &&
+                    hit.collider.transform.IsChildOf(objectCarry.Held.transform))continue;
                 // The liquid, rim and outside of a vessel all select the same bath.
                 // Resolve the first visible vessel only, so walls still block interaction.
                 var owner=hit.collider.GetComponentInParent<FactoryWorkstation>();
@@ -317,7 +324,7 @@ namespace Cardboard
                     continue;
                 if (target && target.action == FactoryAction.RatDelivery && (!ratHunt || !ratHunt.CanDeliver))
                     continue;
-                return HandsBusy && target && target.action!=FactoryAction.Lunch && target.action!=FactoryAction.Door?null:target;
+                return HandsBusy && target && !CanUseWithBusyHands(target)?null:target;
             }
             return null;
         }
@@ -326,7 +333,8 @@ namespace Cardboard
         {
             get
             {
-                if(objectCarry && objectCarry.Held)return objectCarry.Prompt;
+                if(Focus && Focus.TryGetComponent(out FactoryKitchenControl kitchenControl))return kitchenControl.Prompt;
+                if(objectCarry && objectCarry.Held)return kitchen && kitchen.OwnsHeld(objectCarry.Held)?kitchen.HeldPrompt(objectCarry.Held):objectCarry.Prompt;
                 if(lunch && lunch.NearDestination)return lunch.DeliveryPrompt;
                 if(!Focus) return HasPart && objectCarry?objectCarry.Prompt:"";
                 if(Focus.action==FactoryAction.Lunch)
@@ -334,6 +342,7 @@ namespace Cardboard
                     var lunchControl=Focus.GetComponent<FactoryLunchControl>();
                     return lunchControl?lunchControl.Prompt:"";
                 }
+                if(Focus.TryGetComponent(out FactoryKitchenFood food))return food.PickupPrompt;
                 if(Focus.action==FactoryAction.Door) return Focus.GetComponentInParent<FactoryDoor>().Prompt;
                 if(Focus.action==FactoryAction.Bench) return "";
                 if(Focus.action==FactoryAction.Gear) return Focus.gear.broken && HasPart?"E - INSTALL GEAR":"";
@@ -342,6 +351,10 @@ namespace Cardboard
                 return Focus.prompt;
             }
         }
+        static bool CanUseWithBusyHands(FactoryInteractable target) =>
+            target.action==FactoryAction.Lunch || target.action==FactoryAction.Door ||
+            target.action==FactoryAction.Kitchen && target.TryGetComponent(out FactoryKitchenControl control) && control.AcceptsHeld;
+
         public void Interact()
         {
             if(Ended)return;
@@ -352,7 +365,7 @@ namespace Cardboard
                 return;
             }
             if(!Focus)return;
-            if(HandsBusy && Focus.action!=FactoryAction.Lunch && Focus.action!=FactoryAction.Door) return;
+            if(HandsBusy && !CanUseWithBusyHands(Focus)) return;
             switch(Focus.action)
             {
                 case FactoryAction.Door:
@@ -385,6 +398,9 @@ namespace Cardboard
                     break;
                 case FactoryAction.RatDelivery:
                     if (ratHunt && ratHunt.Deliver()) Focus = null;
+                    break;
+                case FactoryAction.Kitchen:
+                    if (Focus.TryGetComponent(out FactoryKitchenControl kitchenControl) && kitchenControl.Use()) Focus = null;
                     break;
             }
         }

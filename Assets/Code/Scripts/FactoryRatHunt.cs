@@ -69,6 +69,7 @@ namespace Cardboard
         {
             if (!CanDeliver) return false;
             Delivered = true;
+            if (game.kitchen) game.kitchen.ReceiveRats(Food);
             foreach (var rat in basketContents) rat.SetActive(false);
             game.PlayCaptureSound("good");
             SetFeedback("The kitchen received all 10 rats.");
