@@ -49001,7 +49001,6 @@ MonoBehaviour:
   instruction: {fileID: 1583012265}
   objectCarry: {fileID: 435041734}
   exitDoor: {fileID: 1915982557}
-  craneJob: {fileID: 0}
   ratHunt: {fileID: 238567204}
   stations:
   - {fileID: 907493378}

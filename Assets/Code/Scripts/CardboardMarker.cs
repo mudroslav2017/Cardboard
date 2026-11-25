@@ -33,8 +33,7 @@ namespace Cardboard
         void Update()
         {
             if(CardboardFactoryGame.Instance && (CardboardFactoryGame.Instance.FilmActive || CardboardFactoryGame.Instance.PlayerBlocked || CardboardFactoryGame.Instance.HandsBusy ||
-                (CardboardFactoryGame.Instance.ratHunt && CardboardRunner.Player && CardboardRunner.Player.InSewer) ||
-                (CardboardFactoryGame.Instance.craneJob && CardboardFactoryGame.Instance.craneJob.HoldsPlayer)))
+                (CardboardFactoryGame.Instance.ratHunt && CardboardRunner.Player && CardboardRunner.Player.InSewer)))
             { if(drawing) SetDrawingMode(false,false);return; }
             var keyboard=Keyboard.current;var mouse=Mouse.current;
             if(keyboard==null) return;

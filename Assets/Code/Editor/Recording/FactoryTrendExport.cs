@@ -48,7 +48,7 @@ namespace Cardboard.Editor
                 FactoryForeheadTrend.FrameRate, FactoryForeheadTrend.FrameCount, game => game.foreheadTrend, 27000000),
             new Format("He Me and Lucia - 9x16 Lucy GTA 6", "Library/LuciaTrendRender.txt", 1080, 1920,
                 FactoryLuciaTrend.FrameRate, FactoryLuciaTrend.FrameCount, game => game.luciaTrend, 27000000),
-            new Format("Nastya and Bees - Nose Tap 9x16", "Library/BeesTrendRender.txt", 1080, 1920,
+            new Format("Nastya and Bees - Final Look 9x16", "Library/BeesTrendRender.txt", 1080, 1920,
                 FactoryBeesTrend.FrameRate, FactoryBeesTrend.FrameCount, game => game.beesTrend, 20000000, FactoryBeesTrend.CloseFrame)
         };
         static Format Current => Formats[SessionState.GetInt(Selected, 0)];

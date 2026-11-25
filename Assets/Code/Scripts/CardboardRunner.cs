@@ -48,9 +48,6 @@ namespace Cardboard
         {
             if (dt<=0) return;
             var factory=CardboardFactoryGame.Instance;
-            var crane=isPlayer && factory?factory.craneJob:null;
-            if(crane && crane.HoldsPlayer)
-            {velocity=Vector3.zero;speed=jumpHeight=jumpVelocity=0;return;}
             if(factory && factory.intro && factory.intro.ControlsWorker(this))return;
             if(factory && factory.captureSequence && factory.captureSequence.ControlsWorkers && !isPlayer) return;
             var impact=!isPlayer?GetComponent<FactoryWorkerImpact>():null;
@@ -76,7 +73,7 @@ namespace Cardboard
                     float moveSpeed=factory && factory.lunch && factory.lunch.Carrying?1.3f:
                         factory && factory.HandsBusy?1.8f:factory && factory.Pretending?1.35f:keyboard.leftShiftKey.isPressed?6:3.2f;
                     wish=(forward*input.y+right*input.x).normalized*moveSpeed;
-                    if (keyboard.spaceKey.wasPressedThisFrame && !InSewer && jumpHeight<=.001f && (!factory || !factory.HandsBusy) && (!crane || !crane.OnCabFloor)) jumpVelocity=5.5f;
+                    if (keyboard.spaceKey.wasPressedThisFrame && !InSewer && jumpHeight<=.001f && (!factory || !factory.HandsBusy)) jumpVelocity=5.5f;
                     if (!factory && keyboard.eKey.wasPressedThisFrame) Whistle();
                     if (!factory && keyboard.rKey.wasPressedThisFrame) Party();
                 }
@@ -134,7 +131,6 @@ namespace Cardboard
                 float west=inCanteen?CardboardFactoryWorld.CanteenWest:CardboardFactoryWorld.WorkshopWest;
                 float east=inCanteen?CardboardFactoryWorld.CanteenEast:CardboardFactoryWorld.WorkshopEast;
                 if(isPlayer && factory.intro && position.z> -3.45f && position.z< -.55f && (position.x>east-.8f || factory.exitDoor.IsOpen))east+=15;
-                if(crane && crane.AllowsBayAccess(position)) west=crane.BayWest;
                 position.x=Mathf.Clamp(position.x,west+.4f,east-.4f);
                 position.z=Mathf.Clamp(position.z,CardboardFactoryWorld.CanteenSouth+.4f,CardboardFactoryWorld.WorkshopNorth-.4f);
             }
@@ -145,7 +141,7 @@ namespace Cardboard
             }
             if(characterController && characterController.enabled)
             { characterController.Move(position-transform.position);position=transform.position; }
-            position.y=crane && crane.OnCabFloor?crane.CabFloor:0; transform.position=position;
+            position.y=0; transform.position=position;
             // Follow the walking direction. Resting sheets keep their world orientation.
             if (!isPlayer && (!IsResting || chasing || lunchGuided))
             {

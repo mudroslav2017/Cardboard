@@ -10,9 +10,10 @@ namespace Cardboard
     public sealed class FactoryBeesTrend : MonoBehaviour, IFactoryTrendRecording
     {
         public const int FrameRate = 30;
-        public const int FrameCount = 333;
+        public const int FrameCount = 435;
         public const int CloseFrame = 189;
-        public const int ContactFrame = 285;
+        public const int ContactFrame = 306;
+        const int FinalLookFrame = 375;
 
         const float Duration = (float)FrameCount / FrameRate;
         const float Aspect = 9f / 16f;
@@ -20,14 +21,17 @@ namespace Cardboard
         const float AdvancePerHop = .94f;
         const float CloseStart = (float)CloseFrame / FrameRate;
         const float Contact = (float)ContactFrame / FrameRate;
+        const float FinalLookStart = (float)FinalLookFrame / FrameRate;
         const float RiseStart = 6.49f;
-        const float LevelStart = 8.38f;
+        const float TurnStart = 8.07f;
+        const float LevelStart = 9.04f;
         const int CameraSampleRate = 120;
         const float BeeOrbitSpeed = .42f * .60f;
         const float BeeScale = .88f * 1.30f;
         const float FullTurn = 2 * Mathf.PI;
 
         static readonly Vector3 Nose = new Vector3(-.052f, 1.59f, .04345f);
+        static readonly Vector3 TapHeading = new Vector3(1, 0, -.86f).normalized;
         static readonly float[] HopHeights = { .34f, .48f, .28f, .52f, .36f, .43f, .56f };
         static readonly float[] BeeSizes = { .83f, .72f, .95f, .69f, .79f };
 
@@ -165,24 +169,30 @@ namespace Cardboard
 
         void PoseSwarm(float seconds)
         {
-            const float angularSpeed = FullTurn * BeeOrbitSpeed;
-            Vector3 centerVelocity = Vector3.forward * (AdvancePerHop / HopInterval);
-            Vector3 center = centerVelocity * seconds + Vector3.right * .18f * Mathf.Sin(seconds * .65f);
-            centerVelocity += Vector3.right * (.18f * .65f * Mathf.Cos(seconds * .65f));
+            const float lookAhead = .19f;
             for (int i = 0; i < bees.Length; i++)
             {
                 bees[i].gameObject.SetActive(true);
-                float theta = angularSpeed * seconds + FullTurn * i / bees.Length;
-                float radius = .83f + .12f * (i % 3);
-                float wave = theta + i * .8f;
-                float y = .75f + .37f * i + .17f * Mathf.Sin(wave);
-                var offset = new Vector3(radius * Mathf.Sin(theta), y, .83f * Mathf.Cos(theta));
-                var tangent = new Vector3(radius * Mathf.Cos(theta), .17f * Mathf.Cos(wave),
-                    -.83f * Mathf.Sin(theta));
-                bees[i].SetLocalPositionAndRotation(center + offset,
-                    Quaternion.LookRotation(centerVelocity + tangent * angularSpeed));
+                var position = SwarmPosition(seconds, i);
+                var heading = SwarmPosition(seconds + lookAhead, i) - SwarmPosition(seconds - lookAhead, i);
+                float bank = -9f - 6f * Mathf.Sin(OrbitAngle(seconds, i) + .25f);
+                bees[i].SetLocalPositionAndRotation(position, Quaternion.LookRotation(heading)
+                    * Quaternion.AngleAxis(bank, Vector3.forward));
             }
         }
+
+        static Vector3 SwarmPosition(float seconds, int index)
+        {
+            float theta = OrbitAngle(seconds, index);
+            float wave = theta + .76f * index;
+            float radius = .83f + .12f * (index % 3);
+            float y = .98f + .29f * index + (.46f + .035f * (index % 3)) * Mathf.Sin(wave);
+            return new Vector3(radius * Mathf.Sin(theta) + .18f * Mathf.Sin(seconds * .65f), y,
+                seconds * (AdvancePerHop / HopInterval) + 1.04f * Mathf.Cos(theta));
+        }
+
+        static float OrbitAngle(float seconds, int index) =>
+            FullTurn * (BeeOrbitSpeed * seconds + (float)index / BeeSizes.Length);
 
         void BuildTrackingShot()
         {
@@ -238,61 +248,76 @@ namespace Cardboard
             Vector3 mark = HopPosition(HopBeat(CloseStart));
             float recoil = Pulse(seconds, Contact, Contact + .16f, Contact + .57f);
             float look = Ease(seconds, Contact + .24f, Contact + .83f);
+            float turnToCamera = Ease(seconds, FinalLookStart + .08f, FinalLookStart + 1.30f);
             nastya.SetLocalPositionAndRotation(mark + new Vector3(0, .016f * recoil, -.065f * recoil),
-                Quaternion.Euler(-5 * recoil, -5 * look, 3.4f * recoil - 1.8f * look));
+                Quaternion.Euler(-5 * recoil, 5 * look + 9.5f * turnToCamera,
+                    -3.4f * recoil + 1.8f * look * (1 - turnToCamera)));
             appearance.SetState(seconds >= Contact ? FactoryFaceState.Suspicious : FactoryFaceState.Normal);
 
             for (int i = 1; i < bees.Length; i++)
                 bees[i].gameObject.SetActive(false);
 
-            var contact = mark + Nose;
-            Vector3 tip, heading;
-            if (seconds < LevelStart)
-            {
-                float t = Ease(seconds, RiseStart, LevelStart);
-                Approach(t, new Vector3(-.46f, -1.04f, .94f), new Vector3(-.44f, -.35f, .87f),
-                    new Vector3(-.34f, 0, .75f), new Vector3(-.25f, 0, .62f), out tip, out heading);
-            }
-            else if (seconds < Contact)
-            {
-                float t = Ease(seconds, LevelStart, Contact);
-                Approach(t, new Vector3(-.25f, 0, .62f), new Vector3(-.16f, 0, .49f),
-                    new Vector3(0, 0, .13f), Vector3.zero, out tip, out heading);
-            }
-            else
-            {
-                float away = Ease(seconds, Contact, Contact + .27f);
-                float floatBack = Ease(seconds, Contact + .30f, Duration);
-                tip = new Vector3(.045f * away + .37f * floatBack, .065f * recoil - .25f * floatBack,
-                    .24f * away + .24f * floatBack);
-                heading = new Vector3(-.12f * floatBack, -.12f * recoil, -1);
-            }
-
-            var bee = bees[0];
-            var rotation = Quaternion.LookRotation(heading);
-            bee.SetLocalPositionAndRotation(contact + tip - rotation * Vector3.forward * beeNoseOffset, rotation);
             float push = Ease(seconds, CloseStart, Contact + .36f);
-            var eye = mark + new Vector3(-1.49f - .08f * push, 1.69f + .055f * push, 2.16f - .10f * push);
-            var aim = mark + new Vector3(.045f, 1.69f + .025f * push, .02f);
-            SetCamera(eye, aim, 50f);
+            var eye = mark + new Vector3(2.12f + .085f * push, 1.73f + .03f * push, 1.86f - .05f * push);
+            var aim = mark + new Vector3(-.12f + .02f * push, 1.68f + .025f * push, .20f);
+            float zoom = Ease(seconds, Contact + .36f, Contact + 1.25f);
+            var faceCenter = stage.InverseTransformPoint(nastya.TransformPoint(new Vector3(0, 1.77f, Nose.z)))
+                + new Vector3(.045f, 0, -.045f);
+            SetCamera(eye, Vector3.Lerp(aim, faceCenter, zoom), Mathf.Lerp(52f, 34f, zoom));
             SetLights(mark);
+
+            var nose = mark + Nose;
+            // Place the visible tap on the nose's sightline and keep the wide wings clear of the flat face.
+            var visibleContact = nose + (eye - nose).normalized * .54f;
+            var bee = bees[0];
+            PoseLeadBee(seconds, visibleContact, eye, recoil, bee);
 
             float rack = Pulse(seconds, RiseStart + .25f, LevelStart, Contact + .47f);
             Vector3 focusTarget = Vector3.Lerp(stage.InverseTransformPoint(nastya.TransformPoint(Nose)),
-                bee.localPosition, .47f * rack);
-            SetFocus(focusTarget, .01f, 10f);
+                bee.localPosition, .40f * rack);
+            float focusSlip = Pulse(seconds, Contact + .40f, Contact + .79f, Contact + 1.50f);
+            SetFocus(focusTarget, .01f + 1.43f * focusSlip, Mathf.Lerp(11f, 1.85f, focusSlip),
+                Mathf.Lerp(67f, 88f, zoom));
         }
 
-        static void Approach(float t, Vector3 start, Vector3 control1, Vector3 control2, Vector3 end,
-            out Vector3 position, out Vector3 heading)
+        void PoseLeadBee(float seconds, Vector3 contact, Vector3 eye, float recoil, Transform bee)
+        {
+            Vector3 tip;
+            Quaternion rotation;
+            var level = Quaternion.LookRotation(TapHeading);
+            if (seconds < LevelStart)
+            {
+                float rise = Ease(seconds, RiseStart, LevelStart);
+                tip = Approach(rise, new Vector3(.22f, -1.30f, .45f), new Vector3(.17f, -.55f, .43f),
+                    new Vector3(-.10f, 0, .32f), new Vector3(-.22f, 0, .24f));
+                Vector3 awayFromEye = Vector3.ProjectOnPlane(contact + tip - eye, Vector3.up).normalized;
+                var climbing = Quaternion.LookRotation(awayFromEye + Vector3.up * .27f);
+                rotation = Quaternion.Slerp(climbing, level, Ease(seconds, TurnStart, LevelStart));
+            }
+            else if (seconds < Contact)
+            {
+                tip = Approach(Ease(seconds, LevelStart, Contact), new Vector3(-.22f, 0, .24f),
+                    new Vector3(-.15f, 0, .15f), new Vector3(-.074f, 0, .064f), Vector3.zero);
+                rotation = level;
+            }
+            else
+            {
+                float away = Ease(seconds, Contact, Contact + .26f);
+                float floatBack = Ease(seconds, Contact + .30f, Contact + 1.36f);
+                tip = -TapHeading * (.19f * away + .36f * floatBack)
+                    + new Vector3(0, .055f * recoil - .19f * floatBack, .12f * floatBack);
+                rotation = level * Quaternion.AngleAxis(-6 * recoil, Vector3.right);
+            }
+
+            bee.SetLocalPositionAndRotation(contact + tip - rotation * Vector3.forward * beeNoseOffset, rotation);
+        }
+
+        static Vector3 Approach(float t, Vector3 start, Vector3 control1, Vector3 control2, Vector3 end)
         {
             var first = Vector3.Lerp(start, control1, t);
             var middle = Vector3.Lerp(control1, control2, t);
             var last = Vector3.Lerp(control2, end, t);
-            var from = Vector3.Lerp(first, middle, t);
-            var to = Vector3.Lerp(middle, last, t);
-            position = Vector3.Lerp(from, to, t);
-            heading = to - from;
+            return Vector3.Lerp(Vector3.Lerp(first, middle, t), Vector3.Lerp(middle, last, t), t);
         }
 
         static float MeasureBeeNose(Transform bee)
@@ -320,11 +345,12 @@ namespace Cardboard
             rim.transform.localPosition = position + new Vector3(1.05f, 2.58f, -.95f);
         }
 
-        void SetFocus(Vector3 point, float pull, float aperture)
+        void SetFocus(Vector3 point, float pull, float aperture, float focalLength = 67f)
         {
             focus.focusDistance.value = Vector3.Dot(stage.TransformPoint(point) - lens.transform.position,
                 lens.transform.forward) - pull;
             focus.aperture.value = aperture;
+            focus.focalLength.value = focalLength;
         }
 
         static float HopBeat(float seconds) => seconds / HopInterval + .15f;

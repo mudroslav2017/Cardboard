@@ -36,7 +36,6 @@ namespace Cardboard
         public FactoryInstruction instruction;
         public FactoryObjectCarry objectCarry;
         public FactoryDoor exitDoor;
-        public CraneJob craneJob;
         public FactoryRatHunt ratHunt;
         public bool HandsBusy => (lunch && lunch.Carrying) || (objectCarry && objectCarry.Held);
         public bool MenuActive => mainMenu && mainMenu.BlocksGameplay;
@@ -281,7 +280,7 @@ namespace Cardboard
         static readonly IComparer<RaycastHit> hitOrder=Comparer<RaycastHit>.Create((a,b)=>a.distance.CompareTo(b.distance));
         void UpdateFocus()
         {
-            Focus=null;var cam=Camera.main;if(!cam || PlayerBlocked || CardboardMarker.DrawingMode || (craneJob && craneJob.HoldsPlayer)) return;
+            Focus=null;var cam=Camera.main;if(!cam || PlayerBlocked || CardboardMarker.DrawingMode) return;
             Focus=TargetForRay(cam.ViewportPointToRay(new Vector3(.5f,.5f)));
         }
         public FactoryInteractable TargetForRay(Ray ray)
@@ -345,7 +344,7 @@ namespace Cardboard
         }
         public void Interact()
         {
-            if(Ended || (craneJob && craneJob.HoldsPlayer))return;
+            if(Ended)return;
             if(instruction && instruction.Held){instruction.Flip();return;}
             if(lunch && lunch.NearDestination)
             {
@@ -373,8 +372,6 @@ namespace Cardboard
                     TryExit();break;
                 case FactoryAction.Lunch:
                     var lunchControl=Focus.GetComponent<FactoryLunchControl>();if(lunchControl) lunchControl.Use();break;
-                case FactoryAction.Crane:
-                    if(craneJob)craneJob.Use(Focus);break;
                 case FactoryAction.SewerAccess:
                     if (!IntroActive && State != FactoryState.Chased && (!ratHunt || !HasPart) && Focus.TryGetComponent(out FactorySewerAccess access))
                     {

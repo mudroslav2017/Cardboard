@@ -7,6 +7,7 @@ Unity 6000.6.2f1, URP. Основная сцена: `Assets/Scenes/FactoryShift.
 - `Assets/Code` — игровая логика, инструменты Unity Editor, шейдеры и WebGL-плагин. Код съёмки находится в подпапках `Recording`.
 - `Assets/Game_Assets` — исходные игровые модели, текстуры, звук, шрифт и сгенерированные ассеты. Общие ресурсы, загружаемые из кода, хранятся в `Resources`.
 - `Assets/Game_Assets/Tik Tok Trends` — материалы для TikTok. В `PaperDrama/Source` лежат исходники ролика «Почему я такой неудачник», а в `PaperDrama/Resources/PaperDrama` — его игровые ресурсы.
+- [Как снимать и экспортировать ролики TikTok в Unity](VIDEO_WORKFLOW.md). Пошаговая инструкция для человека или GPT.
 - `Assets/Scenes` — сцены проекта. `Assets/Settings` — настройки рендера, ввода и профили сборки.
 
 ## Исправления WebGL
