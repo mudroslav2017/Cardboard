@@ -12,6 +12,8 @@ namespace Cardboard
         public Vector3 WalkingOffset {get;private set;}
         public Quaternion WalkingRotation {get;private set;}=Quaternion.identity;
         float yaw=180,pitch,stepPhase,walkingAmount;
+        float forkliftYaw;
+        bool followingForklift;
         Vector3 previousPosition;
         CardboardRunner controller;
         void Start()
@@ -33,10 +35,12 @@ namespace Cardboard
             var mouse=Mouse.current;var keyboard=Keyboard.current;
             bool kitchenMouse=factory && factory.kitchen && mouse!=null && factory.kitchen.ConsumesMouse(mouse);
             bool capture=Cursor.lockState==CursorLockMode.Locked;
-            CardboardWebMouse.Configure(capture,Application.isFocused && !CardboardMarker.DrawingMode &&
+            bool hatchMotion=factory && factory.craneJob && factory.craneJob.HatchInMotion;
+            CardboardWebMouse.Configure(capture,Application.isFocused && !CardboardMarker.DrawingMode && !hatchMotion &&
                 (!factory || (!factory.CameraOverride && (!factory.PlayerBlocked || kitchenMouse))));
             if(factory && factory.CameraOverride)
             {transform.SetPositionAndRotation(factory.CameraPosition,factory.CameraRotation);return;}
+            if(hatchMotion)return;
             if(kitchenMouse && Application.isFocused)
             {factory.kitchen.HandleMouse(mouse,CardboardWebMouse.ReadDelta());return;}
             if(factory && factory.PlayerBlocked)return;
@@ -56,6 +60,8 @@ namespace Cardboard
             yaw=Mathf.Repeat(yaw+delta.x*sensitivity,360);
             pitch=Mathf.Clamp(pitch-delta.y*sensitivity,-80,80);
         }
+        internal void RotateWithSupport(float deltaYaw) => yaw = Mathf.Repeat(yaw + deltaYaw, 360f);
+
         public void TickWalkingMotion(float dt,float speed,bool grounded)
         {
             dt=Mathf.Max(0,dt);speed=Mathf.Max(0,speed);
@@ -77,9 +83,21 @@ namespace Cardboard
             var factory=CardboardFactoryGame.Instance;
             if(factory && factory.CameraOverride)
             {ResetWalkingMotion();transform.SetPositionAndRotation(factory.CameraPosition,factory.CameraRotation);return;}
+            if(factory && factory.craneJob && factory.craneJob.TryGetHatchView(out var hatchPosition,out var hatchRotation))
+            {ResetWalkingMotion();transform.SetPositionAndRotation(hatchPosition,hatchRotation);return;}
             if(factory && factory.kitchen && factory.kitchen.Preparing)
             {ResetWalkingMotion();transform.SetPositionAndRotation(factory.kitchen.PrepCameraPosition,factory.kitchen.PrepCameraRotation);return;}
             if(!player)return;
+            if(factory && factory.craneJob && factory.craneJob.TryGetForkliftSeat(player,out var seatPosition,out var supportYaw))
+            {
+                if(followingForklift)RotateWithSupport(Mathf.DeltaAngle(forkliftYaw,supportYaw));
+                forkliftYaw=supportYaw;
+                followingForklift=true;
+                ResetWalkingMotion();
+                transform.SetPositionAndRotation(seatPosition+Vector3.up*1.62f,Quaternion.Euler(pitch,yaw,0));
+                return;
+            }
+            followingForklift=false;
             Vector3 movement=player.position-previousPosition;movement.y=0;previousPosition=player.position;
             bool active=(!factory || !factory.PlayerBlocked) && !CardboardMarker.DrawingMode;
             float speed=dt>.00001f?Mathf.Min(movement.magnitude/dt,controller?controller.speed:6):0;
@@ -91,7 +109,7 @@ namespace Cardboard
             transform.rotation=Quaternion.Euler(pitch,yaw,0)*WalkingRotation*Quaternion.Euler(0,0,roll);
         }
         public void AdoptCurrentView()
-        {CardboardWebMouse.Configure(false,false);yaw=transform.eulerAngles.y;pitch=Mathf.DeltaAngle(0,transform.eulerAngles.x);ResetWalkingMotion();}
+        {CardboardWebMouse.Configure(false,false);yaw=transform.eulerAngles.y;pitch=Mathf.DeltaAngle(0,transform.eulerAngles.x);followingForklift=false;ResetWalkingMotion();}
         public void ResetView(float direction)
         {CardboardWebMouse.Configure(false,false);yaw=direction;pitch=0;ResetWalkingMotion();transform.rotation=Quaternion.Euler(0,yaw,0);}
         void OnDisable(){Release();}

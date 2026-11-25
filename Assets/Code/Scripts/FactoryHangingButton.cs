@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace Cardboard
 {
-    public enum FactoryMenuAction { Settings, Play, Exit, Back }
+    public enum FactoryMenuAction { Settings, Play, Exit, Back, CraneShop }
     public class FactoryHangingButton : MonoBehaviour
     {
         public FactoryMenuAction action;

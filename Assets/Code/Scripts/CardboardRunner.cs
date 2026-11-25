@@ -48,6 +48,10 @@ namespace Cardboard
         {
             if (dt<=0) return;
             var factory=CardboardFactoryGame.Instance;
+            var crane = isPlayer && factory ? factory.craneJob : null;
+            if (crane && crane.HoldsPlayer)
+            { velocity = Vector3.zero; speed = jumpHeight = jumpVelocity = 0f; return; }
+            bool hallPhysics = crane && !InSewer && crane.InHall(transform.position);
             if(factory && factory.intro && factory.intro.ControlsWorker(this))return;
             if(factory && factory.captureSequence && factory.captureSequence.ControlsWorkers && !isPlayer) return;
             var impact=!isPlayer?GetComponent<FactoryWorkerImpact>():null;
@@ -73,7 +77,11 @@ namespace Cardboard
                     float moveSpeed=factory && factory.lunch && factory.lunch.Carrying?1.3f:
                         factory && factory.HandsBusy?1.8f:factory && factory.Pretending?1.35f:keyboard.leftShiftKey.isPressed?6:3.2f;
                     wish=(forward*input.y+right*input.x).normalized*moveSpeed;
-                    if (keyboard.spaceKey.wasPressedThisFrame && !InSewer && jumpHeight<=.001f && (!factory || !factory.HandsBusy)) jumpVelocity=5.5f;
+                    if (keyboard.spaceKey.wasPressedThisFrame && !InSewer && jumpHeight<=.001f && (!factory || !factory.HandsBusy))
+                    {
+                        if (!hallPhysics) jumpVelocity = 5.5f;
+                        else if (characterController && characterController.isGrounded) fallSpeed = 5.5f;
+                    }
                     if (!factory && keyboard.eKey.wasPressedThisFrame) Whistle();
                     if (!factory && keyboard.rKey.wasPressedThisFrame) Party();
                 }
@@ -116,10 +124,7 @@ namespace Cardboard
             {velocity=Vector3.ClampMagnitude(velocity,1.3f);speed=velocity.magnitude;}
             if (InSewer && characterController && characterController.enabled)
             {
-                fallSpeed = Mathf.Max(fallSpeed - 17f * dt, -12f);
-                var movement = velocity * dt + Vector3.up * (fallSpeed * dt);
-                if ((characterController.Move(movement) & CollisionFlags.Below) != 0)
-                    fallSpeed = -1f;
+                MoveWithGravity(velocity * dt, dt);
                 if (transform.position.y < sewerFallLimit)
                     LeaveSewer();
                 return;
@@ -131,17 +136,28 @@ namespace Cardboard
                 float west=inCanteen?CardboardFactoryWorld.CanteenWest:CardboardFactoryWorld.WorkshopWest;
                 float east=inCanteen?CardboardFactoryWorld.CanteenEast:CardboardFactoryWorld.WorkshopEast;
                 if(isPlayer && factory.intro && position.z> -3.45f && position.z< -.55f && (position.x>east-.8f || factory.exitDoor.IsOpen))east+=15;
+                if (crane && (hallPhysics || crane.CanWalkThrough(position))) west = crane.WestLimit;
                 position.x=Mathf.Clamp(position.x,west+.4f,east-.4f);
-                position.z=Mathf.Clamp(position.z,CardboardFactoryWorld.CanteenSouth+.4f,CardboardFactoryWorld.WorkshopNorth-.4f);
+                if (!hallPhysics)
+                    position.z=Mathf.Clamp(position.z,CardboardFactoryWorld.CanteenSouth+.4f,CardboardFactoryWorld.WorkshopNorth-.4f);
             }
             else
             {
                 float boundary=position.x*position.x/(10.7f*10.7f)+position.z*position.z/(7.2f*7.2f);
                 if (boundary>1) { position.x/=Mathf.Sqrt(boundary); position.z/=Mathf.Sqrt(boundary); }
             }
-            if(characterController && characterController.enabled)
-            { characterController.Move(position-transform.position);position=transform.position; }
-            position.y=0; transform.position=position;
+            if (characterController && characterController.enabled)
+            {
+                if (hallPhysics)
+                {
+                    MoveWithGravity(position - transform.position, dt);
+                    if (transform.position.y < -2f) PlaceAtWorkAnchor(crane.RecoveryPoint, true);
+                }
+                else characterController.Move(position - transform.position);
+                position = transform.position;
+            }
+            if (!hallPhysics) position.y = 0f;
+            transform.position = position;
             // Follow the walking direction. Resting sheets keep their world orientation.
             if (!isPlayer && (!IsResting || chasing || lunchGuided))
             {
@@ -189,6 +205,25 @@ namespace Cardboard
         public void LeaveSewer()
         {
             if (InSewer) UseSewerAccess(sewerReturn);
+        }
+
+        void MoveWithGravity(Vector3 movement, float dt)
+        {
+            fallSpeed = Mathf.Max(fallSpeed - 17f * dt, -12f);
+            movement.y = fallSpeed * dt;
+            var contacts = characterController.Move(movement);
+            if ((contacts & CollisionFlags.Below) != 0) fallSpeed = -1f;
+            else if ((contacts & CollisionFlags.Above) != 0) fallSpeed = Mathf.Min(fallSpeed, 0f);
+        }
+
+        internal void PlaceAtWorkAnchor(Vector3 position, bool allowWalking)
+        {
+            if (!characterController) characterController = GetComponent<CharacterController>();
+            characterController.enabled = false;
+            transform.position = position;
+            characterController.enabled = allowWalking;
+            velocity = Vector3.zero;
+            speed = fallSpeed = jumpHeight = jumpVelocity = 0f;
         }
 
         public void Pose(float phase,float walk)

@@ -14,13 +14,13 @@ namespace Cardboard.Editor
         {
             var part=Box(name,parent,position,size,material);part.gameObject.layer=10;return part;
         }
-        static TextMesh Text(string value,Transform parent,Vector3 position,float size,float maxWidth,float maxHeight=0)
+        static TextMesh Text(string value,Transform parent,Vector3 position,float size,float maxWidth,float maxHeight=0,Material labelInk=null)
         {
             var root=Group(value,parent,position);
             var text=root.gameObject.AddComponent<TextMesh>();text.font=CardboardTypography.DefaultFont;text.fontSize=48;
             text.characterSize=size;text.text=value;text.anchor=TextAnchor.MiddleCenter;text.alignment=TextAlignment.Center;
             text.color=Hex("2B2116");text.font.RequestCharactersInTexture(value,48,FontStyle.Normal);
-            var label=root.gameObject.AddComponent<CardboardWorldLabel>();label.ink=lettering;label.Refresh();
+            var label=root.gameObject.AddComponent<CardboardWorldLabel>();label.ink=labelInk?labelInk:lettering;label.Refresh();
             var renderer=root.GetComponent<MeshRenderer>();
             if(maxHeight>0)
             {
@@ -152,6 +152,29 @@ namespace Cardboard.Editor
             light.type=LightType.Point;light.range=10;light.intensity=1.6f;light.color=Hex("FFE8C2");light.cullingMask=1<<10;
             menu.visuals.gameObject.SetActive(false);menu.settingsPanel.gameObject.SetActive(false);
             FactoryPhysicsInstaller.Cursor(menu);
+            CreateCraneShortcut(menu);
+        }
+
+        public static void CreateCraneShortcut(FactoryMainMenu menu)
+        {
+            if (!menu.game.craneJob || menu.craneShortcut) return;
+            var play = menu.buttons[(int)FactoryMenuAction.Play];
+            var source = play.transform.Find("Cardboard button/Imported button 2");
+            var mesh = source.GetComponent<MeshFilter>().sharedMesh;
+            var backing = source.GetComponent<MeshRenderer>().sharedMaterial;
+            var labelInk = play.GetComponentInChildren<CardboardWorldLabel>(true).ink;
+            var root = Group("Crane Shop corner button", menu.visuals, Vector3.zero);
+            var button = root.gameObject.AddComponent<FactoryHangingButton>();
+            button.action = FactoryMenuAction.CraneShop;
+            menu.craneShortcut = button;
+            var face = MeshObject("Crane Shop cardboard", root, mesh, backing, Vector3.zero);
+            face.gameObject.layer = 10;
+            Text("Crane Shop", root, new Vector3(0f, 0f, mesh.bounds.min.z - .015f), .13f, 2.15f, .30f, labelInk);
+            var hit = Group("Crane Shop pointer target", root, mesh.bounds.center);
+            hit.gameObject.layer = 10;
+            button.hit = hit.gameObject.AddComponent<BoxCollider>();
+            button.hit.size = Vector3.Max(mesh.bounds.size, new Vector3(2.6f, .82f, .25f));
+            root.gameObject.SetActive(false);
         }
     }
 }

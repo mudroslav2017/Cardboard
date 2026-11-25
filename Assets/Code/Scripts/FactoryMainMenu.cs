@@ -14,7 +14,7 @@ namespace Cardboard
         public FactoryVolumeCursor pointer;
         public Transform visuals,settingsPanel,volumeKnob;
         public FactoryHangingButton[] buttons;
-        public FactoryHangingButton back;
+        public FactoryHangingButton back, craneShortcut;
         public BoxCollider volumeTrack;
         public TextMesh volumeText;
         public Image fade;
@@ -34,6 +34,8 @@ namespace Cardboard
         public bool OwnsCamera => BlocksGameplay && Phase!=FactoryMenuPhase.Revealing;
         public Vector3 CameraPosition => viewPosition+new Vector3(Mathf.Sin(Time.unscaledTime*.13f)*.08f,Mathf.Sin(Time.unscaledTime*.19f)*.025f,0);
         public Quaternion CameraRotation => viewRotation*Quaternion.Euler(0,Mathf.Sin(Time.unscaledTime*.11f)*.35f,0);
+        bool CanEnterCraneShop => craneShortcut && game.craneJob && game.craneJob.IsAvailable && CardboardRunner.Player &&
+            !game.FilmActive && !game.CaptureActive && !game.DippingPart && (!game.EndingBusy || game.Ended);
         FactoryMenuAction pending;
         bool sliderDragging,shiftStarted,paused;
         float savedTimeScale=1,savedFov;
@@ -81,6 +83,11 @@ namespace Cardboard
             settingsAim=Vector2.zero;settingsPanel.localRotation=Quaternion.identity;
             visuals.gameObject.SetActive(true);settingsPanel.gameObject.SetActive(false);
             foreach(var button in buttons)button.ResetMotion();back.ResetMotion();
+            if (craneShortcut)
+            {
+                craneShortcut.ResetMotion();
+                craneShortcut.gameObject.SetActive(false);
+            }
             if(shiftHud)shiftHud.alpha=0;
             lens.fieldOfView=60;if(uiCamera){uiCamera.enabled=true;uiCamera.fieldOfView=60;uiCamera.aspect=lens.aspect;}SetFade(0);Cursor.lockState=CursorLockMode.None;FactoryVolumeCursor.SetSystemVisible(true);
         }
@@ -103,6 +110,8 @@ namespace Cardboard
             Vector3 pointer=lens.transform.InverseTransformPoint(ray.origin+ray.direction*(depth/Mathf.Max(.001f,Vector3.Dot(ray.direction,lens.transform.forward))));
             SetSettingsPointer(new Vector2(pointer.x,pointer.y+.05f));
             foreach(var button in buttons)button.Hover(Phase==FactoryMenuPhase.Main && hover==button,pointer);
+            if (craneShortcut && craneShortcut.gameObject.activeSelf)
+                craneShortcut.Hover(Phase == FactoryMenuPhase.Main && hover == craneShortcut, pointer);
             back.Hover(Phase==FactoryMenuPhase.Settings && hover==back,settingsPanel.InverseTransformPoint(lens.transform.TransformPoint(pointer)));
             if(mouse.leftButton.wasPressedThisFrame)
             {
@@ -123,8 +132,10 @@ namespace Cardboard
             if(Phase!=FactoryMenuPhase.Main && Phase!=FactoryMenuPhase.Settings)return;
             if(Phase==FactoryMenuPhase.Settings && action!=FactoryMenuAction.Back)return;
             if(Phase==FactoryMenuPhase.Main && action==FactoryMenuAction.Back)return;
+            if (action == FactoryMenuAction.CraneShop && !CanEnterCraneShop) return;
             pending=action;
-            if(action==FactoryMenuAction.Back)back.Press();else buttons[(int)action].Press();
+            if (action == FactoryMenuAction.CraneShop) craneShortcut.Press();
+            else if(action==FactoryMenuAction.Back)back.Press();else buttons[(int)action].Press();
             Change(FactoryMenuPhase.Pressing);
         }
         public void Tick(float dt)
@@ -179,7 +190,15 @@ namespace Cardboard
                     Close();return;
                 }
                 visuals.gameObject.SetActive(false);settingsPanel.gameObject.SetActive(false);
-                if((!shiftStarted || game.Ended) && !game.FilmActive)
+                if (pending == FactoryMenuAction.CraneShop && CanEnterCraneShop)
+                {
+                    if (!shiftStarted || game.Ended || game.IntroActive) game.ResetShift();
+                    else if (game.kitchen && game.kitchen.Preparing) game.kitchen.EndPrep();
+                    game.craneJob.SpawnAtShop(CardboardRunner.Player, lens.GetComponent<CardboardCamera>());
+                    savedFov = lens.fieldOfView = CardboardCamera.GameplayFov;
+                    shiftStarted = true;
+                }
+                else if((!shiftStarted || game.Ended) && !game.FilmActive)
                 {
                     game.ResetShift();lens.GetComponent<CardboardCamera>().ResetView(0);
                     if(game.intro)game.intro.Begin();
@@ -199,6 +218,14 @@ namespace Cardboard
                 SetFade(1-Mathf.SmoothStep(0,1,PhaseTime/.55f));
                 if(PhaseTime>=.55f)Close();
             }
+            if (craneShortcut)
+            {
+                bool enteringShop = pending == FactoryMenuAction.CraneShop &&
+                    (Phase == FactoryMenuPhase.Pressing || Phase == FactoryMenuPhase.Leaving);
+                bool visible = CanEnterCraneShop && (Phase == FactoryMenuPhase.Main || enteringShop);
+                craneShortcut.gameObject.SetActive(visible);
+                if (visible) craneShortcut.Pose(dt, -Mathf.Max(0f, lift) * .22f, Phase == FactoryMenuPhase.Main ? 1f : 0f);
+            }
         }
         public void SetSettingsPointer(Vector2 point)
         {
@@ -213,6 +240,15 @@ namespace Cardboard
             {
                 buttons[i].scale=scale;
                 buttons[i].home=new Vector3((i-1)*2.95f*scale,halfHeight*.52f+.65f*scale,5);
+            }
+            if (craneShortcut)
+            {
+                float halfWidth = halfHeight * lens.aspect;
+                float shortcutScale = Mathf.Min(.46f, halfWidth * .24f);
+                Vector3 buttonHalf = craneShortcut.hit.size * (shortcutScale * .5f);
+                craneShortcut.scale = shortcutScale;
+                craneShortcut.home = new Vector3(halfWidth - buttonHalf.x - .24f,
+                    -halfHeight + buttonHalf.y + .20f, 5f);
             }
         }
         public void SetVolume(float value,bool save=true)
@@ -238,7 +274,7 @@ namespace Cardboard
         static float InBack(float t)=>2.70158f*t*t*t-1.70158f*t*t;
         void ApplyCursor()
         {
-            bool locked=!BlocksGameplay || (pending==FactoryMenuAction.Play &&
+            bool locked=!BlocksGameplay || ((pending==FactoryMenuAction.Play || pending==FactoryMenuAction.CraneShop) &&
                 (Phase==FactoryMenuPhase.Pressing || Phase==FactoryMenuPhase.Leaving || Phase==FactoryMenuPhase.Black || Phase==FactoryMenuPhase.Revealing));
             Cursor.lockState=locked?CursorLockMode.Locked:CursorLockMode.None;
             FactoryVolumeCursor.SetSystemVisible(!locked);

@@ -38,6 +38,7 @@ namespace Cardboard
         public FactoryDoor exitDoor;
         public FactoryRatHunt ratHunt;
         public FactoryKitchen kitchen;
+        public FactoryCraneJob craneJob;
         public bool HandsBusy => (lunch && lunch.Carrying) || (objectCarry && objectCarry.Held);
         public bool MenuActive => mainMenu && mainMenu.BlocksGameplay;
         public bool CaptureActive => captureSequence && captureSequence.Active;
@@ -116,6 +117,7 @@ namespace Cardboard
             if(lunch) lunch.ResetLunch();
             if(objectCarry)objectCarry.Clear();
             if(kitchen) kitchen.ResetKitchen();
+            if(craneJob) craneJob.ResetJob();
             foreach(var prop in GetComponentsInChildren<FactoryPhysicsProp>(true))
             {
                 if(prop.GetComponent<FactoryKitchenTool>() || prop.GetComponent<FactoryKitchenFood>())continue;
@@ -285,7 +287,7 @@ namespace Cardboard
         static readonly IComparer<RaycastHit> hitOrder=Comparer<RaycastHit>.Create((a,b)=>a.distance.CompareTo(b.distance));
         void UpdateFocus()
         {
-            Focus=null;var cam=Camera.main;if(!cam || PlayerBlocked || CardboardMarker.DrawingMode) return;
+            Focus=null;var cam=Camera.main;if(!cam || PlayerBlocked || CardboardMarker.DrawingMode || (craneJob && craneJob.HoldsPlayer)) return;
             Focus=TargetForRay(cam.ViewportPointToRay(new Vector3(.5f,.5f)));
         }
         public FactoryInteractable TargetForRay(Ray ray)
@@ -324,6 +326,8 @@ namespace Cardboard
                     continue;
                 if (target && target.action == FactoryAction.RatDelivery && (!ratHunt || !ratHunt.CanDeliver))
                     continue;
+                if (target && target.action == FactoryAction.Crane && (!craneJob || !craneJob.IsAvailable))
+                    return null;
                 return HandsBusy && target && !CanUseWithBusyHands(target)?null:target;
             }
             return null;
@@ -357,7 +361,7 @@ namespace Cardboard
 
         public void Interact()
         {
-            if(Ended)return;
+            if(Ended || (craneJob && craneJob.HoldsPlayer))return;
             if(instruction && instruction.Held){instruction.Flip();return;}
             if(lunch && lunch.NearDestination)
             {
@@ -401,6 +405,10 @@ namespace Cardboard
                     break;
                 case FactoryAction.Kitchen:
                     if (Focus.TryGetComponent(out FactoryKitchenControl kitchenControl) && kitchenControl.Use()) Focus = null;
+                    break;
+                case FactoryAction.Crane:
+                    if (craneJob && !HasPart && Focus.TryGetComponent(out FactoryCraneControl craneControl) &&
+                        craneJob.Use(CardboardRunner.Player, craneControl.access)) Focus = null;
                     break;
             }
         }
@@ -522,6 +530,12 @@ namespace Cardboard
                 player.LeaveSewer();
                 if (Camera.main && Camera.main.TryGetComponent(out CardboardCamera view))
                     view.RefreshPlayerPose(0);
+            }
+            if (craneJob && player && craneJob.InHall(player.transform.position))
+            {
+                craneJob.ReturnToWorkshop(player);
+                if (Camera.main && Camera.main.TryGetComponent(out CardboardCamera craneView))
+                    craneView.RefreshPlayerPose(0);
             }
             Death=FactoryDeath.Press;State=FactoryState.Chased;Pretending=false;
             if(lunch) lunch.CancelCarry();
