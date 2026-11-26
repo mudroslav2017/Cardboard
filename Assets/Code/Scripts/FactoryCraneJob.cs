@@ -247,6 +247,7 @@ namespace Cardboard
 
         internal void SpawnAtShop(CardboardRunner player, CardboardCamera camera)
         {
+            if (game.production) game.production.CancelPlayer();
             StopOperator();
             player.LeaveSewer();
             player.PlaceAtWorkAnchor(RecoveryPoint, true);

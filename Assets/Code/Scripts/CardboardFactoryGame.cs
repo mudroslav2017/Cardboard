@@ -39,7 +39,8 @@ namespace Cardboard
         public FactoryRatHunt ratHunt;
         public FactoryKitchen kitchen;
         public FactoryCraneJob craneJob;
-        public bool HandsBusy => (lunch && lunch.Carrying) || (objectCarry && objectCarry.Held);
+        public FactoryProductionLine production;
+        public bool HandsBusy => (lunch && lunch.Carrying) || (objectCarry && objectCarry.Held) || (production && production.Carrying);
         public bool MenuActive => mainMenu && mainMenu.BlocksGameplay;
         public bool CaptureActive => captureSequence && captureSequence.Active;
         public FactoryWorkstation[] stations;
@@ -70,7 +71,7 @@ namespace Cardboard
         public float MessageUntil {get;private set;}
         public bool Pretending {get;private set;}
         public bool Ended => State==FactoryState.Captured || State==FactoryState.Dead || State==FactoryState.Escaped;
-        public bool PlayerBlocked => MenuActive || FilmActive || Ended || IntroBusy || EndingBusy || (!CaptureActive && (DippingPart || (workbench && workbench.ConsumesMouse) || (station && station.ConsumesMouse) || (kitchen && kitchen.Preparing)));
+        public bool PlayerBlocked => MenuActive || FilmActive || Ended || IntroBusy || EndingBusy || (!CaptureActive && (DippingPart || (workbench && workbench.ConsumesMouse) || (station && station.ConsumesMouse) || (kitchen && kitchen.Preparing) || (production && production.HoldsPlayer)));
         public bool CameraOverride => (mainMenu && mainMenu.OwnsCamera) || (paperDrama && paperDrama.Active) || (!FilmActive && ((captureSequence && captureSequence.CameraControlled) || IntroBusy || (ending && ending.CameraControlled)));
         public Vector3 CameraPosition => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraPosition:(paperDrama && paperDrama.Active)?paperDrama.CameraPosition:IntroBusy?intro.CameraPosition:ending && ending.CameraControlled?ending.CameraPosition:captureSequence.CameraPosition;
         public Quaternion CameraRotation => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraRotation:(paperDrama && paperDrama.Active)?paperDrama.CameraRotation:IntroBusy?intro.CameraRotation:ending && ending.CameraControlled?ending.CameraRotation:captureSequence.CameraRotation;
@@ -117,6 +118,7 @@ namespace Cardboard
             if(lunch) lunch.ResetLunch();
             if(objectCarry)objectCarry.Clear();
             if(kitchen) kitchen.ResetKitchen();
+            if(production) production.ResetLine();
             if(craneJob) craneJob.ResetJob();
             foreach(var prop in GetComponentsInChildren<FactoryPhysicsProp>(true))
             {
@@ -338,6 +340,8 @@ namespace Cardboard
             get
             {
                 if(Focus && Focus.TryGetComponent(out FactoryKitchenControl kitchenControl))return kitchenControl.Prompt;
+                if(Focus && Focus.action==FactoryAction.Production && !string.IsNullOrEmpty(Focus.prompt))return Focus.prompt;
+                if(production && production.Carrying)return production.HeldPrompt;
                 if(objectCarry && objectCarry.Held)return kitchen && kitchen.OwnsHeld(objectCarry.Held)?kitchen.HeldPrompt(objectCarry.Held):objectCarry.Prompt;
                 if(lunch && lunch.NearDestination)return lunch.DeliveryPrompt;
                 if(!Focus) return HasPart && objectCarry?objectCarry.Prompt:"";
@@ -355,8 +359,9 @@ namespace Cardboard
                 return Focus.prompt;
             }
         }
-        static bool CanUseWithBusyHands(FactoryInteractable target) =>
+        bool CanUseWithBusyHands(FactoryInteractable target) =>
             target.action==FactoryAction.Lunch || target.action==FactoryAction.Door ||
+            target.action==FactoryAction.Production && production && production.Carrying ||
             target.action==FactoryAction.Kitchen && target.TryGetComponent(out FactoryKitchenControl control) && control.AcceptsHeld;
 
         public void Interact()
@@ -409,6 +414,9 @@ namespace Cardboard
                 case FactoryAction.Crane:
                     if (craneJob && !HasPart && Focus.TryGetComponent(out FactoryCraneControl craneControl) &&
                         craneJob.Use(CardboardRunner.Player, craneControl.access)) Focus = null;
+                    break;
+                case FactoryAction.Production:
+                    if (production && production.Use(Focus, CardboardRunner.Player)) Focus = null;
                     break;
             }
         }
@@ -531,6 +539,7 @@ namespace Cardboard
                 if (Camera.main && Camera.main.TryGetComponent(out CardboardCamera view))
                     view.RefreshPlayerPose(0);
             }
+            if(production) production.CancelPlayer();
             if (craneJob && player && craneJob.InHall(player.transform.position))
             {
                 craneJob.ReturnToWorkshop(player);

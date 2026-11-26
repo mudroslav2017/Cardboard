@@ -49,7 +49,8 @@ namespace Cardboard
             if (dt<=0) return;
             var factory=CardboardFactoryGame.Instance;
             var crane = isPlayer && factory ? factory.craneJob : null;
-            if (crane && crane.HoldsPlayer)
+            var production = isPlayer && factory ? factory.production : null;
+            if ((crane && crane.HoldsPlayer) || (production && production.HoldsPlayer))
             { velocity = Vector3.zero; speed = jumpHeight = jumpVelocity = 0f; return; }
             bool hallPhysics = crane && !InSewer && crane.InHall(transform.position);
             if(factory && factory.intro && factory.intro.ControlsWorker(this))return;

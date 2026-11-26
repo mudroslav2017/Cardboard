@@ -85,6 +85,8 @@ namespace Cardboard
             {ResetWalkingMotion();transform.SetPositionAndRotation(factory.CameraPosition,factory.CameraRotation);return;}
             if(factory && factory.craneJob && factory.craneJob.TryGetHatchView(out var hatchPosition,out var hatchRotation))
             {ResetWalkingMotion();transform.SetPositionAndRotation(hatchPosition,hatchRotation);return;}
+            if(factory && factory.production && factory.production.TryGetView(out var productionPosition,out var productionRotation))
+            {ResetWalkingMotion();transform.SetPositionAndRotation(productionPosition,productionRotation);return;}
             if(factory && factory.kitchen && factory.kitchen.Preparing)
             {ResetWalkingMotion();transform.SetPositionAndRotation(factory.kitchen.PrepCameraPosition,factory.kitchen.PrepCameraRotation);return;}
             if(!player)return;

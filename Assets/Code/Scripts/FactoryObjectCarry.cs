@@ -12,8 +12,10 @@ namespace Cardboard
         public float HoldDistance {get;private set;}
         Quaternion gripRotation;
         Vector3 localCenter;
+        FactoryStapler stapler;
         int pickupFrame;
-        public string Prompt => Held && Held.instructionSheet?"E - FLIP · LMB - THROW · RMB - PUT DOWN":"LMB - THROW · RMB - PUT DOWN";
+        public string Prompt => stapler ? FactoryStapler.CarryPrompt :
+            Held && Held.instructionSheet ? "E - FLIP · LMB - THROW · RMB - PUT DOWN" : "LMB - THROW · RMB - PUT DOWN";
         public static float ThrowSpeed(float mass,bool instruction=false)
         {return instruction?12:Mathf.Lerp(11,8,Mathf.InverseLerp(.5f,5,mass));}
         public void ItemReceived(){pickupFrame=Time.frameCount;}
@@ -23,6 +25,11 @@ namespace Cardboard
             if(prop.TryGetComponent(out FactoryKitchenTool kitchenTool))kitchenTool.Undock();
             Held=prop;ItemReceived();prop.BeginCarry();
             if(CardboardMarker.Instance)CardboardMarker.Instance.SetDrawingMode(false);
+            if(prop.TryGetComponent(out stapler))
+            {
+                stapler.BeginGrip(Camera.main.transform);
+                return true;
+            }
             var body=prop.Body;
             // Sample physics coordinates: interpolated render transforms can lag behind the body.
             localCenter=Quaternion.Inverse(body.rotation)*(body.worldCenterOfMass-body.position);
@@ -41,6 +48,7 @@ namespace Cardboard
             if(game.MenuActive || game.PlayerBlocked || CardboardMarker.DrawingMode){return;}
             if(Time.frameCount==pickupFrame)return;
             var mouse=Mouse.current;if(mouse==null){return;}
+            if(stapler && (!Application.isFocused || Cursor.lockState != CursorLockMode.Locked)) return;
             bool kitchenTool=Held && Held.GetComponent<FactoryKitchenTool>();
             TickInput(!kitchenTool && mouse.leftButton.wasPressedThisFrame,mouse.rightButton.wasPressedThisFrame);
         }
@@ -50,14 +58,25 @@ namespace Cardboard
             if(putDownPressed)
             {if(Held)Release(false);else game.ReleasePart(false);return;}
             if(throwPressed)
-            {if(Held)Release(true);else game.ReleasePart(true);}
+            {
+                if(stapler)stapler.Press();
+                else if(Held)Release(true);
+                else game.ReleasePart(true);
+            }
         }
         public void FlipInstruction(bool reverse)
         {if(Held && Held.instructionSheet)gripRotation=Quaternion.Euler(0,reverse?180:0,0);}
         void FixedUpdate(){TickGrip();}
+        void LateUpdate()
+        {
+            if(!stapler || !Camera.main || game.PlayerBlocked || game.CaptureActive || game.CameraOverride) return;
+            stapler.AdvanceGrip(Camera.main.transform, Time.deltaTime);
+            TargetPosition = stapler.transform.position;
+            TargetRotation = stapler.transform.rotation;
+        }
         public void TickGrip()
         {
-            if(!Held || !Camera.main || Time.timeScale<=0)return;
+            if(!Held || stapler || !Camera.main || Time.timeScale<=0)return;
             var lens=Camera.main.transform;var body=Held.Body;
             TargetRotation=lens.rotation*gripRotation;
             Vector3 center=lens.TransformPoint(new Vector3(0,Held.instructionSheet?-.075f:-.20f,HoldDistance));
@@ -87,6 +106,7 @@ namespace Cardboard
             if(!Held)return;
             if(game.kitchen && game.kitchen.OwnsHeld(Held))game.kitchen.CancelFlick();
             var prop=Held;Held=null;
+            EndStaplerGrip();
             Vector3 velocity=Vector3.ClampMagnitude(prop.Body.linearVelocity,.55f);
             if(thrown)
             {
@@ -97,7 +117,15 @@ namespace Cardboard
             if(game.instruction && prop.instructionSheet)game.instruction.Released();
         }
         public void Clear()
-        {if(Held){Held.IsHeld=false;Held=null;}}
+        {
+            EndStaplerGrip();
+            if(Held){Held.IsHeld=false;Held=null;}
+        }
+        void EndStaplerGrip()
+        {
+            if(stapler)stapler.EndGrip();
+            stapler=null;
+        }
         void OnDisable(){if(Application.isPlaying)Release(false);}
     }
 }
