@@ -49,6 +49,7 @@ namespace Cardboard
             if(Time.frameCount==pickupFrame)return;
             var mouse=Mouse.current;if(mouse==null){return;}
             if(stapler && (!Application.isFocused || Cursor.lockState != CursorLockMode.Locked)) return;
+            if(Held && Held.GetComponent<FactoryKitchenUtensil>())return;
             bool kitchenTool=Held && Held.GetComponent<FactoryKitchenTool>();
             TickInput(!kitchenTool && mouse.leftButton.wasPressedThisFrame,mouse.rightButton.wasPressedThisFrame);
         }
@@ -80,23 +81,34 @@ namespace Cardboard
             var lens=Camera.main.transform;var body=Held.Body;
             TargetRotation=lens.rotation*gripRotation;
             Vector3 center=lens.TransformPoint(new Vector3(0,Held.instructionSheet?-.075f:-.20f,HoldDistance));
-            if(Held.TryGetComponent(out FactoryKitchenTool kitchenTool))
+            bool utensilHeld=Held.TryGetComponent(out FactoryKitchenUtensil utensil);
+            if(utensilHeld)
+            {
+                if(game.PlayerBlocked || game.CaptureActive || game.CameraOverride)return;
+                utensil.SampleVelocity();
+                utensil.GripPose(lens,out center,out var orientation);
+                TargetRotation=orientation;
+            }
+            else if(Held.TryGetComponent(out FactoryKitchenTool kitchenTool))
             {
                 Quaternion heading=Quaternion.Euler(0,lens.eulerAngles.y,0);
-                center=lens.position+heading*new Vector3(0,kitchenTool.pan?-.39f:-.53f,1.02f);
+                float height=kitchenTool.Stockpot?-.49f:kitchenTool.pan?-.39f:-.53f;
+                center=lens.position+heading*new Vector3(0,height,1.02f);
                 TargetRotation=heading*Quaternion.Euler(kitchenTool.CarryPitch,0,0);
             }
-            TargetPosition=center-TargetRotation*localCenter;
-            Vector3 wish=Vector3.ClampMagnitude((TargetPosition-body.position)*13,12);
-            Vector3 acceleration=Vector3.ClampMagnitude((wish-body.linearVelocity)*13,95);
+            TargetPosition=utensilHeld?center:center-TargetRotation*localCenter;
+            Vector3 wish=Vector3.ClampMagnitude((TargetPosition-body.position)*(utensilHeld?22f:13f),12);
+            Vector3 acceleration=Vector3.ClampMagnitude((wish-body.linearVelocity)*(utensilHeld?22f:13f),utensilHeld?155:95);
             body.AddForce(acceleration,ForceMode.Acceleration);
             var delta=TargetRotation*Quaternion.Inverse(body.rotation);
             if(delta.w<0)delta=new Quaternion(-delta.x,-delta.y,-delta.z,-delta.w);
             delta.ToAngleAxis(out float angle,out Vector3 axis);
             if(axis.sqrMagnitude>.001f)
             {
-                Vector3 angularWish=axis*(Mathf.DeltaAngle(0,angle)*Mathf.Deg2Rad*11);
-                body.AddTorque(Vector3.ClampMagnitude((angularWish-body.angularVelocity)*11,100),ForceMode.Acceleration);
+                bool steadyUtensil=utensilHeld && utensil.Tool!=FactoryKitchenUtensil.Kind.Knife;
+                float angularFollow=steadyUtensil?24f:11f;
+                Vector3 angularWish=axis*(Mathf.DeltaAngle(0,angle)*Mathf.Deg2Rad*angularFollow);
+                body.AddTorque(Vector3.ClampMagnitude((angularWish-body.angularVelocity)*angularFollow,steadyUtensil?330f:100f),ForceMode.Acceleration);
             }
             // A blocked object stays against the wall; walking away releases the grip.
             if(Vector3.Distance(body.worldCenterOfMass,lens.position)>3.6f)Release(false);
@@ -114,6 +126,7 @@ namespace Cardboard
                 velocity=Camera.main.transform.forward*speed+(CardboardRunner.Player?CardboardRunner.Player.Velocity*.35f:Vector3.zero);
             }
             prop.Release(velocity,thrown);
+            if(prop.TryGetComponent(out FactoryKitchenUtensil utensil))utensil.Rest();
             if(game.instruction && prop.instructionSheet)game.instruction.Released();
         }
         public void Clear()

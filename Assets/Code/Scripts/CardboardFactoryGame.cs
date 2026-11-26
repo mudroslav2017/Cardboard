@@ -122,7 +122,7 @@ namespace Cardboard
             if(craneJob) craneJob.ResetJob();
             foreach(var prop in GetComponentsInChildren<FactoryPhysicsProp>(true))
             {
-                if(prop.GetComponent<FactoryKitchenTool>() || prop.GetComponent<FactoryKitchenFood>())continue;
+                if(kitchen && kitchen.OwnsHeld(prop))continue;
                 if(prop.workbenchPart)Destroy(prop.gameObject);else prop.ResetHome();
             }
             foreach(var reaction in GetComponentsInChildren<FactoryWorkerImpact>())reaction.ResetReaction();
@@ -299,8 +299,7 @@ namespace Cardboard
             for(int i=0;i<count;i++)
             {
                 var hit=hits[i];
-                if(kitchen && objectCarry && objectCarry.Held && kitchen.OwnsHeld(objectCarry.Held) &&
-                    hit.collider.transform.IsChildOf(objectCarry.Held.transform))continue;
+                if(kitchen && kitchen.IgnoreHeldCollider(hit.collider))continue;
                 // The liquid, rim and outside of a vessel all select the same bath.
                 // Resolve the first visible vessel only, so walls still block interaction.
                 var owner=hit.collider.GetComponentInParent<FactoryWorkstation>();
@@ -339,6 +338,7 @@ namespace Cardboard
         {
             get
             {
+                if(kitchen && kitchen.KnifeHeld)return "";
                 if(Focus && Focus.TryGetComponent(out FactoryKitchenControl kitchenControl))return kitchenControl.Prompt;
                 if(Focus && Focus.action==FactoryAction.Production && !string.IsNullOrEmpty(Focus.prompt))return Focus.prompt;
                 if(production && production.Carrying)return production.HeldPrompt;
@@ -367,6 +367,7 @@ namespace Cardboard
         public void Interact()
         {
             if(Ended || (craneJob && craneJob.HoldsPlayer))return;
+            if(kitchen && kitchen.ReturnUtensil())return;
             if(instruction && instruction.Held){instruction.Flip();return;}
             if(lunch && lunch.NearDestination)
             {

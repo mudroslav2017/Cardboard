@@ -17,7 +17,6 @@ namespace Cardboard
         public bool Attended {get;private set;}
         public bool Missed {get;private set;}
         public bool FinalLunch {get;private set;}
-        public bool KitchenMeal {get;private set;}
         public float AttendanceElapsed {get;private set;}
         public string ArrivalCountdown
         {
@@ -43,12 +42,12 @@ namespace Cardboard
         public bool NearDestination=>Carrying && CardboardRunner.Player && Vector3.Distance(CardboardRunner.Player.transform.position,destination.position)<2.75f;
         public string DeliveryPrompt=>CanServe?"E - SET DOWN TRAY":"E - SET DOWN TRAY  |  HOLD IT LEVEL";
         MaterialPropertyBlock bulbProperties;
-        bool previousLeft,previousRight,ordinaryStarted;
+        bool previousLeft,previousRight,ordinaryStarted,cookedLunchStarted;
         public bool CanServe=>NearDestination && Mathf.Abs(Tilt)<=.4f && Mathf.Abs(PitchTilt)<=.45f;
         bool Gameplay=>game && !game.MenuActive && !game.Ended && !game.CaptureActive && !game.IntroBusy && !game.EndingBusy;
         public void ResetLunch()
         {
-            Attended=Missed=FinalLunch=KitchenMeal=ordinaryStarted=previousLeft=previousRight=false;AttendanceElapsed=0;
+            Attended=Missed=FinalLunch=ordinaryStarted=cookedLunchStarted=previousLeft=previousRight=false;AttendanceElapsed=0;
             State=LunchState.Waiting;Tilt=PitchTilt=AngularSpeed=Elapsed=CarryTime=ResultUntil=0;
             if(diners)diners.ResetLunch();
             RestoreTray();RefreshWorld();
@@ -64,12 +63,9 @@ namespace Cardboard
             ordinaryStarted=true;
             Elapsed=0;
             Attended=Missed=false;AttendanceElapsed=0;
-            if(!KitchenMeal)
-            {
-                previousLeft=previousRight=false;
-                Tilt=PitchTilt=AngularSpeed=CarryTime=ResultUntil=0;
-                RestoreTray();State=LunchState.Ready;
-            }
+            previousLeft=previousRight=false;
+            Tilt=PitchTilt=AngularSpeed=CarryTime=ResultUntil=0;
+            RestoreTray();State=LunchState.Ready;
             RefreshWorld();if(diners)diners.Begin();
             game.Toast("Lunch time! Reach the canteen in "+ArrivalCountdown+".",8);game.PlayCaptureSound("good");TickAttendance(0);
         }
@@ -100,25 +96,21 @@ namespace Cardboard
         {
             FinalLunch=true;
             if(Carrying && physicsTray)physicsTray.ReleaseTray();
-            if(KitchenMeal)
-            {
-                KitchenMeal=false;
-                game.kitchen.ShowTrayMeal(false,false);
-                RestoreTray();
-            }
+            if(cookedLunchStarted)RestoreTray();
             State=LunchState.Ready;RefreshWorld();
             if(diners)diners.BeginFinal();
             game.PlayCaptureSound("good");
         }
-        public bool TryOfferKitchenMeal(bool dusty)
+        internal void BeginKitchenService(FactoryKitchenService service)
         {
-            if(!Gameplay || FinalLunch || Carrying || (KitchenMeal && State==LunchState.Ready))return false;
-            KitchenMeal=true;
+            cookedLunchStarted=ordinaryStarted=Attended=true;
+            State=LunchState.Waiting;
             ResultUntil=0;
-            RestoreTray();
-            game.kitchen.ShowTrayMeal(true,dusty);
-            State=LunchState.Ready;RefreshWorld();
-            return true;
+            tray.gameObject.SetActive(false);
+            RefreshWorld();
+            if(diners)diners.BeginKitchenService(service);
+            game.PlayCaptureSound("good");
+            game.Toast("Soup's on. The workers are going to the canteen.",6f);
         }
         public bool TryTake()
         {
@@ -219,7 +211,7 @@ namespace Cardboard
         {
             if(diners)diners.RefreshDeliveryAccess();
             RefreshDeliveryLight();
-            if(pickupHit)pickupHit.SetActive(State==LunchState.Waiting || State==LunchState.Ready);
+            if(pickupHit)pickupHit.SetActive(!cookedLunchStarted && (State==LunchState.Waiting || State==LunchState.Ready));
             if(destinationHit)destinationHit.SetActive(Carrying);
             if(counterSign)counterSign.gameObject.SetActive(false);
             if(tableSign)tableSign.gameObject.SetActive(false);

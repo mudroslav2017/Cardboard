@@ -50,7 +50,9 @@ namespace Cardboard
             {Cursor.lockState=CursorLockMode.Locked;FactoryVolumeCursor.SetSystemVisible(false);}
             if(mouse!=null && Cursor.lockState==CursorLockMode.Locked)
             {
-                ApplyLookDelta(CardboardWebMouse.ReadDelta());
+                Vector2 delta=CardboardWebMouse.ReadDelta();
+                if(!factory || !factory.kitchen || !factory.kitchen.ReadUtensilInput(mouse,delta,sensitivity))
+                    ApplyLookDelta(delta);
             }
             transform.rotation=Quaternion.Euler(pitch,yaw,0);
         }

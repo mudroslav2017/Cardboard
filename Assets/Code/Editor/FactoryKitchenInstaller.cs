@@ -175,7 +175,73 @@ namespace Cardboard.Editor
 
             var light = Node(root, "Kitchen work light", new Vector3(0, 3.1f, -.62f)).gameObject.AddComponent<Light>();
             light.type = LightType.Point; light.range = 4.7f; light.intensity = 3.1f; light.color = Hex("FFE2BB");
+            SpaceWorkAreas(kitchen);
             EditorSceneManager.MarkSceneDirty(game.gameObject.scene);
+        }
+
+        static void SpaceWorkAreas(FactoryKitchen kitchen)
+        {
+            Transform root = kitchen.transform;
+            foreach (Transform child in root)
+            {
+                switch (child.name)
+                {
+                    case "Worktop support":
+                    case "Laminated worktop":
+                    case "Lower folded shelf":
+                    case "Apron":
+                    case "Back rail":
+                        child.localScale = Vector3.Scale(child.localScale, new Vector3(1.42f, 1, 1));
+                        goto case "Folded cabinet post";
+                    case "Folded cabinet post":
+                    case "Copper bracket":
+                    case "Dark floor shoe":
+                    case "Shelf brace":
+                    case "Recessed drawer front":
+                    case "Drawer pull":
+                    case "Apron rivet":
+                    case "Stack of spare bowls":
+                        Vector3 original = child.localPosition;
+                        child.localPosition = new Vector3(original.x * 1.42f + .48f, original.y, original.z);
+                        break;
+                    case "Rat stock":
+                        child.localPosition += Vector3.left * .48f;
+                        break;
+                    case "Potato box":
+                    case "Potato crate stand":
+                        child.localPosition += Vector3.left * .72f;
+                        break;
+                    case "Board stand":
+                    case "Carryable cutting board":
+                    case "Prep dock":
+                    case "Kitchen knife":
+                    case "Knife rack":
+                        child.localPosition += Vector3.left * .46f;
+                        break;
+                    case "Stove":
+                    case "Pan rest":
+                    case "Carryable frying pan":
+                    case "Coals":
+                    case "Burner switch":
+                    case "Spatula":
+                    case "Spatula handle":
+                    case "Spatula head":
+                    case "Smoke from scorched pieces":
+                        child.localPosition += Vector3.right * .92f;
+                        break;
+                    case "Open stockpot":
+                    case "Soup ladle rest":
+                        child.localPosition += Vector3.right * 1.66f;
+                        break;
+                    case "Scrap bin":
+                        child.localPosition = new Vector3(3.5f, -.07f, .94f);
+                        break;
+                    case "Kitchen work light":
+                        child.localPosition += Vector3.right * .56f;
+                        child.GetComponent<Light>().range = 6.2f;
+                        break;
+                }
+            }
         }
 
         static void BuildKnife(FactoryKitchen kitchen, Material tin, Material steel, Material trim)

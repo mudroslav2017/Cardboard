@@ -1,8 +1,8 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
@@ -13,6 +13,7 @@ namespace Cardboard.Editor
     public static class FactoryKitchenVerification
     {
         const string Pending = "Cardboard.VerifyKitchen";
+        const BindingFlags Internal = BindingFlags.Instance | BindingFlags.NonPublic;
 
         static FactoryKitchenVerification() { EditorApplication.update += VerifyWhenReady; }
 
@@ -41,12 +42,12 @@ namespace Cardboard.Editor
         {
             if (!SessionState.GetBool(Pending, false) || !EditorApplication.isPlaying) return;
             var game = Object.FindAnyObjectByType<CardboardFactoryGame>();
-            if (!game || !CardboardRunner.Player || !game.kitchen.board.Prop.Body) return;
+            if (!game || !CardboardRunner.Player || !game.kitchen.Service || !game.kitchen.board.Prop.Body || Time.time < .30f) return;
             SessionState.EraseBool(Pending);
             try
             {
                 Verify(game);
-                Debug.Log("Kitchen verification passed: loose board and pan placement, mesh cuts, peeling, frying and both soup trays.");
+                Debug.Log("Kitchen verified: 30-second burner cooking, ladling with real cut pieces, ten servings, tray collection and shift reset.");
                 EditorApplication.Exit(0);
             }
             catch (Exception error)
@@ -56,267 +57,418 @@ namespace Cardboard.Editor
             }
         }
 
+        static object Call(object target, string method, params object[] arguments) =>
+            target.GetType().GetMethod(method, Internal).Invoke(target, arguments);
+
         static void Verify(CardboardFactoryGame game)
         {
             game.mainMenu.CloseForFilming();
             game.ResetShift();
             var kitchen = game.kitchen;
+            var service = kitchen.Service;
             var camera = Camera.main.transform;
             var player = CardboardRunner.Player;
-            if (SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null) CaptureBench(camera.GetComponent<Camera>(), kitchen.transform);
-            UnityEngine.Random.InitState(139);
-            player.transform.position = kitchen.transform.position + Vector3.back * 2.1f;
-            camera.SetPositionAndRotation(player.transform.position + Vector3.up * 1.62f, Quaternion.identity);
+            var cuttingBoard = kitchen.board.transform;
+            SimulationMode originalSimulation = Physics.simulationMode;
             Physics.simulationMode = SimulationMode.Script;
-
-            void Simulate(float time, bool supportHeldObject = false)
+            try
             {
+                player.transform.position = cuttingBoard.position + Vector3.back * .95f - Vector3.up * cuttingBoard.position.y;
+                camera.SetPositionAndRotation(player.transform.position + Vector3.up * 1.62f, Quaternion.Euler(7, 0, 0));
+                Check(!kitchen.Use(KitchenAction.Rat), "Rat stock starts empty.");
+                kitchen.ReceiveRats(FactoryRatHunt.Quota);
+                Check(kitchen.Use(KitchenAction.Rat) && kitchen.RatStock == 9, "A catch puts a whole rat on the board.");
+                Step(game, .15f);
+                Check(kitchen.Use(KitchenAction.Knife) && !game.PlayerBlocked && !kitchen.Preparing,
+                    "Taking the knife leaves free movement and camera look.");
+                var knife = game.objectCarry.Held.GetComponent<FactoryKitchenUtensil>();
+                Check(knife && !knife.transform.Find("Right grip") && !knife.transform.Find("Left grip") &&
+                    !knife.Prop.Body.isKinematic && string.IsNullOrEmpty(game.FocusPrompt),
+                    "The knife stays physical and hides both hands and its prompt.");
+                Step(game, .20f, true);
+                for (int pitch = 10; pitch <= 42; pitch += 2)
+                {
+                    camera.rotation = Quaternion.Euler(pitch, 0, 0);
+                    Step(game, .04f, true);
+                }
+                Check(LooseFood(kitchen, true).Length == 1, "A slow lowering of the knife does not slice.");
+                var rat = LooseFood(kitchen, true).Single();
+                Place(rat, cuttingBoard.position + Vector3.up * (.032f - rat.Model.bounds.min.y), cuttingBoard.rotation);
+                camera.rotation = Quaternion.Euler(7, 0, 0);
+                Step(game, .25f, true);
+                Call(knife, "RecordKnifeMotion", 41f);
+                camera.rotation = Quaternion.Euler(48, 0, 0);
+                Step(game, .20f, true);
+                var slices = LooseFood(kitchen, true);
+                Check(slices.Length == 2 && slices.All(piece => piece.Sliced && !piece.Prop.Body.isKinematic) &&
+                    Mathf.Abs(slices.Sum(piece => piece.Amount) - 1f) < .0001f,
+                    "A fast camera flick cuts on physical contact, conserving the original amount.");
+                Capture(camera.GetComponent<Camera>(), camera.position, camera.position + camera.forward, "KitchenFlickKnife");
+                game.Interact();
+                Check(!game.objectCarry.Held, "E returns the knife to the rack.");
+
+                var fried = slices.OrderByDescending(piece => piece.Amount).First();
+                var raw = slices.First(piece => piece != fried);
+                Check(Vector3.Distance(kitchen.board.home.position, kitchen.pan.home.position) > 2.5f &&
+                    Vector3.Distance(kitchen.pan.home.position, kitchen.pot.position) > 1.8f,
+                    "The preparation, frying and stockpot stations have clear separation.");
+                Vector3 benchView = kitchen.transform.position + new Vector3(1.7f, 1.04f, 0);
+                Capture(camera.GetComponent<Camera>(), benchView + new Vector3(0, 1.15f, -5.85f), benchView, "KitchenWorkAreas");
+                Check(fried.FryDuration > 20 && fried.FryDuration <= 44 && raw.FryDuration != fried.FryDuration,
+                    $"Cut thickness affects the full roasting time ({fried.FryDuration} vs {raw.FryDuration}).");
+                Step(game, .26f);
+                fried.Prop.Body.linearVelocity = cuttingBoard.right * .35f;
+                Step(game, .16f);
+                Check((bool)Call(fried, "OnSurface", kitchen.board) && fried.Prop.Body.linearVelocity.magnitude < .22f,
+                    "A cut piece on the board settles with light grip.");
+                Check(kitchen.Use(KitchenAction.Board), "Take the board with the cuts still on it.");
+                camera.position = kitchen.pan.transform.position + new Vector3(0, .52f, -1.35f);
+                Aim(camera, kitchen.pan.transform.position + Vector3.up * .02f);
+                InteractWith(game, camera, KitchenAction.Pan, KitchenAction.Burner);
+                Step(game, 1.28f);
+                Check(slices.All(piece => kitchen.pan.Contains(piece.Prop.Body.position)),
+                    "E transfers both cuts from the board to the pan beyond the old reach limit.");
+                Check(kitchen.Use(KitchenAction.Prep), "Set the empty board back down.");
+
+                Check(kitchen.Use(KitchenAction.Burner), "The burner lights.");
+                Place(raw, cuttingBoard.position + Vector3.up * (.032f - raw.Model.bounds.min.y), cuttingBoard.rotation);
+                Place(fried, kitchen.pan.transform.position + Vector3.up * (.029f - fried.Model.bounds.min.y), Quaternion.identity);
+                Step(game, fried.FryDuration * .45f);
+                Check(fried.FryProgress > .4f && !fried.Fried && !fried.Burnt, "A sitting slice shows progress before it is ready.");
+                Step(game, fried.FryDuration * .55f + .18f);
+                Check(fried.Fried && fried.ReadyForPot && fried.FryProgress == 1f && kitchen.Prompt(KitchenAction.Pan).Contains("READY"),
+                    "One continuous roast is enough, and the pan says the rat is ready.");
+                Check(kitchen.Use(KitchenAction.Spatula) && !game.PlayerBlocked &&
+                      game.objectCarry.Held.GetComponent<FactoryKitchenUtensil>().Tool == FactoryKitchenUtensil.Kind.Spatula,
+                    "The physical spatula can still move cooked food.");
+                TurnWithSpatula(game, camera, fried);
+                game.Interact();
+                Check(kitchen.Use(KitchenAction.Pan), "Take the pan with a cooked slice.");
+                camera.position = kitchen.pot.position + new Vector3(0, .58f, -1.20f);
+                Aim(camera, kitchen.pot.position + Vector3.up * .11f);
+                InteractWith(game, camera, KitchenAction.Pot);
+                Step(game, 1.3f);
+                Check(Mathf.Abs(kitchen.RatInPot - fried.Amount) < .0001f,
+                    "E pours straight into the stockpot from the pan's position.");
+                Check(kitchen.Use(KitchenAction.Burner), "Return the empty pan.");
+                Place(raw, kitchen.pan.transform.position + Vector3.up * (.029f - raw.Model.bounds.min.y), Quaternion.identity);
+                Step(game, raw.FryDuration + 7f);
+                Check(raw.Burnt && !raw.ReadyForPot, "Leaving a done piece on the hot pan burns it.");
+
+                game.ResetShift();
+                kitchen.ReceiveRats(FactoryRatHunt.Quota);
+                for (int i = 0; i < 7; i++)
+                {
+                    Check(kitchen.Use(KitchenAction.Rat), "Load a rat for the full batch.");
+                    var wholeRat = LooseFood(kitchen, true).Single();
+                    SliceForBatch(kitchen, wholeRat);
+                    foreach (var piece in LooseFood(kitchen, true))
+                    {
+                        piece.Fry(piece.FryDuration + .01f);
+                        PlaceInPot(kitchen, piece, i);
+                    }
+                }
+                Check(kitchen.Portions == 0 && Mathf.Abs(kitchen.RatInPot - 7) < .001f,
+                    "The stockpot accounts for seven sliced and fried rats by original amount.");
+                for (int i = 0; i < 7; i++)
+                {
+                    Check(kitchen.Use(KitchenAction.Potato), "Take a potato.");
+                    var potato = game.objectCarry.Held.GetComponent<FactoryKitchenFood>();
+                    Check(kitchen.Use(KitchenAction.Peeler), "Start peeling.");
+                    PeelPotato(kitchen, potato, i == 0);
+                    Check(potato.Peeled && potato.Prop.Take(game) && kitchen.Use(KitchenAction.Board), "Peel and place the potato.");
+                    SliceForBatch(kitchen, potato);
+                    foreach (var piece in LooseFood(kitchen, false)) PlaceInPot(kitchen, piece, i);
+                }
+                VerifyStockpot(game, camera);
+                Check(kitchen.Portions == 10 && service.BatchCooked && Mathf.Abs(kitchen.PotatoInPot - 7) < .001f,
+                    "The stockpot finishes cooking and yields ten servings.");
+                Check(kitchen.Use(KitchenAction.Serve), "Take the ladle when soup is ready.");
+                var ladle = game.objectCarry.Held.GetComponent<FactoryKitchenUtensil>();
+                var bowls = kitchen.GetComponentsInChildren<FactoryKitchenControl>().Where(control => control.action == KitchenAction.Bowl)
+                    .OrderBy(control => control.slot).ToArray();
+                for (int i = 0; i < bowls.Length; i++)
+                {
+                    WalkLadleTo(game, camera, kitchen.pot.position + new Vector3(0, .54f, -1.16f));
+                    Aim(camera, kitchen.pot.position + Vector3.up * .07f);
+                    Check((bool)Call(kitchen, "UseLadle", camera), "Aimed click dips the ladle into the cooked stockpot.");
+                    Step(game, .80f, true);
+                    AssertServedPieces(ladle.transform, "One scoop carries broth and real cuts of both ingredients.", false);
+                    Check(service.HasScoop && kitchen.Portions == 9 - i, "One scoop uses exactly one serving.");
+                    if (i == 1)
+                    {
+                        PositionAtBowl(game, camera, bowls[0].transform);
+                        Check(!(bool)Call(kitchen, "UseLadle", camera) && service.HasScoop,
+                            "A filled bowl cannot waste the next scoop.");
+                    }
+                    PositionAtBowl(game, camera, bowls[i].transform);
+                    Check((bool)Call(kitchen, "UseLadle", camera), "Aimed click pours into the selected empty bowl.");
+                    if (i == 0)
+                    {
+                        Step(game, .63f, true);
+                        Capture(camera.GetComponent<Camera>(), camera.position, camera.position + camera.forward, "KitchenLadlePour");
+                        Step(game, .31f, true);
+                    }
+                    else Step(game, .88f, true);
+                    Check(service.Filled == i + 1 && !service.HasScoop, "Ladle pours exactly one serving.");
+                    AssertServedPieces(bowls[i].transform, "Both cut ingredients visibly settle inside the bowl.", true);
+                }
+                game.Interact();
+                Check(kitchen.Portions == 0 && !game.lunch.diners.Active, "Ten filled bowls alone do not call the workers.");
+                for (int i = 0; i < bowls.Length; i++)
+                {
+                    Check(bowls[i].Use() && kitchen.Use(KitchenAction.Tray, bowls.Length - 1 - i), "Pick up and plate a bowl on any empty tray.");
+                    AssertServedPieces(bowls[i].transform, "Both ingredients stay in the bowl when it is moved onto a tray.", true);
+                    Check(game.lunch.diners.Active == (i == bowls.Length - 1), "Only the last tray starts lunch.");
+                }
+                Vector3 serviceView = bowls[3].transform.position + Vector3.right * .9f;
+                Capture(camera.GetComponent<Camera>(), serviceView + new Vector3(.31f, 1.35f, -2.12f),
+                    serviceView, "KitchenServingTrays");
+                VerifyWorkers(game);
+                game.ResetShift();
+                Check(kitchen.RatStock == 0 && kitchen.Portions == 0 && service.Filled == 0 && service.Plated == 0 &&
+                    !service.BatchCooked && !game.lunch.diners.Active && !game.objectCarry.Held &&
+                    kitchen.board.ReadyAtStation && kitchen.pan.ReadyAtStation, "Shift reset clears the entire batch and restores the tools.");
+            }
+            finally { Physics.simulationMode = originalSimulation; }
+        }
+
+        static void VerifyStockpot(CardboardFactoryGame game, Transform camera)
+        {
+            var kitchen = game.kitchen;
+            var stove = kitchen.GetComponentsInChildren<FactoryKitchenControl>().Single(control => control.action == KitchenAction.SoupBurner);
+            var rim = kitchen.pot.GetComponentsInChildren<MeshFilter>().First(mesh => mesh.name == "Cut rat in soup");
+            Vector3 rest = kitchen.pot.position;
+            Vector3 storedPiece = rim.transform.localPosition;
+            kitchen.TickCooking(31f);
+            Check(kitchen.Portions == 0 && kitchen.Prompt(KitchenAction.Pot).Contains("30 S"),
+                "A full stockpot stays cold on the trivet.");
+
+            void PickUpPot()
+            {
+                camera.position = kitchen.pot.position + new Vector3(0, .52f, -1.35f);
+                Aim(camera, kitchen.pot.position + Vector3.up * .06f);
+                InteractWith(game, camera, KitchenAction.Pot);
+                Check(game.objectCarry.Held && game.objectCarry.Held.transform == kitchen.pot, "E picks up the stockpot.");
+                Check((bool)Call(kitchen, "IgnoreHeldCollider", kitchen.pot.GetComponent<Collider>()),
+                    "The stockpot in hand does not block aiming at the burner.");
+            }
+
+            void UseBurner()
+            {
+                camera.position = stove.transform.position + new Vector3(0, .46f, -.95f);
+                Aim(camera, stove.transform.position + new Vector3(0, 0, -.39f));
+                InteractWith(game, camera, KitchenAction.SoupBurner);
+            }
+
+            PickUpPot();
+            UseBurner();
+            Check(!game.objectCarry.Held && (rest - kitchen.pot.position).magnitude > .7f && rim.transform.localPosition == storedPiece,
+                "The full stockpot and its cut ingredients dock together on the burner.");
+            kitchen.TickCooking(40f);
+            Check(kitchen.Portions == 0 && kitchen.Prompt(KitchenAction.Pot).Contains("LIGHT SOUP BURNER"),
+                "The cold burner does not cook the soup.");
+
+            UseBurner();
+            kitchen.TickCooking(12f);
+            Check(kitchen.Portions == 0 && kitchen.Prompt(KitchenAction.Pot).Contains("18 S"),
+                "The lit burner cooks for twelve of the thirty seconds.");
+            Capture(camera.GetComponent<Camera>(), kitchen.pot.position + new Vector3(.46f, .69f, -1.61f),
+                kitchen.pot.position, "KitchenStockpotOnBurner");
+            PickUpPot();
+            kitchen.TickCooking(35f);
+            Check(kitchen.Portions == 0 && kitchen.Prompt(KitchenAction.SoupBurner) == "E - SET STOCKPOT ON BURNER",
+                "Lifting the pot pauses the cooking timer.");
+            UseBurner();
+            kitchen.TickCooking(17.95f);
+            Check(kitchen.Portions == 0, "Cooking has not finished before thirty seconds of heat.");
+            kitchen.TickCooking(.06f);
+            Check(kitchen.Portions == 10, "Cooking finishes after thirty seconds of accumulated heat.");
+        }
+
+        static void PositionAtBowl(CardboardFactoryGame game, Transform camera, Transform bowl)
+        {
+            WalkLadleTo(game, camera, bowl.position + new Vector3(0, .54f, -1.08f));
+            Aim(camera, bowl.position + Vector3.up * .026f);
+        }
+
+        static void WalkLadleTo(CardboardFactoryGame game, Transform camera, Vector3 destination)
+        {
+            camera.rotation = Quaternion.Euler(18f, 0, 0);
+            while (camera.position != destination)
+            {
+                camera.position = Vector3.MoveTowards(camera.position, destination, .055f);
+                Step(game, .02f, true);
+            }
+            Check(game.objectCarry.Held && game.objectCarry.Held.GetComponent<FactoryKitchenUtensil>().Tool == FactoryKitchenUtensil.Kind.Ladle,
+                "The ladle stays held while walking between the stockpot and bowls.");
+        }
+
+        static void AssertServedPieces(Transform vessel, string message, bool inBowl)
+        {
+            var chunks = vessel.GetComponentsInChildren<MeshFilter>().Where(mesh =>
+                mesh.name == "Cut rat in soup" || mesh.name == "Cut potato in soup").ToArray();
+            Check(chunks.Any(mesh => mesh.name == "Cut rat in soup") && chunks.Any(mesh => mesh.name == "Cut potato in soup") &&
+                chunks.All(mesh => mesh.sharedMesh && !mesh.GetComponent<Rigidbody>() && (!inBowl ||
+                    LocalBowlFit(mesh, vessel))), message);
+        }
+
+        static bool LocalBowlFit(MeshFilter chunk, Transform bowl)
+        {
+            var center = bowl.InverseTransformPoint(chunk.transform.TransformPoint(chunk.sharedMesh.bounds.center));
+            var extents = chunk.sharedMesh.bounds.extents * chunk.transform.localScale.x;
+            return new Vector2(center.x, center.z).magnitude + new Vector2(extents.x, extents.z).magnitude < .104f &&
+                center.y > .04f && center.y < .068f;
+        }
+
+        static void VerifyWorkers(CardboardFactoryGame game)
+        {
+            var crowd = game.lunch.diners;
+            var doors = Object.FindObjectsByType<FactoryDoor>(FindObjectsInactive.Exclude);
+            const float step = .04f;
+            int mostEating = 0;
+            for (int i = 0; i < 1400 && mostEating < FactoryKitchen.BowlsPerPot; i++)
+            {
+                crowd.Tick(step);
+                foreach (var worker in crowd.workers) worker.TickMovement(step);
+                foreach (var door in doors) door.Tick(step);
                 Physics.SyncTransforms();
-                for (int step = 0; step < Mathf.RoundToInt(time / .02f); step++)
-                {
-                    if (supportHeldObject) game.objectCarry.TickGrip();
-                    Physics.Simulate(.02f);
-                    kitchen.TickCooking(.02f);
-                }
+                mostEating = Mathf.Max(mostEating, crowd.EatingCount);
+            }
+            if (mostEating != FactoryKitchen.BowlsPerPot)
+                foreach (var worker in crowd.workers)
+                    Debug.Log($"{worker.name}: {worker.transform.position} {crowd.Describe(worker)}");
+            Check(mostEating == FactoryKitchen.BowlsPerPot,
+                $"All ten dedicated diners collect a tray and take it to a table (found {mostEating}).");
+        }
+
+        static void InteractWith(CardboardFactoryGame game, Transform camera, params KitchenAction[] actions)
+        {
+            Physics.SyncTransforms();
+            var found = game.TargetForRay(new Ray(camera.position, camera.forward));
+            Check(found && found.TryGetComponent(out FactoryKitchenControl control) && actions.Contains(control.action),
+                "The intended vessel is reachable with loaded cookware in hand.");
+            typeof(CardboardFactoryGame).GetProperty(nameof(CardboardFactoryGame.Focus)).SetValue(game, found);
+            game.Interact();
+        }
+
+        static void PeelPotato(FactoryKitchen kitchen, FactoryKitchenFood potato, bool verifyCoverage)
+        {
+            var pointer = new Vector2(0, .13f);
+            void Move(Vector2 target, bool cutting)
+            {
+                kitchen.MovePrepTool((target - pointer) / .0026f, cutting);
+                pointer = target;
             }
 
-            void AimAt(KitchenAction action)
+            if (verifyCoverage)
             {
-                var target = kitchen.GetComponentsInChildren<FactoryKitchenControl>().Single(control => control.action == action);
-                var bounds = target.GetComponentInChildren<Collider>().bounds;
-                Vector3 eye = bounds.center + new Vector3(0, .55f, -1.3f);
-                Check(game.TargetForRay(new Ray(eye, bounds.center - eye)) == target.GetComponent<FactoryInteractable>(),
-                    "Aim reaches kitchen control " + action);
-            }
-
-            Vector2 knifeCursor = Vector2.zero;
-            bool capturedKnife = false;
-            void GripKnife()
-            {
-                Check(kitchen.Use(KitchenAction.Knife) && kitchen.Preparing && game.PlayerBlocked, "Knife takes over mouse and movement.");
-                knifeCursor = Vector2.zero;
-            }
-
-            void ClickCut(Vector2 cutAt, float angle = 0)
-            {
-                kitchen.SetKnifeAngle(angle);
-                kitchen.MovePrepTool((cutAt - knifeCursor) / .0026f, false);
-                kitchen.MovePrepTool(Vector2.zero, true);
-                knifeCursor = cutAt;
-            }
-
-            void Slice()
-            {
-                GripKnife();
-                Check(kitchen.knifeDashes.All(dash => dash.gameObject.activeSelf), "Dashes show the projected blade in knife mode.");
-                if (!capturedKnife && SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null)
-                {
-                    Vector3 position = camera.position;
-                    Quaternion rotation = camera.rotation;
-                    camera.SetPositionAndRotation(kitchen.PrepCameraPosition, kitchen.PrepCameraRotation);
-                    CaptureCamera(camera.GetComponent<Camera>(), "Logs/KitchenKnifePreview.png");
-                    camera.SetPositionAndRotation(position, rotation);
-                    capturedKnife = true;
-                }
-                ClickCut(new Vector2(-.076f, 0), -6);
-                ClickCut(new Vector2(.072f, 0), 11);
-                Check(kitchen.Preparing, "Two individual clicks cut at arbitrary rotations without leaving knife mode.");
+                Move(new Vector2(-.18f, .11f), false);
+                Move(new Vector2(-.18f, -.11f), true);
+                Check(potato.PeelProgress == 0, "A scrape beside the potato does not peel any skin.");
+                Move(new Vector2(0, .11f), false);
+                Move(new Vector2(0, -.11f), true);
+                float partial = potato.PeelProgress;
+                var display = potato.GetComponent<MeshFilter>().sharedMesh;
+                Check(partial > 0 && partial < .35f && display.GetIndexCount(0) > 0 && display.GetIndexCount(1) > 0,
+                    "One stroke reveals a local patch of flesh.");
+                Capture(Camera.main, kitchen.PrepCameraPosition, kitchen.peelingStand.position, "KitchenPotatoPeeling");
+                Move(new Vector2(0, .11f), false);
+                Move(new Vector2(0, -.11f), true);
+                Check(Mathf.Approximately(potato.PeelProgress, partial), "Re-scraping the same patch does not advance peeling.");
                 kitchen.EndPrep();
-                Simulate(.28f);
+                Check(potato.Prop.Take(kitchen.game) && kitchen.Use(KitchenAction.Peeler) && Mathf.Approximately(potato.PeelProgress, partial),
+                    "A partially peeled potato keeps its exposed patches after being picked up.");
+                pointer = new Vector2(0, .13f);
             }
 
-            FactoryKitchenFood[] Food(bool rat) => kitchen.GetComponentsInChildren<FactoryKitchenFood>().Where(piece => piece.Rat == rat).ToArray();
-
-            void PeelPotato()
+            for (int rotation = 0; rotation < 12 && !potato.Peeled; rotation++)
             {
-                Check(kitchen.Use(KitchenAction.Potato), "A raw potato is taken directly into the player's hands.");
-                var potato = game.objectCarry.Held.GetComponent<FactoryKitchenFood>();
-                Check(!potato.Peeled && potato.Model == kitchen.potatoModel && kitchen.Use(KitchenAction.Peeler),
-                    "The held potato moves to the separate peeling stand.");
-                for (int i = 0; i < potato.PeelCount; i++)
+                for (int row = -1; row <= 1 && !potato.Peeled; row++)
                 {
-                    kitchen.MovePrepTool(new Vector2(0, 172), false);
-                    kitchen.MovePrepTool(new Vector2(0, -172), true);
+                    Move(new Vector2(-.17f, row * .05f), false);
+                    Move(new Vector2(.17f, row * .05f), true);
                 }
-                Check(Food(false).Contains(potato) && potato.Peeled && potato.Model == kitchen.potatoModel && !kitchen.Preparing,
-                    "Peeling changes the skin of the same physical potato while keeping the mesh.");
-                Check(potato.Prop.Take(game) && kitchen.Use(KitchenAction.Board) && !game.objectCarry.Held,
-                    "Re-pick up the peeled potato and place it on the chopping board.");
-                Simulate(.33f);
+                if (!potato.Peeled) Call(kitchen, "TurnPotato", 30f);
             }
+            Check(potato.Peeled && potato.PeelProgress == 1 && !kitchen.Preparing,
+                $"Turning and scraping the rest of the surface completes peeling ({potato.PeelProgress:P1}).");
+        }
 
-            void MoveBoardForThrow(FactoryKitchenFood[] food, Vector3 position)
+        static void SetUtensil(FactoryKitchenUtensil tool, float tilt, bool dipping)
+        {
+            typeof(FactoryKitchenUtensil).GetProperty(nameof(FactoryKitchenUtensil.Dipping)).SetValue(tool, dipping);
+            typeof(FactoryKitchenUtensil).GetProperty(nameof(FactoryKitchenUtensil.Tilt)).SetValue(tool, tilt);
+        }
+
+        static void TurnWithSpatula(CardboardFactoryGame game, Transform camera, FactoryKitchenFood food)
+        {
+            var tool = game.objectCarry.Held.GetComponent<FactoryKitchenUtensil>();
+            var pan = game.kitchen.pan.transform;
+            Vector3 level = pan.position + Vector3.up * .032f;
+            Vector3 piece = food.Prop.Body.position;
+            Vector3 firstFace = Quaternion.Inverse(food.Prop.Body.rotation) * Vector3.up;
+            camera.position = new Vector3(piece.x, 1.62f, pan.position.z - 1.02f);
+            Aim(camera, new Vector3(piece.x, level.y, piece.z - .145f));
+            Step(game, .30f, true);
+            SetUtensil(tool, 0, true);
+            Step(game, .26f, true);
+            Aim(camera, new Vector3(piece.x, level.y, piece.z + .006f));
+            Step(game, .30f, true);
+            var candidate = typeof(FactoryKitchenUtensil).GetField("spatulaContact", Internal).GetValue(tool);
+            Vector3 afterSlide = food.Prop.Body.position - tool.Tip;
+            SetUtensil(tool, 0, false);
+            Step(game, .36f, true);
+            Check(food.Prop.Body.position.y > piece.y + .065f,
+                $"Sliding and raising the real spatula lifts the slice ({food.Prop.Body.position.y - piece.y:F3} m, " +
+                $"contact {candidate}, difference {afterSlide:F3}, tool {tool.Tip - pan.position:F3}, desired {game.objectCarry.TargetPosition - pan.position:F3}, " +
+                $"food {food.Prop.Body.position - pan.position:F3}, joint {food.GetComponent<ConfigurableJoint>()}).");
+            SetUtensil(tool, 124f, false);
+            Step(game, .8f, true);
+            float facing = Vector3.Dot(food.Prop.Body.rotation * firstFace, Vector3.up);
+            Check(facing < .62f && game.kitchen.pan.Contains(food.Prop.Body.position),
+                $"Rolling the actual spatula lands the slice on a fresh face ({facing:F2}, {food.Prop.Body.position - pan.position:F3}).");
+        }
+
+        static void Aim(Transform camera, Vector3 at) => camera.rotation = Quaternion.LookRotation(at - camera.position);
+
+        static void SliceForBatch(FactoryKitchen kitchen, FactoryKitchenFood food)
+        {
+            Vector3 cut = food.Prop.Body.position + food.Prop.Body.rotation * food.Model.bounds.center;
+            Check((bool)Call(kitchen, "TryCut", food, cut, Vector3.forward), "A physical ingredient can be split through its center.");
+        }
+
+        static void PlaceInPot(FactoryKitchen kitchen, FactoryKitchenFood piece, int i)
+        {
+            Vector3 offset = Quaternion.Euler(0, i * 51f, 0) * Vector3.forward * .15f;
+            Place(piece, kitchen.pot.position + Vector3.up * .17f + offset, Quaternion.identity);
+            kitchen.TickCooking(.02f);
+        }
+
+        static FactoryKitchenFood[] LooseFood(FactoryKitchen kitchen, bool rat) =>
+            kitchen.GetComponentsInChildren<FactoryKitchenFood>().Where(piece => piece.Rat == rat && piece.transform.parent == kitchen.transform).ToArray();
+
+        static void Place(FactoryKitchenFood piece, Vector3 position, Quaternion rotation)
+        {
+            var body = piece.Prop.Body;
+            body.position = position;
+            body.rotation = rotation;
+            body.linearVelocity = body.angularVelocity = Vector3.zero;
+            piece.transform.SetPositionAndRotation(position, rotation);
+        }
+
+        static void Step(CardboardFactoryGame game, float seconds, bool grip = false)
+        {
+            Physics.SyncTransforms();
+            for (int i = 0; i < Mathf.CeilToInt(seconds / .02f); i++)
             {
-                var offsets = food.Select(piece => kitchen.board.transform.InverseTransformPoint(piece.Prop.Body.position)).ToArray();
-                var body = kitchen.board.Prop.Body;
-                body.position = position;
-                body.rotation = Quaternion.identity;
-                body.linearVelocity = body.angularVelocity = Vector3.zero;
-                kitchen.board.transform.SetPositionAndRotation(position, Quaternion.identity);
-                for (int i = 0; i < food.Length; i++)
-                {
-                    Vector3 newPosition = kitchen.board.transform.TransformPoint(offsets[i]);
-                    food[i].transform.position = newPosition;
-                    food[i].Prop.Body.position = newPosition;
-                    food[i].Prop.Body.linearVelocity = Vector3.zero;
-                }
-                Physics.SyncTransforms();
+                if (grip) game.objectCarry.TickGrip();
+                Physics.Simulate(.02f);
+                game.kitchen.TickCooking(.02f);
+                if (game.objectCarry.Held && game.objectCarry.Held.TryGetComponent(out FactoryKitchenUtensil tool) &&
+                    tool.Tool == FactoryKitchenUtensil.Kind.Ladle)
+                    Call(game.kitchen.Service, "Tick", tool, .02f);
             }
-
-            AimAt(KitchenAction.Knife);
-            AimAt(KitchenAction.Burner);
-            AimAt(KitchenAction.Pot);
-            Check(kitchen.GetComponentsInChildren<TextMesh>(true).Length == 0, "The cooking table has no world-space text.");
-            Check(!kitchen.Use(KitchenAction.Rat), "Rat stock starts empty.");
-            kitchen.ReceiveRats(FactoryRatHunt.Quota);
-            Check(kitchen.Use(KitchenAction.Rat) && kitchen.RatStock == 9, "Kitchen withdraws one rat from the diver's delivery.");
-            Check(Food(true).Single().Model == kitchen.ratModel && kitchen.ratModel.vertexCount > 30, "Whole rat is the baked original FBX mesh.");
-            Slice();
-            var rats = Food(true);
-            Check(rats.Length == 3 && rats.All(piece => kitchen.board.Contains(piece.Prop.Body.position)), "Three independent rigidbodies land on the board.");
-            Check(Mathf.Abs(rats.Sum(piece => piece.Amount) - 1) < .0001f && rats.All(piece => piece.Sliced), "Free slices preserve ingredient amount.");
-            Check(rats.All(piece => piece.Model != kitchen.ratModel) && rats.Any(piece => piece.Model.GetIndexCount(piece.Model.subMeshCount-1)>0),
-                "Original rat triangles are retained with newly generated exposed cut faces.");
-            camera.position = kitchen.board.transform.position + new Vector3(0, .64f, -1.12f);
-            Check(kitchen.Use(KitchenAction.Board), "The loaded board can be taken in hand.");
-            Simulate(.25f, true);
-            for (int step = 0; step < 37; step++)
-            {
-                camera.position += Vector3.right * (.036f);
-                Simulate(.02f, true);
-            }
-            Simulate(.25f, true);
-            Check(rats.All(piece => kitchen.board.Contains(piece.Prop.Body.position)),
-                "At walking speed the held board supports its loose ingredients from bench to stove.");
-            MoveBoardForThrow(rats, kitchen.pan.transform.position + new Vector3(0, -.033f, -.93f));
-            Check(kitchen.Toss(kitchen.board, new Vector2(0, 4)) == 0, "A sub-threshold movement leaves the contents on the board.");
-            Check(kitchen.Toss(kitchen.board, new Vector2(0, 68)) == 3, "Flick applies a physical launch to every piece on the board.");
-            Simulate(.82f);
-            int caught = rats.Count(piece => kitchen.pan.Contains(piece.Prop.Body.position));
-            Check(caught >= 1, "A centered flick lands in the physical pan. Positions: " + string.Join(", ", rats.Select(piece => piece.Prop.Body.position)));
-            Check(kitchen.Use(KitchenAction.Prep), "Board returns to the prep bench after the toss.");
-
-            var miss = rats.OrderByDescending(piece => piece.Amount).First();
-            miss.Prop.Body.position = miss.transform.position = kitchen.transform.position + new Vector3(.05f, .85f, -2f);
-            miss.Prop.Body.linearVelocity = Vector3.right;
-            Simulate(.92f);
-            Check(miss.Dusty && miss.Prop.Body.position.y < .22f, "A missed piece hits the floor and picks up visible dirt.");
-            foreach (var piece in rats.Where(piece => !kitchen.pan.Contains(piece.Prop.Body.position)))
-            {
-                Check(piece.Prop.Take(game) && kitchen.Use(KitchenAction.Burner), "A stray piece can be picked up and dropped into the pan.");
-                Simulate(.42f);
-            }
-            Check(kitchen.Use(KitchenAction.Burner), "Burner lights.");
-            Simulate(4.85f);
-            Check(rats.All(piece => piece.SideReady && !piece.Fried), "One side browns and raw back sides still need turning. " +
-                string.Join(", ", rats.Select(piece => piece.Prop.Body.position + " ready=" + piece.SideReady)));
-            Check(kitchen.Use(KitchenAction.Spatula), "Spatula flips pieces in the pan.");
-            Simulate(4.95f);
-            Check(rats.All(piece => piece.Fried), "The second side browns every piece.");
-            Check(kitchen.Use(KitchenAction.Pan), "The frying pan can be picked up with cooked pieces inside.");
-            Check(kitchen.Use(KitchenAction.Pot), "The frying pan tips cooked food into the pot.");
-            Simulate(.82f);
-            Check(kitchen.RatInPot >= FactoryKitchen.AmountPerIngredient && kitchen.Portions == 0, "The fried portions fill the rat requirement and the pot waits for potatoes. " +
-                "Pot count: " + kitchen.RatInPot + ". Leftover positions: " + string.Join(", ", Food(true).Select(piece => piece.Prop.Body.position)));
-            Check(kitchen.Use(KitchenAction.Burner), "The pan can be returned to the burner.");
-
-            PeelPotato();
-            Slice();
-            Check(Food(false).Length == 3 && kitchen.Use(KitchenAction.Board), "Sliced potato has three loose pieces.");
-            MoveBoardForThrow(Food(false), kitchen.pot.position + new Vector3(0, .07f, -.9f));
-            Check(kitchen.Use(KitchenAction.Pot), "The loaded board can tip potatoes into the stockpot.");
-            Simulate(.80f);
-            Check(kitchen.PotatoInPot >= FactoryKitchen.AmountPerIngredient && kitchen.Portions == 0, "Potatoes start the boil when the fried rat is already in the pot.");
-            Check(kitchen.Use(KitchenAction.Prep), "Board docks after pouring.");
-            Simulate(7.1f);
-            Check(kitchen.Portions == 2 && kitchen.Use(KitchenAction.Serve), "Finished soup yields two portions and can be ladled onto the tray.");
-            Check(game.lunch.KitchenMeal && kitchen.traySoup.activeSelf && kitchen.trayDust.activeSelf && kitchen.Portions == 1,
-                "The real tray has a soup bowl with the recovered piece's dust.");
-            Check(!kitchen.Use(KitchenAction.Serve) && kitchen.Portions == 1, "The occupied counter keeps the second portion in the pot.");
-            player.transform.position = game.lunch.pickup.position + Vector3.down + Vector3.back * 1.1f;
-            Check(game.lunch.TryTake(), "The existing balance mechanic takes the kitchen tray.");
-            player.transform.position = game.lunch.destination.position + Vector3.down * .8f;
-            Check(game.lunch.TryServe() && kitchen.Use(KitchenAction.Serve) && kitchen.Portions == 0,
-                "Delivering the tray frees the counter for the second bowl.");
-            game.ResetShift();
-            Check(kitchen.RatStock == 0 && !game.lunch.KitchenMeal && !kitchen.traySoup.activeSelf && kitchen.board.ReadyAtStation && kitchen.pan.ReadyAtStation,
-                "Restart returns both tools, ingredients and tray to their initial state.");
-
-            kitchen.ReceiveRats(FactoryRatHunt.Quota);
-            Check(kitchen.Use(KitchenAction.Rat), "Load a rat for the unrestricted cut stress test.");
-            GripKnife();
-            for (int i = -11; i <= 11; i++) ClickCut(new Vector2(i * .018f, 0));
-            for (int i = -11; i <= 11; i++) ClickCut(new Vector2(0, i * .011f), 90);
-            var diced = Food(true);
-            Check(diced.Length >= 100 && Mathf.Abs(diced.Sum(piece => piece.Amount) - 1) < .0001f,
-                $"Single clicks made {diced.Length} physical pieces from the original rat mesh without losing volume.");
-            kitchen.EndPrep();
-            Simulate(.2f);
-            Check(diced.All(piece => piece.Prop.Body.detectCollisions && !piece.Prop.Body.isKinematic), "All diced pieces use active physics.");
-
-            var testRat = diced.First();
-            Check(testRat.Prop.Take(game) && kitchen.Use(KitchenAction.Burner), "A tiny cut piece can be put into the pan.");
-            game.ResetShift();
-            kitchen.ReceiveRats(FactoryRatHunt.Quota);
-            Check(kitchen.Use(KitchenAction.Rat), "Load a rat for the scorch test.");
-            Slice();
-            var burnRat = Food(true)[1];
-            foreach (var piece in Food(true))
-            {
-                Vector3 target = piece == burnRat ? kitchen.pan.transform.position + Vector3.up * .08f : kitchen.transform.position + Vector3.back * 3;
-                piece.transform.position = piece.Prop.Body.position = target;
-                piece.Prop.Body.linearVelocity = Vector3.zero;
-            }
-            PeelPotato();
-            Slice();
-            var burnPotato = Food(false)[1];
-            Check(burnPotato.Prop.Take(game) && kitchen.Use(KitchenAction.Burner), "Potatoes can be dropped into the pan too.");
-            Check(kitchen.Use(KitchenAction.Burner), "Light the shared pan for the scorch test.");
-            Simulate(9.2f);
-            Check(burnRat.Burnt && burnPotato.Burnt && !burnPotato.ReadyForPot && !burnRat.ReadyForPot && kitchen.scorchSmoke.isPlaying,
-                "Both ingredients char, produce smoke and become unusable in soup.");
-
-            void PlaceOffCenter(FactoryKitchenTool tool, KitchenAction pickup, Vector3 offset, float angle)
-            {
-                Check(kitchen.Use(pickup) && !tool.ReadyAtStation, $"{pickup} is inactive while held.");
-                var body = tool.Prop.Body;
-                Vector3 position = tool.home.TransformPoint(offset);
-                Quaternion rotation = tool.home.rotation * Quaternion.Euler(0, angle, 0);
-                tool.transform.SetPositionAndRotation(position, rotation);
-                body.position = position;
-                body.rotation = rotation;
-                body.linearVelocity = body.angularVelocity = Vector3.zero;
-                game.objectCarry.TickInput(false, true);
-                Simulate(.85f);
-                Check(tool.ReadyAtStation && !body.isKinematic && Vector3.Distance(body.position, tool.home.position) > .12f &&
-                    Quaternion.Angle(body.rotation, tool.home.rotation) > 5f,
-                    $"{pickup} dropped with RMB stays off-center and rotated but works at its station. Position: {body.position}");
-            }
-
-            game.ResetShift();
-            PlaceOffCenter(kitchen.board, KitchenAction.Board, new Vector3(-.035f, .09f, -.19f), 12);
-            Vector3 looseBoardPosition = kitchen.board.Prop.Body.position;
-            kitchen.ReceiveRats(FactoryRatHunt.Quota);
-            Check(kitchen.Use(KitchenAction.Rat) && kitchen.board.Contains(Food(true).Single().Prop.Body.position),
-                "The rat is placed on the actual board instead of the old docking location.");
-            GripKnife();
-            ClickCut(Vector2.zero);
-            Check(Food(true).Length == 2 && Vector3.Distance(kitchen.board.Prop.Body.position, looseBoardPosition) < .01f,
-                "The knife cuts on the loose board without centering it.");
-            kitchen.EndPrep();
-            Check(!kitchen.board.Prop.Body.isKinematic, "The loose board resumes physics after using the knife.");
-
-            PlaceOffCenter(kitchen.pan, KitchenAction.Pan, new Vector3(.14f, .09f, .16f), 22);
-            var loosePanFood = Food(true).OrderBy(piece => piece.Amount).First();
-            Check(loosePanFood.Prop.Take(game) && kitchen.Use(KitchenAction.Burner) && kitchen.Use(KitchenAction.Burner),
-                "Food can be put into the loose pan and the burner lights.");
-            Simulate(5.2f);
-            Check(loosePanFood.SideReady, "Food browns in the off-center pan.");
-            Check(kitchen.Use(KitchenAction.Pan) && !kitchen.pan.ReadyAtStation, "Picking up the loose pan stops heating.");
-            var panBody = kitchen.pan.Prop.Body;
-            kitchen.pan.transform.position = panBody.position = kitchen.pan.home.position + Vector3.right * 1.1f;
-            game.objectCarry.TickInput(false, true);
-            Check(!kitchen.pan.ReadyAtStation, "The pan stops working when placed beyond the burner area.");
         }
 
         static void Check(bool result, string message)
@@ -325,32 +477,32 @@ namespace Cardboard.Editor
             Debug.Log("PASS " + message);
         }
 
-        static void CaptureBench(Camera camera, Transform kitchen)
+        static void Capture(Camera camera, Vector3 position, Vector3 lookAt, string name)
         {
-            var position = kitchen.TransformPoint(new Vector3(0, 1.90f, -3.49f));
-            var focus = kitchen.TransformPoint(new Vector3(0, .84f, 0));
-            camera.transform.SetPositionAndRotation(position, Quaternion.LookRotation(focus - position));
-            CaptureCamera(camera, "Logs/KitchenBench.png");
-        }
-
-        static void CaptureCamera(Camera camera, string path)
-        {
-            var target = new RenderTexture(1280, 720, 24);
-            var image = new Texture2D(1280, 720, TextureFormat.RGB24, false);
-            var active = RenderTexture.active;
+            if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null) return;
+            var pose = new Pose(camera.transform.position, camera.transform.rotation);
+            var previousTarget = camera.targetTexture;
+            var previousActive = RenderTexture.active;
+            var target = RenderTexture.GetTemporary(1280, 720, 24);
+            var pixels = new Texture2D(1280, 720, TextureFormat.RGB24, false);
             try
             {
-                RenderPipeline.SubmitRenderRequest(camera, new RenderPipeline.StandardRequest { destination = target });
+                camera.transform.SetPositionAndRotation(position, Quaternion.LookRotation(lookAt - position));
+                camera.targetTexture = target;
+                foreach (var hand in Object.FindObjectsByType<FactoryOperatorHand>(FindObjectsInactive.Exclude)) hand.SyncPose();
+                camera.Render();
                 RenderTexture.active = target;
-                image.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0);
-                Directory.CreateDirectory("Logs");
-                File.WriteAllBytes(path, image.EncodeToPNG());
+                pixels.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0);
+                pixels.Apply();
+                File.WriteAllBytes("Logs/" + name + ".png", pixels.EncodeToPNG());
             }
             finally
             {
-                RenderTexture.active = active;
-                Object.DestroyImmediate(target);
-                Object.DestroyImmediate(image);
+                camera.transform.SetPositionAndRotation(pose.position, pose.rotation);
+                camera.targetTexture = previousTarget;
+                RenderTexture.active = previousActive;
+                RenderTexture.ReleaseTemporary(target);
+                Object.DestroyImmediate(pixels);
             }
         }
     }

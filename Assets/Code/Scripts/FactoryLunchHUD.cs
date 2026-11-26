@@ -26,7 +26,6 @@ namespace Cardboard
             title.text=lunch.State==LunchState.Served?"ENJOY YOUR MEAL! GET BACK TO WORK.":
                 lunch.State==LunchState.Spilled?"LUNCH SPILLED. BACK TO WORK.":
                 lunch.NearDestination?lunch.DeliveryPrompt:
-                lunch.KitchenMeal && lunch.State==LunchState.Ready?"SOUP TRAY READY AT THE COUNTER.":
                 lunch.State==LunchState.Ready && !lunch.Attended?"LUNCH TIME! REACH THE CANTEEN IN "+lunch.ArrivalCountdown:"CARRY THE TRAY TO THE FAR END TABLE.";
             aim.SetActive(!CardboardMarker.DrawingMode && (lunch.Carrying || lunch.State==LunchState.Ready));
             balance.SetActive(lunch.Carrying);balance.GetComponent<RectTransform>().anchoredPosition=new Vector2(0,84);

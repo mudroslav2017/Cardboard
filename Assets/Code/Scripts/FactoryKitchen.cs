@@ -6,8 +6,9 @@ namespace Cardboard
 {
     public sealed class FactoryKitchen : MonoBehaviour
     {
-        public const float AmountPerIngredient = .90f;
-        const float BoilDuration = 7f;
+        public const float AmountPerIngredient = 7f;
+        public const int BowlsPerPot = 10;
+        const float BoilDuration = 30f;
         public CardboardFactoryGame game;
         public FactoryKitchenTool board, pan;
         public Transform knife, peeler, pot, broth, lid;
@@ -24,45 +25,124 @@ namespace Cardboard
         public int Portions { get; private set; }
         public float RatInPot { get; private set; }
         public float PotatoInPot { get; private set; }
-        public bool Preparing => prep != PrepMode.None;
-        Transform PrepAnchor => prep == PrepMode.Peeler ? peelingStand : board.transform;
-        public Vector3 PrepCameraPosition => PrepAnchor.TransformPoint(new Vector3(prep == PrepMode.Knife ? .14f : 0, .97f, -.86f));
-        public Quaternion PrepCameraRotation => Quaternion.LookRotation(PrepAnchor.TransformPoint(new Vector3(0, .04f, 0)) - PrepCameraPosition);
+        public bool Preparing { get; private set; }
+        public Vector3 PrepCameraPosition => peelingStand.TransformPoint(new Vector3(0, .97f, -.86f));
+        public Quaternion PrepCameraRotation => Quaternion.LookRotation(peelingStand.TransformPoint(new Vector3(0, .04f, 0)) - PrepCameraPosition);
+        public FactoryKitchenService Service { get; private set; }
         public const float BladeHalfLength = .32f;
 
-        enum PrepMode { None, Knife, Peeler }
         readonly List<FactoryKitchenFood> pieces = new List<FactoryKitchenFood>();
-        PrepMode prep;
         FactoryKitchenFood peelingPotato;
+        FactoryKitchenUtensil kitchenKnife, spatula, ladle;
+        FactoryKitchenTool stockpot;
+        Transform soupBurnerSeat;
+        Renderer soupCoals;
         Vector2 pointer;
         int prepStartedFrame;
-        bool burner, dustySoup, charging, pressing, panHasFood, panNeedsFlip, panHasBurntFood;
-        float boil, peelDistance, knifeAngle, lastChop;
+        bool burner, soupBurnerLit, charging, panHasCookedFood, panHasBurntFood;
+        float boil, peelAngle, peelSoundAt;
         Vector2 flick;
-        Vector3 knifeHome, peelerHome;
-        Quaternion knifeRotation, peelerRotation;
+        Vector3 peelerHome;
+        Quaternion peelerRotation;
         float lidHeight;
         string hint;
         float hintUntil;
         GUIStyle promptStyle;
-        AudioClip crunch;
+        AudioClip crunch, knifeTap;
+        Mesh cuttableRat, cuttablePotato;
 
         FactoryPhysicsProp Held => game.objectCarry ? game.objectCarry.Held : null;
         FactoryKitchenFood HeldFood => Held ? Held.GetComponent<FactoryKitchenFood>() : null;
         FactoryKitchenTool HeldTool => Held ? Held.GetComponent<FactoryKitchenTool>() : null;
-        bool PotFull => RatInPot >= AmountPerIngredient && PotatoInPot >= AmountPerIngredient;
+        FactoryKitchenTool HeldTransferTool => HeldTool == stockpot ? null : HeldTool;
+        FactoryKitchenUtensil HeldUtensil => Held ? Held.GetComponent<FactoryKitchenUtensil>() : null;
+        internal bool KnifeHeld => kitchenKnife && HeldUtensil == kitchenKnife;
+        bool HasIngredient(bool rat) => (rat ? RatInPot : PotatoInPot) >= AmountPerIngredient - .0001f &&
+            Service.IngredientPieces(rat) >= BowlsPerPot;
+        bool PotFull => HasIngredient(true) && HasIngredient(false);
+        bool PotOnBurner
+        {
+            get
+            {
+                var body = stockpot.Prop.Body;
+                return !stockpot.Prop.IsHeld && (body.position - soupBurnerSeat.position).sqrMagnitude < .16f * .16f &&
+                    Vector3.Dot(body.rotation * Vector3.up, Vector3.up) > .95f && body.linearVelocity.sqrMagnitude < .08f;
+            }
+        }
+        bool HeatingSoup => soupBurnerLit && PotOnBurner;
         bool Active => game && game.State == FactoryState.Working && !game.MenuActive && !game.IntroActive &&
             !game.CaptureActive && !game.EndingBusy && !game.FilmActive;
+        internal bool ToolsActive => Active && !game.PlayerBlocked && !CardboardMarker.DrawingMode;
 
         void Awake()
         {
-            knifeHome = knife.localPosition;
             peelerHome = peeler.localPosition;
-            knifeRotation = knife.localRotation;
             peelerRotation = peeler.localRotation;
             lidHeight = lid.localPosition.y;
             crunch = MakePaperSound("Knife through cardboard", .16f, false);
+            knifeTap = MakePaperSound("Knife hits the board", .075f, false);
             sizzle.clip = MakePaperSound("Cardboard frying", 1.2f, true);
+            cuttableRat = SizeForKitchen(ratModel);
+            cuttablePotato = SizeForKitchen(potatoModel);
+            SetUpStockpot();
+            SetUpUtensils();
+            Service = gameObject.AddComponent<FactoryKitchenService>();
+            Service.SetUp(this);
+            Service.SetUpLadle(ladle);
+        }
+
+        void SetUpStockpot()
+        {
+            var rest = CardboardArt.Group("Stockpot rest", transform, pot.localPosition);
+            rest.rotation = pot.rotation;
+            var body = pot.gameObject.AddComponent<Rigidbody>();
+            body.mass = 2.5f;
+            pot.gameObject.AddComponent<FactoryPhysicsProp>().itemName = "stockpot";
+            stockpot = pot.gameObject.AddComponent<FactoryKitchenTool>();
+            stockpot.Stockpot = true;
+            stockpot.home = rest;
+            stockpot.Dock();
+
+            Material stove = sizzle.GetComponent<Renderer>().sharedMaterial;
+            var stovePosition = rest.localPosition + new Vector3(-.92f, .038f, 0);
+            var hob = StockpotFixture("Soup burner", stovePosition, new Vector3(.79f, .145f, .83f), stove, KitchenAction.SoupBurner);
+            soupBurnerSeat = CardboardArt.Group("Stockpot seat", transform, stovePosition + Vector3.up * .10f);
+            soupBurnerSeat.rotation = rest.rotation;
+            var coal = Instantiate(burnerLamp.gameObject, transform);
+            coal.name = "Soup burner coals";
+            coal.transform.localPosition = stovePosition + Vector3.up * .077f;
+            soupCoals = coal.GetComponent<Renderer>();
+            soupCoals.enabled = false;
+            var knob = CardboardArt.Box("Soup burner knob", hob, new Vector3(0, -.10f, -.54f),
+                new Vector3(.18f, .37f, .13f), burnerLamp.sharedMaterial);
+            knob.gameObject.AddComponent<BoxCollider>();
+            StockpotFixture("Stockpot trivet", rest.localPosition - Vector3.up * .034f, new Vector3(.73f, .025f, .73f),
+                stove, KitchenAction.PotRest);
+        }
+
+        Transform StockpotFixture(string name, Vector3 position, Vector3 scale, Material material, KitchenAction action)
+        {
+            var model = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            model.name = name;
+            model.transform.SetParent(transform, false);
+            model.transform.localPosition = position;
+            model.transform.localScale = scale;
+            model.GetComponent<Renderer>().sharedMaterial = material;
+            var control = model.AddComponent<FactoryKitchenControl>();
+            control.kitchen = this;
+            control.action = action;
+            model.AddComponent<FactoryInteractable>().action = FactoryAction.Kitchen;
+            return model.transform;
+        }
+
+        static Mesh SizeForKitchen(Mesh source)
+        {
+            var mesh = Instantiate(source);
+            Vector3[] vertices = mesh.vertices;
+            for (int i = 0; i < vertices.Length; i++) vertices[i] *= .64f;
+            mesh.vertices = vertices;
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
         public void ResetKitchen()
@@ -71,14 +151,19 @@ namespace Cardboard
             pieces.Clear();
             RatStock = Portions = 0;
             RatInPot = PotatoInPot = 0;
-            burner = dustySoup = false;
+            burner = soupBurnerLit = false;
             boil = hintUntil = 0;
             sizzle.Stop();
             EndPrep();
             CancelFlick();
             board.ResetTool();
             pan.ResetTool();
-            ShowTrayMeal(false, false);
+            stockpot.ResetTool();
+            kitchenKnife.Rest();
+            spatula.Rest();
+            ladle.Rest();
+            Service.ResetService();
+            if (traySoup) traySoup.SetActive(false);
             RefreshCookingFeedback(false, false, false);
         }
 
@@ -88,14 +173,87 @@ namespace Cardboard
             ShowHint("BASKET IN. TAKE A RAT AT THE PREP BENCH.");
         }
 
-        public void ShowTrayMeal(bool visible, bool dusty)
+        void SetUpUtensils()
         {
-            traySoup.SetActive(visible);
-            trayDust.SetActive(dusty);
+            var handles = GetComponentsInChildren<FactoryKitchenControl>(true);
+            Transform ladleRest = System.Array.Find(handles, control => control.action == KitchenAction.Serve).transform;
+            var spatulaHead = transform.Find("Spatula head");
+            var spatulaHandle = transform.Find("Spatula handle");
+            var ladleCup = ladleRest.Find("Ladle bowl");
+            var ladleHandle = ladleRest.Find("Wood ladle grip");
+            var spatulaModel = AssembleUtensil("Frying spatula", spatulaHead, spatulaHandle);
+            var ladleModel = AssembleUtensil("Soup ladle", ladleCup, ladleHandle);
+            var sleeve = System.Array.Find(handles, control => control.action == KitchenAction.Prep)
+                .GetComponentInChildren<Renderer>().sharedMaterial;
+            kitchenKnife = FactoryKitchenUtensil.Create(this, FactoryKitchenUtensil.Kind.Knife, knife,
+                new Vector3(0, .036f, -.003f), new Vector3(.017f, .061f, .635f), Vector3.zero, potatoPaper, sleeve);
+            spatula = FactoryKitchenUtensil.Create(this, FactoryKitchenUtensil.Kind.Spatula, spatulaModel,
+                new Vector3(0, 0, .14f), new Vector3(.119f, .012f, .126f), Vector3.forward * .14f, potatoPaper, sleeve);
+            ladle = FactoryKitchenUtensil.Create(this, FactoryKitchenUtensil.Kind.Ladle, ladleModel,
+                new Vector3(0, -.022f, .14f), new Vector3(.16f, .04f, .16f), Vector3.forward * .14f, potatoPaper, sleeve);
+            foreach (var shape in pan.GetComponentsInChildren<Collider>()) shape.contactOffset = .0015f;
+            foreach (var shape in board.GetComponentsInChildren<Collider>()) shape.contactOffset = .0015f;
+            if (knifeDashes != null)
+                foreach (var dash in knifeDashes) if (dash) dash.gameObject.SetActive(false);
         }
 
+        Transform AssembleUtensil(string name, Transform head, Transform handle)
+        {
+            var root = CardboardArt.Group(name, transform, Vector3.zero);
+            Vector3 axis = Vector3.ProjectOnPlane(head.position - handle.position, Vector3.up);
+            root.SetPositionAndRotation(head.position - axis.normalized * .14f, Quaternion.LookRotation(axis));
+            head.SetParent(root, false);
+            head.SetLocalPositionAndRotation(Vector3.forward * .14f, Quaternion.identity);
+            handle.SetParent(root, false);
+            handle.SetLocalPositionAndRotation(Vector3.back * .041f, Quaternion.identity);
+            return root;
+        }
+
+        internal bool ReadUtensilInput(Mouse mouse, Vector2 delta, float sensitivity)
+        {
+            if (!ToolsActive || !HeldUtensil) return false;
+            if (HeldUtensil != ladle) return HeldUtensil.ReadInput(mouse, delta, sensitivity);
+            if (mouse.leftButton.wasPressedThisFrame) UseLadle(Camera.main.transform);
+            return false;
+        }
+
+        internal bool UseLadle(Transform view)
+        {
+            if (HeldUtensil != ladle || Service.LadleBusy) return false;
+            var target = game.TargetForRay(new Ray(view.position, view.forward));
+            if (target && target.TryGetComponent(out FactoryKitchenControl control))
+            {
+                if (Service.HasScoop && control.action == KitchenAction.Bowl && Service.StartPour(control.slot, ladle, view.eulerAngles.y))
+                    return true;
+                if (!Service.HasScoop && control.action == KitchenAction.Pot && Portions > 0 &&
+                    Vector3.Dot(pot.up, Vector3.up) > .90f && Service.StartScoop(ladle, view.eulerAngles.y))
+                    return true;
+            }
+            return ShowHint(Service.HasScoop ? "AIM AT AN EMPTY BOWL AND PRESS LMB." : "AIM AT THE COOKED SOUP AND PRESS LMB.");
+        }
+
+        internal bool ReturnUtensil()
+        {
+            if (!HeldUtensil) return false;
+            if (HeldUtensil == ladle && Service.LadleBusy) return true;
+            game.objectCarry.Release(false);
+            return true;
+        }
+
+        internal float SpatulaLevel => pan.Prop.Body.position.y + .0285f;
+
         public bool OwnsHeld(FactoryPhysicsProp prop) => prop &&
-            (prop == board.Prop || prop == pan.Prop || prop.GetComponent<FactoryKitchenFood>());
+            (prop == board.Prop || prop == pan.Prop || prop == stockpot.Prop || prop.GetComponent<FactoryKitchenFood>() ||
+             prop.GetComponent<FactoryKitchenUtensil>() || Service && Service.OwnsBowl(prop));
+
+        internal bool IgnoreHeldCollider(Collider shape)
+        {
+            if (!OwnsHeld(Held)) return false;
+            if (shape.transform.IsChildOf(Held.transform)) return true;
+            var tool = HeldTransferTool;
+            var piece = shape.GetComponentInParent<FactoryKitchenFood>();
+            return tool && piece && (AvailableOn(tool, piece) || tool == board && AvailableOn(pan, piece));
+        }
 
         public bool AcceptsHeld(KitchenAction action)
         {
@@ -105,14 +263,18 @@ namespace Cardboard
                 case KitchenAction.Board: return HeldFood && HeldFood.Peeled;
                 case KitchenAction.Peeler: return HeldFood && !HeldFood.Peeled;
                 case KitchenAction.Pan: return Held == board.Prop;
-                case KitchenAction.Burner: return Held == pan.Prop || HeldFood;
-                case KitchenAction.Pot: return HeldTool || HeldFood;
+                case KitchenAction.Burner: return Held == pan.Prop || Held == board.Prop || HeldFood;
+                case KitchenAction.Pot: return HeldTransferTool || HeldFood || HeldUtensil == ladle;
+                case KitchenAction.SoupBurner:
+                case KitchenAction.PotRest: return Held == stockpot.Prop;
+                case KitchenAction.Bowl: return HeldUtensil == ladle;
                 case KitchenAction.Bin: return HeldFood;
+                case KitchenAction.Tray: return Service.OwnsBowl(Held);
                 default: return false;
             }
         }
 
-        public string Prompt(KitchenAction action)
+        public string Prompt(KitchenAction action, int slot = 0)
         {
             switch (action)
             {
@@ -122,30 +284,39 @@ namespace Cardboard
                 case KitchenAction.Peeler: return HeldFood && !HeldFood.Peeled ? "E - PEEL POTATO" : "BRING A POTATO TO THE PEELER";
                 case KitchenAction.Board: return HeldFood ? "E - SET INGREDIENT ON THE BOARD" : "E - PICK UP CHOPPING BOARD";
                 case KitchenAction.Prep: return HeldFood ? "E - SET INGREDIENT ON THE BOARD" : "E - PUT BOARD ON PREP BENCH";
-                case KitchenAction.Pan: return Held == board.Prop ? "E - TIP FROM BOARD (GET CLOSE)" : "E - PICK UP FRYING PAN";
+                case KitchenAction.Pan: return Held == board.Prop ? "E - TIP BOARD INTO PAN" :
+                    panHasCookedFood ? "E - PICK UP FRYING PAN  /  RAT READY" : "E - PICK UP FRYING PAN";
                 case KitchenAction.Burner:
                     if (Held == pan.Prop) return "E - SET PAN ON BURNER";
+                    if (Held == board.Prop) return "E - TIP BOARD INTO PAN";
                     if (HeldFood) return "E - DROP PIECE INTO PAN";
                     if (!burner) return "E - LIGHT BURNER";
-                    return panHasBurntFood ? "E - TURN BURNER OFF  /  FOOD BURNT" : "E - TURN BURNER OFF";
-                case KitchenAction.Spatula: return panNeedsFlip ? "E - FLIP THE PIECES  /  SIDE BROWNED" :
-                    panHasFood ? "E - FLIP THE PIECES" : "SPATULA";
-                case KitchenAction.Pot: return Held ? "E - TIP INTO STOCKPOT" : PotStatus;
-                case KitchenAction.Serve: return Portions > 0 ? "E - LADLE SOUP ONTO TRAY  /  " + Portions + " LEFT" : "LADLE READY WHEN SOUP IS DONE";
+                    return panHasBurntFood ? "E - TURN BURNER OFF  /  FOOD BURNT" :
+                        panHasCookedFood ? "E - TURN BURNER OFF  /  RAT READY" : "E - TURN BURNER OFF";
+                case KitchenAction.Spatula: return "E - TAKE SPATULA";
+                case KitchenAction.Pot: return HeldUtensil == ladle ? HeldPrompt(Held) :
+                    Held ? "E - TIP INTO STOCKPOT" : "E - PICK UP STOCKPOT  /  " + PotStatus;
+                case KitchenAction.SoupBurner:
+                    if (Held == stockpot.Prop) return "E - SET STOCKPOT ON BURNER";
+                    return soupBurnerLit ? "E - TURN SOUP BURNER OFF  /  " + PotStatus : "E - LIGHT SOUP BURNER";
+                case KitchenAction.PotRest: return Held == stockpot.Prop ? "E - PUT STOCKPOT ON TRIVET" : "";
+                case KitchenAction.Serve: return Portions > 0 ? "E - TAKE LADLE  /  " + Portions + " SCOOPS LEFT" : "LADLE READY WHEN SOUP IS DONE";
                 case KitchenAction.Bin: return "E - DISCARD HELD PIECE";
+                case KitchenAction.Bowl: return HeldUtensil == ladle ? HeldPrompt(Held) : Service.BowlPrompt(slot);
+                case KitchenAction.Tray: return Service.TrayPrompt(slot, Held);
                 default: return "";
             }
         }
 
-        public bool Use(KitchenAction action)
+        public bool Use(KitchenAction action, int slot = 0)
         {
             if (!Active || game.HasPart || game.HandsBusy && !AcceptsHeld(action)) return false;
             switch (action)
             {
                 case KitchenAction.Rat: return LoadRat();
                 case KitchenAction.Potato: return TakePotato();
-                case KitchenAction.Knife: return BeginPrep(PrepMode.Knife);
-                case KitchenAction.Peeler: return BeginPrep(PrepMode.Peeler);
+                case KitchenAction.Knife: return kitchenKnife.Take(game);
+                case KitchenAction.Peeler: return BeginPeeling();
                 case KitchenAction.Board:
                     if (HeldFood) return LayHeldOnBoard();
                     return board.Prop.Take(game);
@@ -154,18 +325,25 @@ namespace Cardboard
                     if (Held != board.Prop) return false;
                     SetDown(board); return true;
                 case KitchenAction.Pan:
-                    if (Held == board.Prop)
-                        return Vector3.Distance(board.transform.position, pan.transform.position) < .72f && pan.ReadyAtStation
-                            ? TipBetween(board, pan.transform.position + Vector3.up * .065f, .40f, false) : ShowHint("HOLD THE BOARD NEAR THE PAN'S RIM TO TIP IT IN.");
+                    if (Held == board.Prop) return TipIntoPan();
                     return pan.Prop.Take(game);
                 case KitchenAction.Burner:
                     if (Held == pan.Prop) SetDown(pan);
+                    else if (Held == board.Prop)
+                        return pan.ReadyAtStation ? TipIntoPan() : ShowHint("SET THE PAN ON THE BURNER FIRST.");
                     else if (HeldFood) return DropHeldIntoPan();
                     else burner = !burner;
                     return true;
-                case KitchenAction.Spatula: return FlipPan();
-                case KitchenAction.Pot: return TipIntoPot();
-                case KitchenAction.Serve: return Serve();
+                case KitchenAction.Spatula: return spatula.Take(game);
+                case KitchenAction.Pot: return Held ? TipIntoPot() : stockpot.Prop.Take(game);
+                case KitchenAction.SoupBurner:
+                    if (Held == stockpot.Prop) return PutStockpot(soupBurnerSeat);
+                    soupBurnerLit = !soupBurnerLit;
+                    return true;
+                case KitchenAction.PotRest: return Held == stockpot.Prop && PutStockpot(stockpot.home);
+                case KitchenAction.Serve: return (Portions > 0 || Service.HasScoop) && ladle.Take(game);
+                case KitchenAction.Bowl: return Service.TakeBowl(slot);
+                case KitchenAction.Tray: return Service.SetBowlOnTray(slot, Held);
                 case KitchenAction.Bin:
                     if (!HeldFood) return false;
                     var discarded = HeldFood;
@@ -177,6 +355,13 @@ namespace Cardboard
             }
         }
 
+        bool PutStockpot(Transform stand)
+        {
+            game.objectCarry.Release(false);
+            stockpot.Dock(stand);
+            return true;
+        }
+
         bool LoadRat()
         {
             if (RatStock == 0) return ShowHint("THE DIVER NEEDS TO DELIVER A FULL BASKET.");
@@ -184,8 +369,8 @@ namespace Cardboard
             if (pieces.Exists(piece => AvailableOn(board, piece))) return ShowHint("CLEAR THE CHOPPING BOARD FIRST.");
             RatStock--;
             var cuttingBoard = board.transform;
-            var position = cuttingBoard.TransformPoint(Vector3.up * (.034f - ratModel.bounds.min.y));
-            SpawnPiece(true, ratModel, ratMaterials, 1, position, cuttingBoard.rotation, null);
+            var position = cuttingBoard.TransformPoint(Vector3.up * (.034f - cuttableRat.bounds.min.y));
+            SpawnPiece(true, cuttableRat, ratMaterials, 1, position, cuttingBoard.rotation, null);
             ShowHint("PICK UP THE KNIFE.");
             return true;
         }
@@ -195,7 +380,7 @@ namespace Cardboard
             var camera = Camera.main;
             if (!camera) return false;
             var eyes = camera.transform;
-            var potato = SpawnPiece(false, potatoModel, potatoMaterials, 1,
+            var potato = SpawnPiece(false, cuttablePotato, potatoMaterials, 1,
                 eyes.position + eyes.forward * .68f - Vector3.up * .18f, Quaternion.identity, null);
             if (potato.Prop.Take(game))
             {
@@ -221,60 +406,36 @@ namespace Cardboard
             return true;
         }
 
-        bool BeginPrep(PrepMode mode)
+        bool BeginPeeling()
         {
-            if (mode == PrepMode.Peeler)
-            {
-                var potato = HeldFood;
-                if (!potato || potato.Peeled) return ShowHint("BRING A POTATO TO THE PEELER.");
-                if (pieces.Exists(piece => piece && piece != potato && !piece.Prop.IsHeld &&
-                    Vector3.Distance(piece.Prop.Body.position, peelingStand.position) < .22f))
-                    return ShowHint("CLEAR THE PEELING STAND FIRST.");
-                game.objectCarry.Release(false);
-                peelingPotato = potato;
-                potato.RestForCutting(peelingStand.position, PeelRotation(potato));
-            }
-            if (mode == PrepMode.Knife)
-            {
-                if (!board.ReadyAtStation) return ShowHint("SET THE BOARD DOWN NEAR THE PREP BENCH FIRST.");
-                if (!pieces.Exists(piece => AvailableOn(board, piece) && piece.Peeled)) return ShowHint("LAY A PREPARED INGREDIENT ON THE BOARD.");
-                board.HoldSteadyForPrep();
-                var cuttingBoard = board.transform;
-                foreach (var piece in pieces)
-                {
-                    if (!AvailableOn(board, piece) || !piece.Peeled) continue;
-                    Vector3 position = cuttingBoard.InverseTransformPoint(piece.Prop.Body.position);
-                    position.y = .034f - piece.Model.bounds.min.y;
-                    Vector3 forward = Vector3.ProjectOnPlane(piece.Prop.Body.rotation * Vector3.forward, cuttingBoard.up);
-                    Quaternion rotation = forward.sqrMagnitude > .001f ? Quaternion.LookRotation(forward, cuttingBoard.up) : cuttingBoard.rotation;
-                    piece.RestForCutting(cuttingBoard.TransformPoint(position), rotation);
-                }
-            }
-            prep = mode;
+            var potato = HeldFood;
+            if (!potato || potato.Peeled) return ShowHint("BRING A POTATO TO THE PEELER.");
+            if (pieces.Exists(piece => piece && piece != potato && !piece.Prop.IsHeld &&
+                Vector3.Distance(piece.Prop.Body.position, peelingStand.position) < .22f))
+                return ShowHint("CLEAR THE PEELING STAND FIRST.");
+            game.objectCarry.Release(false);
+            peelingPotato = potato;
+            peelAngle = 0;
+            potato.TurnForPeeling(peelAngle, potatoPaper);
+            potato.RestForPeeling(peelingStand.position, peelingStand.rotation);
+            Preparing = true;
             prepStartedFrame = Time.frameCount;
-            pointer = new Vector2(0, mode == PrepMode.Knife ? 0 : .23f);
-            pressing = false;
-            peelDistance = 0;
-            knifeAngle = 0;
-            lastChop = float.NegativeInfinity;
-            PosePrepTool(false);
+            pointer = new Vector2(0, .13f);
+            peelSoundAt = float.NegativeInfinity;
+            PosePeeler(false);
             return true;
         }
 
         public void EndPrep()
         {
-            foreach (var piece in pieces) if (piece) piece.ReleaseFromCutting();
-            board.ResumeAfterPrep();
+            if (peelingPotato) peelingPotato.ReleaseFromPeeling();
             peelingPotato = null;
-            prep = PrepMode.None;
-            pressing = false;
-            foreach (var dash in knifeDashes) dash.gameObject.SetActive(false);
-            knife.SetLocalPositionAndRotation(knifeHome, knifeRotation);
+            Preparing = false;
             peeler.SetLocalPositionAndRotation(peelerHome, peelerRotation);
         }
 
         public bool ConsumesMouse(Mouse mouse) => Active && !CardboardMarker.DrawingMode &&
-            (Preparing || HeldTool && (charging || mouse.leftButton.isPressed || mouse.leftButton.wasReleasedThisFrame));
+            (Preparing || HeldTransferTool && (charging || mouse.leftButton.isPressed || mouse.leftButton.wasReleasedThisFrame));
 
         public void HandleMouse(Mouse mouse, Vector2 delta)
         {
@@ -282,13 +443,9 @@ namespace Cardboard
             {
                 if (mouse.rightButton.wasPressedThisFrame || Time.frameCount != prepStartedFrame && Keyboard.current?.eKey.wasPressedThisFrame == true)
                 { EndPrep(); return; }
-                if (prep == PrepMode.Knife)
-                {
-                    float scroll = mouse.scroll.ReadValue().y;
-                    if (Mathf.Abs(scroll) > .01f) SetKnifeAngle(knifeAngle + Mathf.Sign(scroll) * 12f);
-                    MovePrepTool(delta, mouse.leftButton.wasPressedThisFrame);
-                }
-                else MovePrepTool(delta, mouse.leftButton.isPressed);
+                float scroll = mouse.scroll.ReadValue().y;
+                if (Mathf.Abs(scroll) > .01f) TurnPotato(Mathf.Sign(scroll) * 30f);
+                MovePrepTool(delta, mouse.leftButton.isPressed);
                 return;
             }
             if (mouse.rightButton.wasPressedThisFrame) { CancelFlick(); return; }
@@ -315,103 +472,66 @@ namespace Cardboard
             if (!Preparing) return;
             Vector2 previous = pointer;
             pointer += pixels * .0026f;
-            pointer.x = Mathf.Clamp(pointer.x, -.39f, .39f);
-            pointer.y = Mathf.Clamp(pointer.y, -.31f, .31f);
-            if (prep == PrepMode.Knife)
-            {
-                if (pressed)
-                {
-                    lastChop = Time.time;
-                    CutUnderBlade();
-                }
-            }
-            else if (pressed) Peel(previous, pointer);
-            else if (pressing) peelDistance = 0;
-            pressing = pressed;
-            if (Preparing) PosePrepTool(pressed);
+            pointer.x = Mathf.Clamp(pointer.x, -.185f, .185f);
+            pointer.y = Mathf.Clamp(pointer.y, -.14f, .14f);
+            if (pressed) Peel(previous, pointer);
+            if (Preparing) PosePeeler(pressed);
         }
 
-        void PosePrepTool(bool pressed)
+        void PosePeeler(bool pressed)
         {
-            if (prep == PrepMode.Peeler)
-            {
-                peeler.SetPositionAndRotation(peelingStand.TransformPoint(new Vector3(pointer.x, pressed ? .085f : .20f, pointer.y)), peelingStand.rotation);
-                return;
-            }
-            Quaternion yaw = Quaternion.Euler(0, knifeAngle, 0);
-            var cuttingBoard = board.transform;
-            Vector3 center = new Vector3(pointer.x, 0, pointer.y);
-            float chop = Mathf.Sin(Mathf.Clamp01((Time.time - lastChop) / .23f) * Mathf.PI);
-            float top = .023f;
-            foreach (var piece in pieces)
-                if (piece && piece.OnCuttingBoard)
-                    top = Mathf.Max(top, cuttingBoard.InverseTransformPoint(piece.transform.position).y + piece.Model.bounds.max.y);
-            knife.SetPositionAndRotation(cuttingBoard.TransformPoint(center + Vector3.up * Mathf.Lerp(top + .135f, .052f, chop)),
-                cuttingBoard.rotation * yaw);
-            for (int i = 0; i < knifeDashes.Length; i++)
-            {
-                Transform dash = knifeDashes[i];
-                dash.gameObject.SetActive(true);
-                float forward = Mathf.Lerp(-BladeHalfLength + .018f, BladeHalfLength - .018f, i / (float)(knifeDashes.Length - 1));
-                dash.SetPositionAndRotation(cuttingBoard.TransformPoint(center + yaw * new Vector3(0, top + .011f, forward)), cuttingBoard.rotation * yaw);
-            }
+            float height = peelingPotato.PeelHeight(pointer) + (pressed ? .001f : .064f);
+            peeler.SetPositionAndRotation(peelingStand.TransformPoint(new Vector3(pointer.x, height - .018f, pointer.y - .035f)),
+                peelingStand.rotation);
         }
 
-        public void SetKnifeAngle(float angle) { knifeAngle = Mathf.Repeat(angle, 360); }
-
-        void CutUnderBlade()
+        internal bool TryCut(FactoryKitchenFood parent, Vector3 center, Vector3 edge)
         {
-            var cuttingBoard = board.transform;
-            Quaternion yaw = cuttingBoard.rotation * Quaternion.Euler(0, knifeAngle, 0);
-            Vector3 center = cuttingBoard.TransformPoint(new Vector3(pointer.x, 0, pointer.y));
-            bool cutAnything = false;
-            for (int i = pieces.Count - 1; i >= 0; i--)
+            if (!parent.Peeled || parent.Burnt || !pieces.Contains(parent) || !AvailableOn(board, parent)) return false;
+            var body = parent.Prop.Body;
+            Quaternion inverse = Quaternion.Inverse(body.rotation);
+            Vector3 blade = Vector3.ProjectOnPlane(edge, Vector3.up).normalized;
+            Vector3 normal = inverse * Vector3.Cross(Vector3.up, blade);
+            if (!FactoryKitchenMeshCut.TrySplit(parent.Model, inverse * (center - body.position), normal,
+                inverse * blade, BladeHalfLength, out var first, out var second)) return false;
+            float firstVolume = FactoryKitchenMeshCut.Volume(first);
+            float secondVolume = FactoryKitchenMeshCut.Volume(second);
+            if (firstVolume < 2e-9f || secondVolume < 2e-9f)
             {
-                var parent = pieces[i];
-                if (!parent || !parent.OnCuttingBoard) continue;
-                var node = parent.transform;
-                Vector3 normal = node.InverseTransformDirection(yaw * Vector3.right);
-                Vector3 blade = node.InverseTransformDirection(yaw * Vector3.forward);
-                if (!FactoryKitchenMeshCut.TrySplit(parent.Model, node.InverseTransformPoint(center), normal, blade, BladeHalfLength,
-                    out var first, out var second)) continue;
-                float firstVolume = FactoryKitchenMeshCut.Volume(first);
-                float secondVolume = FactoryKitchenMeshCut.Volume(second);
-                if (firstVolume < 2e-9f || secondVolume < 2e-9f)
-                {
-                    Destroy(first);
-                    Destroy(second);
-                    continue;
-                }
-                float firstAmount = parent.Amount * firstVolume / (firstVolume + secondVolume);
-                SpawnCutPiece(parent, first, firstAmount, normal * .0009f);
-                SpawnCutPiece(parent, second, parent.Amount - firstAmount, -normal * .0009f);
-                pieces.RemoveAt(i);
-                RemoveObject(parent);
-                cutAnything = true;
+                Destroy(first);
+                Destroy(second);
+                return false;
             }
-            if (cutAnything) PlayCrunch();
+            float firstAmount = parent.Amount * firstVolume / (firstVolume + secondVolume);
+            SpawnCutPiece(parent, first, firstAmount, normal * .002f);
+            SpawnCutPiece(parent, second, parent.Amount - firstAmount, -normal * .002f);
+            pieces.Remove(parent);
+            RemoveObject(parent);
+            PlayCrunch();
+            return true;
         }
 
         void Peel(Vector2 from, Vector2 to)
         {
-            if (!peelingPotato || Mathf.Abs(to.x) > .20f || to.y >= from.y) return;
-            peelDistance += Mathf.Clamp(from.y, -.12f, .12f) - Mathf.Clamp(to.y, -.12f, .12f);
-            if (peelDistance < .16f) return;
-            peelDistance = 0;
-            peelingPotato.RemovePeel(potatoPaper);
-            PlayCrunch();
-            if (!peelingPotato.Peeled)
+            if (!peelingPotato.ScrapePeel(from, to, potatoPaper)) return;
+            if (crunch && Time.time >= peelSoundAt)
             {
-                peelingPotato.Prop.Body.rotation = PeelRotation(peelingPotato);
-                peelingPotato.transform.rotation = peelingPotato.Prop.Body.rotation;
-                return;
+                AudioSource.PlayClipAtPoint(crunch, peelingStand.position, .32f);
+                peelSoundAt = Time.time + .11f;
             }
+            if (!peelingPotato.Peeled) return;
             EndPrep();
             ShowHint("POTATO PEELED. PICK IT UP AND PUT IT ON THE CUTTING BOARD.");
         }
 
-        Quaternion PeelRotation(FactoryKitchenFood potato) => peelingStand.rotation *
-            Quaternion.Euler((potato.PeelRemoved + .5f) * 360 / potato.PeelCount - 90, 0, 0);
+        void TurnPotato(float step)
+        {
+            peelAngle = Mathf.Repeat(peelAngle + step, 360f);
+            Quaternion rotation = peelingStand.rotation * Quaternion.AngleAxis(peelAngle, Vector3.right);
+            peelingPotato.TurnForPeeling(peelAngle, potatoPaper);
+            peelingPotato.Prop.Body.rotation = rotation;
+            peelingPotato.transform.rotation = rotation;
+        }
 
         void SpawnCutPiece(FactoryKitchenFood parent, Mesh model, float amount, Vector3 separation)
         {
@@ -420,9 +540,10 @@ namespace Cardboard
             for (int i = 0; i < vertices.Length; i++) vertices[i] -= center;
             model.vertices = vertices;
             model.RecalculateBounds();
-            Vector3 world = parent.transform.TransformPoint(center + separation);
-            var piece = SpawnPiece(parent.Rat, model, parent.Materials, amount, world, parent.transform.rotation, parent);
-            piece.RestForCutting(world, parent.transform.rotation);
+            var body = parent.Prop.Body;
+            Vector3 world = body.position + body.rotation * (center + separation);
+            var piece = SpawnPiece(parent.Rat, model, parent.Materials, amount, world, body.rotation, parent);
+            piece.Prop.Body.linearVelocity = Vector3.ClampMagnitude(body.linearVelocity, .6f) + body.rotation * separation * 45f;
         }
 
         FactoryKitchenFood SpawnPiece(bool rat, Mesh model, Material[] materials, float amount,
@@ -439,12 +560,14 @@ namespace Cardboard
                 var shape = node.AddComponent<MeshCollider>();
                 shape.convex = true;
                 shape.sharedMesh = collisionMesh;
+                shape.contactOffset = .0015f;
             }
             else
             {
                 var box = node.AddComponent<BoxCollider>();
                 box.center = model.bounds.center;
                 box.size = Vector3.Max(model.bounds.size, Vector3.one * .003f);
+                box.contactOffset = .0015f;
             }
             var body = node.AddComponent<Rigidbody>();
             body.mass = Mathf.Max(.008f, .24f * amount);
@@ -484,32 +607,46 @@ namespace Cardboard
             if (HeldFood)
             {
                 if (!HeldFood.ReadyForPot) return ShowHint(HeldFood.Burnt ? "THAT PIECE IS BURNT. USE THE SCRAP BIN." :
-                    !HeldFood.Sliced ? "SLICE THE INGREDIENT FIRST." : "BROWN BOTH SIDES OF THE RAT FIRST.");
+                    !HeldFood.Sliced ? "SLICE THE INGREDIENT FIRST." : "FRY THE RAT UNTIL IT SHOWS READY.");
+                if (!HeldFood.FitsLadle) return ShowHint("CUT THIS PIECE SMALLER SO IT FITS IN THE LADLE.");
                 DropHeld(pot.position + Vector3.up * .44f);
                 return true;
             }
-            var tool = HeldTool;
-            if (!tool || Vector3.Distance(tool.transform.position, pot.position) > 1.7f)
-                return ShowHint("MOVE THE BOARD OR PAN NEXT TO THE POT.");
-            return TipBetween(tool, pot.position + Vector3.up * .19f, .52f, true);
+            var tool = HeldTransferTool;
+            return tool && TipBetween(tool, pot.position + pot.up * .37f, true);
         }
 
-        bool TipBetween(FactoryKitchenTool tool, Vector3 destination, float flight, bool cookedOnly)
+        bool TipIntoPan()
+        {
+            if (Vector3.Dot(pan.Prop.Body.rotation * Vector3.up, Vector3.up) < .72f)
+                return ShowHint("SET THE PAN UPRIGHT FIRST.");
+            return TipBetween(board, pan.Prop.Body.position + Vector3.up * .17f, false);
+        }
+
+        bool TipBetween(FactoryKitchenTool tool, Vector3 destination, bool intoPot)
         {
             int launched = 0;
+            bool tooLarge = false, stillRaw = false;
             foreach (var piece in pieces)
             {
-                if (!AvailableOn(tool, piece) || (cookedOnly ? !piece.ReadyForPot : piece.Burnt)) continue;
-                float spacing = tool.transform.InverseTransformPoint(piece.Prop.Body.position).x * .67f;
+                if (!AvailableOn(tool, piece) || piece.Burnt) continue;
+                if (intoPot && !piece.ReadyForPot) { stillRaw = true; continue; }
+                if (intoPot && !piece.FitsLadle) { tooLarge = true; continue; }
+                float spacing = Mathf.Clamp(tool.transform.InverseTransformPoint(piece.Prop.Body.position).x * .58f, -.13f, .13f);
                 // The lip of the tilted vessel lifts its contents before they leave it.
-                Vector3 releasePoint = piece.Prop.Body.position + Vector3.up * (tool.pan ? .17f : .07f);
+                Vector3 releasePoint = piece.Prop.Body.position + Vector3.up * (tool.pan ? .20f : .12f);
                 piece.transform.position = releasePoint;
                 piece.Prop.Body.position = releasePoint;
                 Vector3 displacement = destination + tool.transform.right * spacing - releasePoint;
+                float distance = Vector3.ProjectOnPlane(displacement, Vector3.up).magnitude;
+                float flight = Mathf.Clamp(.40f + distance * .17f, .45f, .85f);
                 Launch(piece, displacement / flight - .5f * Physics.gravity * flight);
                 launched++;
             }
             if (launched > 0) tool.Kick();
+            if (tooLarge) ShowHint("CUT LARGE PIECES SMALLER SO THEY FIT IN THE LADLE.");
+            if (stillRaw && !tooLarge) ShowHint("COOK THE RAW PIECES BEFORE ADDING THEM TO THE POT.");
+            if (tooLarge || stillRaw) return launched > 0;
             return launched > 0 || ShowHint("GET THE CHOPPED INGREDIENTS ON THE BOARD OR PAN FIRST.");
         }
 
@@ -548,6 +685,7 @@ namespace Cardboard
 
         static void Launch(FactoryKitchenFood piece, Vector3 velocity)
         {
+            piece.LeaveSurface();
             var body = piece.Prop.Body;
             body.linearVelocity = velocity;
             body.angularVelocity = new Vector3(4f, 1f, -2f);
@@ -569,27 +707,19 @@ namespace Cardboard
             tool.Dock();
         }
 
-        bool FlipPan()
-        {
-            if (!pan.ReadyAtStation) return ShowHint("SET THE PAN DOWN NEAR THE BURNER FIRST.");
-            bool flipped = false;
-            foreach (var piece in pieces)
-            {
-                if (!AvailableOn(pan, piece) || piece.Burnt) continue;
-                piece.Flip();
-                flipped = true;
-            }
-            return flipped || ShowHint("GET THE PIECES IN THE PAN FIRST.");
-        }
-
         static bool AvailableOn(FactoryKitchenTool tool, FactoryKitchenFood piece) =>
             piece && !piece.Prop.IsHeld && tool.Contains(piece.Prop.Body.position);
 
-        void FixedUpdate() { if (Active) TickCooking(Time.fixedDeltaTime); }
+        void FixedUpdate()
+        {
+            if (!Active) return;
+            TickCooking(Time.fixedDeltaTime);
+            Service.Tick(HeldUtensil == ladle ? ladle : null, Time.fixedDeltaTime);
+        }
 
         public void TickCooking(float dt)
         {
-            bool frying = false, turning = false, scorched = false;
+            bool frying = false, cooked = false, scorched = false, justCooked = false;
             bool panHeating = burner && pan.ReadyAtStation;
             for (int i = pieces.Count - 1; i >= 0; i--)
             {
@@ -600,84 +730,105 @@ namespace Cardboard
                     pieces.RemoveAt(i);
                     continue;
                 }
-                if (piece.Prop.IsHeld || piece.OnCuttingBoard) continue;
-                if (panHeating && AvailableOn(pan, piece))
+                if (piece.Prop.IsHeld || piece.OnPeelingStand) continue;
+                piece.SettleOnBoard(board);
+                if (AvailableOn(pan, piece) && piece.OnSurface(pan))
                 {
-                    piece.Fry(dt);
-                    frying |= !piece.Burnt;
-                    turning |= !piece.Burnt && !piece.Fried && piece.SideReady;
+                    bool wasFried = piece.Fried;
+                    if (panHeating) piece.Fry(dt);
+                    frying |= panHeating && !piece.Burnt;
+                    cooked |= piece.Rat && piece.Fried;
+                    justCooked |= piece.Rat && !wasFried && piece.Fried;
                     scorched |= piece.Burnt;
                 }
-                if (Portions > 0 || !piece.ReadyForPot) continue;
+                if (PotFull || !piece.ReadyForPot || !piece.FitsLadle) continue;
                 Vector3 local = pot.InverseTransformPoint(piece.Prop.Body.position);
                 if (new Vector2(local.x, local.z).sqrMagnitude > .26f * .26f || local.y < 0 || local.y > .25f) continue;
                 if (piece.Rat)
                 {
-                    if (RatInPot >= AmountPerIngredient) continue;
-                    RatInPot = Mathf.Min(AmountPerIngredient, RatInPot + piece.Amount);
+                    if (HasIngredient(true)) continue;
+                    RatInPot += piece.Amount;
                 }
                 else
                 {
-                    if (PotatoInPot >= AmountPerIngredient) continue;
-                    PotatoInPot = Mathf.Min(AmountPerIngredient, PotatoInPot + piece.Amount);
+                    if (HasIngredient(false)) continue;
+                    PotatoInPot += piece.Amount;
                 }
-                dustySoup |= piece.Dusty;
                 pieces.RemoveAt(i);
-                RemoveObject(piece);
+                Service.AddIngredient(piece);
             }
-            if (PotFull && Portions == 0)
+            if (PotFull && HeatingSoup && !Service.BatchCooked)
             {
                 boil += dt;
                 if (boil >= BoilDuration)
                 {
-                    Portions = 2;
+                    Portions = BowlsPerPot;
+                    Service.FinishBoiling();
                     game.PlayCaptureSound("good");
-                    ShowHint("SOUP'S UP. LADLE TWO BOWLS AT THE COUNTER.");
+                    ShowHint("SOUP'S UP. FILL TEN BOWLS WITH THE LADLE.");
                 }
             }
-            RefreshCookingFeedback(frying, turning, scorched);
+            if (justCooked) game.PlayCaptureSound("good");
+            RefreshCookingFeedback(frying, cooked, scorched);
         }
 
-        bool Serve()
+        internal void Scooped()
         {
-            if (Portions == 0) return ShowHint("WAIT FOR THE STOCKPOT TO RING.");
-            if (!game.lunch.TryOfferKitchenMeal(dustySoup)) return ShowHint("TAKE THE TRAY TO A TABLE TO CLEAR THE COUNTER.");
             Portions--;
-            if (Portions == 0)
-            {
-                RatInPot = PotatoInPot = 0;
-                boil = 0;
-                dustySoup = false;
-            }
-            game.PlayCaptureSound("good");
-            ShowHint("PICK UP THE SOUP TRAY AT THE COUNTER.");
-            return true;
         }
 
-        public string HeldPrompt(FactoryPhysicsProp prop) => prop == board.Prop || prop == pan.Prop
-            ? "HOLD LMB + FLICK FORWARD - TOSS CONTENTS  /  RMB - SET DOWN"
-            : "LMB - THROW PIECE  /  RMB - SET DOWN";
-
-        string PotStatus => Portions > 0 ? "SOUP READY  /  " + Portions + " BOWLS" : PotFull
-            ? "BOILING  /  " + Mathf.CeilToInt(Mathf.Max(0, BoilDuration - boil)) + " S"
-            : $"STOCKPOT  /  FRIED RAT {RatInPot / AmountPerIngredient:P0}   POTATO {PotatoInPot / AmountPerIngredient:P0}";
-
-        void RefreshCookingFeedback(bool frying, bool turning, bool scorched)
+        public string HeldPrompt(FactoryPhysicsProp prop)
         {
-            panHasFood = frying;
-            panNeedsFlip = turning;
+            if (KnifeHeld) return "";
+            if (HeldUtensil == spatula) return "HOLD LMB - LOWER  /  HOLD RMB + MOVE MOUSE - TILT  /  E - RETURN";
+            if (HeldUtensil == ladle) return Service.LadleBusy ? "SERVING SOUP" : Service.HasScoop
+                ? "LMB AT AN EMPTY BOWL - POUR  /  E - RETURN"
+                : "LMB AT THE STOCKPOT - SCOOP  /  E - RETURN";
+            if (prop == stockpot.Prop) return "E AT SOUP BURNER - SET STOCKPOT DOWN  /  RMB - PUT DOWN";
+            if (Service.OwnsBowl(prop)) return "E AT A TRAY - SET BOWL DOWN  /  RMB - PUT DOWN";
+            return prop == board.Prop || prop == pan.Prop ? "HOLD LMB + FLICK FORWARD - TOSS CONTENTS  /  RMB - SET DOWN"
+                : "LMB - THROW PIECE  /  RMB - SET DOWN";
+        }
+
+        string PotStatus
+        {
+            get
+            {
+                if (Portions > 0) return "SOUP READY  /  " + Portions + " BOWLS";
+                if (Service.BatchCooked) return "ALL SOUP LADLED";
+                if (PotFull)
+                {
+                    int remaining = Mathf.CeilToInt(Mathf.Max(0, BoilDuration - boil));
+                    return !PotOnBurner ? $"SET ON SOUP BURNER  /  {remaining} S LEFT" :
+                        !soupBurnerLit ? $"LIGHT SOUP BURNER  /  {remaining} S LEFT" : $"COOKING SOUP  /  {remaining} S";
+                }
+                if (RatInPot >= AmountPerIngredient - .0001f && !HasIngredient(true))
+                    return $"ADD {BowlsPerPot - Service.IngredientPieces(true)} MORE RAT PIECES FOR TEN BOWLS";
+                if (PotatoInPot >= AmountPerIngredient - .0001f && !HasIngredient(false))
+                    return $"ADD {BowlsPerPot - Service.IngredientPieces(false)} MORE POTATO PIECES FOR TEN BOWLS";
+                return $"STOCKPOT  /  FRIED RAT {Mathf.Min(RatInPot, AmountPerIngredient):0.##}/7   POTATO {Mathf.Min(PotatoInPot, AmountPerIngredient):0.##}/7";
+            }
+        }
+
+        void RefreshCookingFeedback(bool frying, bool cooked, bool scorched)
+        {
+            panHasCookedFood = cooked;
             panHasBurntFood = scorched;
             burnerLamp.enabled = burner;
-            broth.gameObject.SetActive(RatInPot > 0 || PotatoInPot > 0);
+            soupCoals.enabled = soupBurnerLit;
+            broth.gameObject.SetActive(Service.BatchCooked ? Portions > 0 : RatInPot > 0 || PotatoInPot > 0);
+            var brothPosition = broth.localPosition;
+            brothPosition.y = Service.BatchCooked ? Mathf.Lerp(.06f, .22f, Portions / (float)BowlsPerPot) : .20f;
+            broth.localPosition = brothPosition;
             Vector3 lidPosition = lid.localPosition;
-            lidPosition.y = lidHeight + (PotFull && Portions == 0 ? Mathf.Abs(Mathf.Sin(Time.time * 24)) * .026f : 0);
+            lidPosition.y = lidHeight + (PotFull && HeatingSoup && !Service.BatchCooked ? Mathf.Abs(Mathf.Sin(Time.time * 24)) * .026f : 0);
             lid.localPosition = lidPosition;
             if (scorched && !scorchSmoke.isPlaying) scorchSmoke.Play();
             if (!scorched && scorchSmoke.isPlaying) scorchSmoke.Stop(true, ParticleSystemStopBehavior.StopEmitting);
-            if (frying || scorched)
+            if (frying || burner && scorched && pan.ReadyAtStation)
             {
-                sizzle.pitch = scorched ? .73f : turning ? 1.18f : .93f;
-                sizzle.volume = turning || scorched ? .37f : .22f;
+                sizzle.pitch = scorched ? .73f : .93f;
+                sizzle.volume = scorched ? .37f : .22f;
                 if (!sizzle.isPlaying) sizzle.Play();
             }
             else if (sizzle.isPlaying) sizzle.Stop();
@@ -692,6 +843,7 @@ namespace Cardboard
         }
 
         void PlayCrunch() { if (crunch) AudioSource.PlayClipAtPoint(crunch, board.transform.position, .55f); }
+        internal void PlayKnifeTap(Vector3 point) { if (knifeTap) AudioSource.PlayClipAtPoint(knifeTap, point, .45f); }
 
         static AudioClip MakePaperSound(string name, float seconds, bool hiss)
         {
@@ -716,6 +868,9 @@ namespace Cardboard
         void OnDestroy()
         {
             if (crunch) Destroy(crunch);
+            if (knifeTap) Destroy(knifeTap);
+            if (cuttableRat) Destroy(cuttableRat);
+            if (cuttablePotato) Destroy(cuttablePotato);
             if (sizzle && sizzle.clip) Destroy(sizzle.clip);
         }
 
@@ -728,10 +883,9 @@ namespace Cardboard
 
         void OnGUI()
         {
-            if (!Active || CardboardMarker.DrawingMode || !Camera.main ||
+            if (!Active || KnifeHeld || CardboardMarker.DrawingMode || !Camera.main ||
                 !Preparing && Vector3.Distance(Camera.main.transform.position, transform.position) > 7f && !OwnsHeld(Held)) return;
-            string prompt = Preparing ? prep == PrepMode.Knife ? "LMB - SLICE  /  WHEEL - TURN KNIFE  /  RMB - LEAVE" :
-                "HOLD LMB AND PULL THE PEELER TOWARD YOU  /  RMB - LEAVE" : game.FocusPrompt;
+            string prompt = Preparing ? $"LMB + MOVE - PEEL  /  WHEEL - TURN  /  {peelingPotato.PeelProgress:P0}  /  RMB - LEAVE" : game.FocusPrompt;
             bool kitchenFocus = game.Focus && (game.Focus.action == FactoryAction.Kitchen || game.Focus.GetComponent<FactoryKitchenFood>() ||
                 game.Focus.action == FactoryAction.Lunch);
             if (promptStyle == null)
@@ -744,6 +898,29 @@ namespace Cardboard
                 GUI.Label(new Rect(0, Preparing ? Screen.height * .79f : Screen.height * .54f, Screen.width, 40), prompt, promptStyle);
             if (!Preparing && !game.lunch.Carrying) GUI.Label(new Rect(Screen.width * .5f - 12, Screen.height * .5f - 14, 24, 28), "+", promptStyle);
             if (Time.time < hintUntil) GUI.Label(new Rect(0, Screen.height * .87f, Screen.width, 48), hint, promptStyle);
+            if (!Preparing && Event.current.type == EventType.Repaint) DrawPanStatus(Camera.main);
+        }
+
+        void DrawPanStatus(Camera camera)
+        {
+            if ((camera.transform.position - pan.Prop.Body.position).sqrMagnitude > 9f) return;
+            var previous = GUI.color;
+            foreach (var piece in pieces)
+            {
+                if (!piece || !piece.Rat || !AvailableOn(pan, piece) || !piece.OnSurface(pan) ||
+                    !burner && piece.FryProgress <= 0f) continue;
+                var view = camera.WorldToViewportPoint(piece.transform.position + Vector3.up * (piece.Model.bounds.extents.y + .074f));
+                if (view.z <= 0 || view.x <= 0 || view.x >= 1 || view.y <= 0 || view.y >= 1) continue;
+                float width = Mathf.Clamp(Screen.height * .053f, 32f, 55f);
+                var bar = new Rect(view.x * Screen.width - width * .5f, (1f - view.y) * Screen.height, width, 7f);
+                GUI.color = new Color(.12f, .08f, .055f, .95f);
+                GUI.DrawTexture(bar, Texture2D.whiteTexture);
+                GUI.color = piece.Burnt ? new Color(.94f, .31f, .18f) : piece.Fried ? new Color(.53f, .87f, .39f) : new Color(1f, .71f, .31f);
+                GUI.DrawTexture(new Rect(bar.x + 2, bar.y + 2, (bar.width - 4) * piece.FryProgress, bar.height - 4), Texture2D.whiteTexture);
+                if (piece.Fried || piece.Burnt)
+                    GUI.Label(new Rect(bar.center.x - 46, bar.y - 24, 92, 24), piece.Fried ? "READY" : "BURNT", promptStyle);
+            }
+            GUI.color = previous;
         }
 
         static void RemoveObject(FactoryKitchenFood piece)

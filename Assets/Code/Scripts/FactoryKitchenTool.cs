@@ -7,6 +7,7 @@ namespace Cardboard
     {
         public Transform home;
         public bool pan;
+        internal bool Stockpot { get; set; }
         public FactoryPhysicsProp Prop => GetComponent<FactoryPhysicsProp>();
         public bool ReadyAtStation
         {
@@ -27,7 +28,6 @@ namespace Cardboard
         }
         public float Pitch { get; set; }
         float kickAt;
-        bool restingForPrep;
         public float CarryPitch => Pitch + Mathf.Sin(Mathf.Clamp01((Time.time - kickAt) / .23f) * Mathf.PI) * -24f;
 
         public void Kick() { kickAt = Time.time; }
@@ -39,14 +39,14 @@ namespace Cardboard
             Dock();
         }
 
-        public void Dock()
+        public void Dock(Transform stand = null)
         {
+            if (!stand) stand = home;
             var body = Prop.Body;
             Freeze(body);
-            body.position = home.position;
-            body.rotation = home.rotation;
-            transform.SetPositionAndRotation(home.position, home.rotation);
-            restingForPrep = false;
+            body.position = stand.position;
+            body.rotation = stand.rotation;
+            transform.SetPositionAndRotation(stand.position, stand.rotation);
             Pitch = 0;
             kickAt = float.NegativeInfinity;
         }
@@ -56,23 +56,6 @@ namespace Cardboard
             var body = Prop.Body;
             body.isKinematic = false;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            restingForPrep = false;
-        }
-
-        public void HoldSteadyForPrep()
-        {
-            var body = Prop.Body;
-            if (body.isKinematic) return;
-            Freeze(body);
-            transform.SetPositionAndRotation(body.position, body.rotation);
-            restingForPrep = true;
-        }
-
-        public void ResumeAfterPrep()
-        {
-            if (!restingForPrep) return;
-            Undock();
-            Prop.Body.useGravity = true;
         }
 
         static void Freeze(Rigidbody body)

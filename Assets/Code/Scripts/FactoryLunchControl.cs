@@ -8,7 +8,6 @@ namespace Cardboard
         public bool serve;
         public string Prompt => !lunch?"":serve?
             lunch.DeliveryPrompt:
-            lunch.KitchenMeal && lunch.State==LunchState.Ready?"E - COLLECT THE SOUP TRAY":
             lunch.State==LunchState.Waiting?"Workers noticed the fallen lunch":
             lunch.game.HasPart?"Spilled food: the dishes slid off the tray":"E - COLLECT YOUR LUNCH TRAY";
         public bool Use() => lunch && (serve?lunch.TryServe():lunch.TryTake());
