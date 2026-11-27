@@ -174,9 +174,18 @@ namespace Cardboard.Editor
                 {
                     Check(kitchen.Use(KitchenAction.Potato), "Take a potato.");
                     var potato = game.objectCarry.Held.GetComponent<FactoryKitchenFood>();
-                    Check(kitchen.Use(KitchenAction.Peeler), "Start peeling.");
+                    if (i == 0)
+                    {
+                        camera.position = cuttingBoard.position + new Vector3(0, .57f, -.87f);
+                        Aim(camera, cuttingBoard.position + Vector3.up * .014f);
+                        InteractWith(game, camera, KitchenAction.Board);
+                        Check(kitchen.Preparing, "Aiming at the board and pressing E starts peeling.");
+                    }
+                    else Check(kitchen.Use(KitchenAction.Board), "Start peeling on the chopping board.");
+                    Check(kitchen.board.Contains(potato.Prop.Body.position), "The potato rests on the chopping board during peeling.");
                     PeelPotato(kitchen, potato, i == 0);
-                    Check(potato.Peeled && potato.Prop.Take(game) && kitchen.Use(KitchenAction.Board), "Peel and place the potato.");
+                    Check(potato.Peeled && !game.objectCarry.Held && kitchen.board.Contains(potato.Prop.Body.position),
+                        "The peeled potato stays on the same board ready for the knife.");
                     SliceForBatch(kitchen, potato);
                     foreach (var piece in LooseFood(kitchen, false)) PlaceInPot(kitchen, piece, i);
                 }
@@ -355,6 +364,7 @@ namespace Cardboard.Editor
         static void PeelPotato(FactoryKitchen kitchen, FactoryKitchenFood potato, bool verifyCoverage)
         {
             var pointer = new Vector2(0, .13f);
+            var peel = typeof(FactoryKitchenFood).GetField("potatoSkin", Internal).GetValue(potato);
             void Move(Vector2 target, bool cutting)
             {
                 kitchen.MovePrepTool((target - pointer) / .0026f, cutting);
@@ -363,22 +373,32 @@ namespace Cardboard.Editor
 
             if (verifyCoverage)
             {
-                Move(new Vector2(-.18f, .11f), false);
-                Move(new Vector2(-.18f, -.11f), true);
+                Move(new Vector2(-.225f, .11f), false);
+                Move(new Vector2(-.225f, -.11f), true);
                 Check(potato.PeelProgress == 0, "A scrape beside the potato does not peel any skin.");
                 Move(new Vector2(0, .11f), false);
                 Move(new Vector2(0, -.11f), true);
                 float partial = potato.PeelProgress;
                 var display = potato.GetComponent<MeshFilter>().sharedMesh;
-                Check(partial > 0 && partial < .35f && display.GetIndexCount(0) > 0 && display.GetIndexCount(1) > 0,
-                    "One stroke reveals a local patch of flesh.");
-                Capture(Camera.main, kitchen.PrepCameraPosition, kitchen.peelingStand.position, "KitchenPotatoPeeling");
+                var surface = new MaterialPropertyBlock();
+                potato.GetComponent<Renderer>().GetPropertyBlock(surface, 0);
+                var coverage = surface.GetTexture("_BaseMap") as Texture2D;
+                Check(partial > .13f && partial < .35f && display.subMeshCount == 1 &&
+                      coverage && coverage.GetPixels32().Distinct().Count() > 12,
+                    "One wider stroke reveals a local patch with a smooth texture border.");
+                Capture(Camera.main, kitchen.PrepCameraPosition, potato.transform.position, "KitchenPotatoPeeling");
                 Move(new Vector2(0, .11f), false);
                 Move(new Vector2(0, -.11f), true);
                 Check(Mathf.Approximately(potato.PeelProgress, partial), "Re-scraping the same patch does not advance peeling.");
                 kitchen.EndPrep();
-                Check(potato.Prop.Take(kitchen.game) && kitchen.Use(KitchenAction.Peeler) && Mathf.Approximately(potato.PeelProgress, partial),
-                    "A partially peeled potato keeps its exposed patches after being picked up.");
+                Physics.SyncTransforms();
+                Vector3 eye = potato.transform.position + new Vector3(0, .66f, -.67f);
+                var target = kitchen.game.TargetForRay(new Ray(eye, potato.transform.position - eye));
+                Check(target && target.transform == potato.transform, "The partial potato can be selected on the board.");
+                typeof(CardboardFactoryGame).GetProperty(nameof(CardboardFactoryGame.Focus)).SetValue(kitchen.game, target);
+                kitchen.game.Interact();
+                Check(kitchen.Preparing && Mathf.Approximately(potato.PeelProgress, partial),
+                    "E resumes the same potato and its existing patches directly on the board.");
                 pointer = new Vector2(0, .13f);
             }
 
@@ -393,6 +413,9 @@ namespace Cardboard.Editor
             }
             Check(potato.Peeled && potato.PeelProgress == 1 && !kitchen.Preparing,
                 $"Turning and scraping the rest of the surface completes peeling ({potato.PeelProgress:P1}).");
+            float measured = (float)peel.GetType().GetProperty("Progress").GetValue(peel);
+            Check(measured >= .95f && measured < 1f,
+                $"The last patches finish automatically above 95% actual coverage (measured {measured:P2}).");
         }
 
         static void SetUtensil(FactoryKitchenUtensil tool, float tilt, bool dipping)

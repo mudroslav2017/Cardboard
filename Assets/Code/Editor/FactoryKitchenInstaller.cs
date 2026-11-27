@@ -97,13 +97,9 @@ namespace Cardboard.Editor
             var knifeRack = Button(root, kitchen, KitchenAction.Knife, "Knife rack", new Vector3(-1.33f, .971f, .37f),
                 new Vector3(.79f, .053f, .137f), trim);
             GripVolume(knifeRack, new Vector3(-.05f, .103f, 0), new Vector3(.94f, .15f, .17f));
-            kitchen.peelingStand = Node(root, "Potato peeling center", new Vector3(-.651f, 1.166f, -.16f));
-            var peelRest = Button(root, kitchen, KitchenAction.Peeler, "Peeling stand", new Vector3(-.651f, 1.002f, -.16f),
-                new Vector3(.38f, .091f, .35f), enamel);
-            kitchen.peeler = Node(root, "Kitchen peeler", new Vector3(-.65f, .976f, .265f));
+            kitchen.peeler = Node(root, "Kitchen peeler", new Vector3(-1.07f, .936f, .24f));
             Box(kitchen.peeler, "Peeler handle", new Vector3(0, .04f, -.046f), new Vector3(.048f, .048f, .12f), trim, false);
             Box(kitchen.peeler, "Peeler blade", new Vector3(0, .025f, .035f), new Vector3(.14f, .018f, .043f), tin, false);
-            GripVolume(peelRest, new Vector3(0, .02f, .425f), new Vector3(.207f, .102f, .234f));
             kitchen.knifeDashes = new Transform[13];
             var guide = PaintGuide();
             for (int i = 0; i < kitchen.knifeDashes.Length; i++)

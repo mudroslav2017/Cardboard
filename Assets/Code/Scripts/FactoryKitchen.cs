@@ -12,7 +12,6 @@ namespace Cardboard
         public CardboardFactoryGame game;
         public FactoryKitchenTool board, pan;
         public Transform knife, peeler, pot, broth, lid;
-        public Transform peelingStand;
         public Transform[] knifeDashes;
         public Renderer burnerLamp;
         public ParticleSystem scorchSmoke;
@@ -26,8 +25,8 @@ namespace Cardboard
         public float RatInPot { get; private set; }
         public float PotatoInPot { get; private set; }
         public bool Preparing { get; private set; }
-        public Vector3 PrepCameraPosition => peelingStand.TransformPoint(new Vector3(0, .97f, -.86f));
-        public Quaternion PrepCameraRotation => Quaternion.LookRotation(peelingStand.TransformPoint(new Vector3(0, .04f, 0)) - PrepCameraPosition);
+        public Vector3 PrepCameraPosition => board.transform.TransformPoint(new Vector3(0, .79f, -.70f));
+        public Quaternion PrepCameraRotation => Quaternion.LookRotation(PeelOrigin - PrepCameraPosition, board.transform.up);
         public FactoryKitchenService Service { get; private set; }
         public const float BladeHalfLength = .32f;
 
@@ -41,6 +40,8 @@ namespace Cardboard
         int prepStartedFrame;
         bool burner, soupBurnerLit, charging, panHasCookedFood, panHasBurntFood;
         float boil, peelAngle, peelSoundAt;
+        Vector3 PeelOrigin => board.transform.TransformPoint(Vector3.up * (.016f - peelingPotato.PeelBottom));
+        Quaternion PeelRotation => board.transform.rotation * Quaternion.AngleAxis(peelAngle, Vector3.right);
         Vector2 flick;
         Vector3 peelerHome;
         Quaternion peelerRotation;
@@ -259,9 +260,8 @@ namespace Cardboard
         {
             switch (action)
             {
-                case KitchenAction.Prep: return Held == board.Prop || HeldFood && HeldFood.Peeled;
-                case KitchenAction.Board: return HeldFood && HeldFood.Peeled;
-                case KitchenAction.Peeler: return HeldFood && !HeldFood.Peeled;
+                case KitchenAction.Prep: return Held == board.Prop || HeldFood;
+                case KitchenAction.Board: return HeldFood;
                 case KitchenAction.Pan: return Held == board.Prop;
                 case KitchenAction.Burner: return Held == pan.Prop || Held == board.Prop || HeldFood;
                 case KitchenAction.Pot: return HeldTransferTool || HeldFood || HeldUtensil == ladle;
@@ -281,9 +281,8 @@ namespace Cardboard
                 case KitchenAction.Rat: return RatStock > 0 ? "E - LAY OUT RAT  /  " + RatStock + " IN STOCK" : "WAITING FOR THE DIVER'S BASKET";
                 case KitchenAction.Potato: return "E - TAKE A POTATO";
                 case KitchenAction.Knife: return "E - GRIP KNIFE";
-                case KitchenAction.Peeler: return HeldFood && !HeldFood.Peeled ? "E - PEEL POTATO" : "BRING A POTATO TO THE PEELER";
-                case KitchenAction.Board: return HeldFood ? "E - SET INGREDIENT ON THE BOARD" : "E - PICK UP CHOPPING BOARD";
-                case KitchenAction.Prep: return HeldFood ? "E - SET INGREDIENT ON THE BOARD" : "E - PUT BOARD ON PREP BENCH";
+                case KitchenAction.Board: return HeldFood ? BoardFoodPrompt : "E - PICK UP CHOPPING BOARD";
+                case KitchenAction.Prep: return HeldFood ? BoardFoodPrompt : "E - PUT BOARD ON PREP BENCH";
                 case KitchenAction.Pan: return Held == board.Prop ? "E - TIP BOARD INTO PAN" :
                     panHasCookedFood ? "E - PICK UP FRYING PAN  /  RAT READY" : "E - PICK UP FRYING PAN";
                 case KitchenAction.Burner:
@@ -316,7 +315,6 @@ namespace Cardboard
                 case KitchenAction.Rat: return LoadRat();
                 case KitchenAction.Potato: return TakePotato();
                 case KitchenAction.Knife: return kitchenKnife.Take(game);
-                case KitchenAction.Peeler: return BeginPeeling();
                 case KitchenAction.Board:
                     if (HeldFood) return LayHeldOnBoard();
                     return board.Prop.Take(game);
@@ -355,6 +353,8 @@ namespace Cardboard
             }
         }
 
+        string BoardFoodPrompt => HeldFood.Peeled ? "E - SET INGREDIENT ON THE BOARD" : "E - PEEL POTATO ON BOARD";
+
         bool PutStockpot(Transform stand)
         {
             game.objectCarry.Release(false);
@@ -384,7 +384,7 @@ namespace Cardboard
                 eyes.position + eyes.forward * .68f - Vector3.up * .18f, Quaternion.identity, null);
             if (potato.Prop.Take(game))
             {
-                ShowHint("BRING THE POTATO TO THE PEELER.");
+                ShowHint("PUT THE POTATO ON THE CHOPPING BOARD TO PEEL IT.");
                 return true;
             }
             pieces.Remove(potato);
@@ -396,8 +396,14 @@ namespace Cardboard
         {
             if (!board.ReadyAtStation) return ShowHint("SET THE BOARD DOWN NEAR THE PREP BENCH FIRST.");
             var food = HeldFood;
-            if (!food || !food.Peeled) return ShowHint("PEEL THE POTATO FIRST.");
+            if (!food) return false;
             if (pieces.Exists(piece => AvailableOn(board, piece))) return ShowHint("CLEAR THE CHOPPING BOARD FIRST.");
+            if (!food.Peeled)
+            {
+                game.objectCarry.Release(false);
+                BeginPeeling(food);
+                return true;
+            }
             var body = food.Prop.Body;
             var cuttingBoard = board.transform;
             DropHeld(cuttingBoard.TransformPoint(Vector3.up * (.045f - food.Model.bounds.min.y)));
@@ -406,24 +412,31 @@ namespace Cardboard
             return true;
         }
 
-        bool BeginPeeling()
+        internal bool CanResumePeeling(FactoryKitchenFood potato) => !potato.Peeled && board.ReadyAtStation && AvailableOn(board, potato);
+
+        internal bool ResumePeeling(FactoryKitchenFood potato)
         {
-            var potato = HeldFood;
-            if (!potato || potato.Peeled) return ShowHint("BRING A POTATO TO THE PEELER.");
-            if (pieces.Exists(piece => piece && piece != potato && !piece.Prop.IsHeld &&
-                Vector3.Distance(piece.Prop.Body.position, peelingStand.position) < .22f))
-                return ShowHint("CLEAR THE PEELING STAND FIRST.");
-            game.objectCarry.Release(false);
+            if (!ToolsActive || game.HasPart || game.HandsBusy || !CanResumePeeling(potato)) return false;
+            if (pieces.Exists(piece => piece != potato && AvailableOn(board, piece)))
+            {
+                ShowHint("CLEAR THE CHOPPING BOARD FIRST.");
+                return true;
+            }
+            BeginPeeling(potato);
+            return true;
+        }
+
+        void BeginPeeling(FactoryKitchenFood potato)
+        {
             peelingPotato = potato;
             peelAngle = 0;
             potato.TurnForPeeling(peelAngle, potatoPaper);
-            potato.RestForPeeling(peelingStand.position, peelingStand.rotation);
+            potato.RestForPeeling(PeelOrigin, PeelRotation);
             Preparing = true;
             prepStartedFrame = Time.frameCount;
             pointer = new Vector2(0, .13f);
             peelSoundAt = float.NegativeInfinity;
             PosePeeler(false);
-            return true;
         }
 
         public void EndPrep()
@@ -472,7 +485,7 @@ namespace Cardboard
             if (!Preparing) return;
             Vector2 previous = pointer;
             pointer += pixels * .0026f;
-            pointer.x = Mathf.Clamp(pointer.x, -.185f, .185f);
+            pointer.x = Mathf.Clamp(pointer.x, -.23f, .23f);
             pointer.y = Mathf.Clamp(pointer.y, -.14f, .14f);
             if (pressed) Peel(previous, pointer);
             if (Preparing) PosePeeler(pressed);
@@ -481,8 +494,8 @@ namespace Cardboard
         void PosePeeler(bool pressed)
         {
             float height = peelingPotato.PeelHeight(pointer) + (pressed ? .001f : .064f);
-            peeler.SetPositionAndRotation(peelingStand.TransformPoint(new Vector3(pointer.x, height - .018f, pointer.y - .035f)),
-                peelingStand.rotation);
+            var rotation = board.transform.rotation;
+            peeler.SetPositionAndRotation(PeelOrigin + rotation * new Vector3(pointer.x, height - .018f, pointer.y - .035f), rotation);
         }
 
         internal bool TryCut(FactoryKitchenFood parent, Vector3 center, Vector3 edge)
@@ -516,21 +529,19 @@ namespace Cardboard
             if (!peelingPotato.ScrapePeel(from, to, potatoPaper)) return;
             if (crunch && Time.time >= peelSoundAt)
             {
-                AudioSource.PlayClipAtPoint(crunch, peelingStand.position, .32f);
+                AudioSource.PlayClipAtPoint(crunch, board.transform.position, .32f);
                 peelSoundAt = Time.time + .11f;
             }
             if (!peelingPotato.Peeled) return;
             EndPrep();
-            ShowHint("POTATO PEELED. PICK IT UP AND PUT IT ON THE CUTTING BOARD.");
+            ShowHint("POTATO PEELED. READY TO SLICE.");
         }
 
         void TurnPotato(float step)
         {
             peelAngle = Mathf.Repeat(peelAngle + step, 360f);
-            Quaternion rotation = peelingStand.rotation * Quaternion.AngleAxis(peelAngle, Vector3.right);
             peelingPotato.TurnForPeeling(peelAngle, potatoPaper);
-            peelingPotato.Prop.Body.rotation = rotation;
-            peelingPotato.transform.rotation = rotation;
+            peelingPotato.MoveWhilePeeling(PeelOrigin, PeelRotation);
         }
 
         void SpawnCutPiece(FactoryKitchenFood parent, Mesh model, float amount, Vector3 separation)
@@ -713,6 +724,7 @@ namespace Cardboard
         void FixedUpdate()
         {
             if (!Active) return;
+            if (Preparing) peelingPotato.MoveWhilePeeling(PeelOrigin, PeelRotation);
             TickCooking(Time.fixedDeltaTime);
             Service.Tick(HeldUtensil == ladle ? ladle : null, Time.fixedDeltaTime);
         }
@@ -730,7 +742,7 @@ namespace Cardboard
                     pieces.RemoveAt(i);
                     continue;
                 }
-                if (piece.Prop.IsHeld || piece.OnPeelingStand) continue;
+                if (piece.Prop.IsHeld || piece.BeingPeeled) continue;
                 piece.SettleOnBoard(board);
                 if (AvailableOn(pan, piece) && piece.OnSurface(pan))
                 {
@@ -885,7 +897,7 @@ namespace Cardboard
         {
             if (!Active || KnifeHeld || CardboardMarker.DrawingMode || !Camera.main ||
                 !Preparing && Vector3.Distance(Camera.main.transform.position, transform.position) > 7f && !OwnsHeld(Held)) return;
-            string prompt = Preparing ? $"LMB + MOVE - PEEL  /  WHEEL - TURN  /  {peelingPotato.PeelProgress:P0}  /  RMB - LEAVE" : game.FocusPrompt;
+            string prompt = Preparing ? $"LMB + MOVE - PEEL  /  WHEEL - TURN  /  {Mathf.FloorToInt(peelingPotato.PeelProgress * 100f)}%  /  RMB - LEAVE" : game.FocusPrompt;
             bool kitchenFocus = game.Focus && (game.Focus.action == FactoryAction.Kitchen || game.Focus.GetComponent<FactoryKitchenFood>() ||
                 game.Focus.action == FactoryAction.Lunch);
             if (promptStyle == null)

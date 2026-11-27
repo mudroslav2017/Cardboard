@@ -86,7 +86,8 @@ namespace Cardboard
         {
             Tick(Time.deltaTime);
             bool showTools = ActiveGameplay && !game.CameraOverride && !CardboardMarker.DrawingMode &&
-                !game.HandsBusy && !game.HasPart && !Delivered && Strikes < StrikeLimit;
+                !game.HandsBusy && !game.HasPart && (!game.R82C4916Item || !game.R82C4916Item.Drawn) &&
+                !Delivered && Strikes < StrikeLimit;
             grabber.gameObject.SetActive(showTools && InSewer);
             basket.gameObject.SetActive(showTools && (InSewer || Food == Quota));
             if (!grabber.gameObject.activeSelf) return;
@@ -118,7 +119,8 @@ namespace Cardboard
             var focus = game.Focus;
             bool atHatch = focus && focus.action == FactoryAction.SewerAccess;
             bool showTask = started && (!Delivered || showingFeedback);
-            bool showAim = !CardboardMarker.DrawingMode && (InSewer || atHatch || CanDeliver && focus &&
+            bool showAim = !CardboardMarker.DrawingMode && (!game.R82C4916Item || !game.R82C4916Item.Drawn) &&
+                (InSewer || atHatch || CanDeliver && focus &&
                 focus.action == FactoryAction.RatDelivery);
             if (!showTask && !showAim) return;
 

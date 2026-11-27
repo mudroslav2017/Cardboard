@@ -40,6 +40,7 @@ namespace Cardboard
         public FactoryKitchen kitchen;
         public FactoryCraneJob craneJob;
         public FactoryProductionLine production;
+        internal R82C4916 R82C4916Item { get; private set; }
         public bool HandsBusy => (lunch && lunch.Carrying) || (objectCarry && objectCarry.Held) || (production && production.Carrying);
         public bool MenuActive => mainMenu && mainMenu.BlocksGameplay;
         public bool CaptureActive => captureSequence && captureSequence.Active;
@@ -85,6 +86,7 @@ namespace Cardboard
 
         void Awake()
         {
+            R82C4916Item=gameObject.AddComponent<R82C4916>();
             Instance=this;filmSession=GetComponent<FactoryFilmSession>();
             if(!filmSession)filmSession=gameObject.AddComponent<FactoryFilmSession>();
             paperDrama=GetComponent<FactoryPaperDrama>();
@@ -102,6 +104,7 @@ namespace Cardboard
         }
         public void ResetShift()
         {
+            if(R82C4916Item)R82C4916Item.Clear();
             if (CardboardRunner.Player) CardboardRunner.Player.LeaveSewer();
             if(nastyaLeraTrend)nastyaLeraTrend.Stop(false);
             if(foreheadTrend)foreheadTrend.Stop(false);
@@ -350,7 +353,8 @@ namespace Cardboard
                     var lunchControl=Focus.GetComponent<FactoryLunchControl>();
                     return lunchControl?lunchControl.Prompt:"";
                 }
-                if(Focus.TryGetComponent(out FactoryKitchenFood food))return food.PickupPrompt;
+                if(Focus.TryGetComponent(out FactoryKitchenFood food))
+                    return kitchen && kitchen.CanResumePeeling(food)?"E - PEEL POTATO ON BOARD":food.PickupPrompt;
                 if(Focus.action==FactoryAction.Door) return Focus.GetComponentInParent<FactoryDoor>().Prompt;
                 if(Focus.action==FactoryAction.Bench) return "";
                 if(Focus.action==FactoryAction.Gear) return Focus.gear.broken && HasPart?"E - INSTALL GEAR":"";
@@ -383,6 +387,7 @@ namespace Cardboard
                 case FactoryAction.Instruction:
                     if(instruction) instruction.Take();break;
                 case FactoryAction.PhysicsProp:
+                    if(kitchen && Focus.TryGetComponent(out FactoryKitchenFood food) && kitchen.ResumePeeling(food))break;
                     var prop=Focus.GetComponentInParent<FactoryPhysicsProp>();if(prop)prop.Take(this);break;
                 case FactoryAction.Gear:
                     if(HasPart && Focus.gear.broken) TryInstall(Focus.gear);else ReadBlueprint(Focus.gear);break;
@@ -403,7 +408,8 @@ namespace Cardboard
                     }
                     break;
                 case FactoryAction.RatFood:
-                    if (ratHunt && Focus.TryGetComponent(out FactoryRatTarget target) && ratHunt.TryCollect(target))
+                    if (ratHunt && (!R82C4916Item || !R82C4916Item.Drawn) &&
+                        Focus.TryGetComponent(out FactoryRatTarget target) && ratHunt.TryCollect(target))
                         Focus = null;
                     break;
                 case FactoryAction.RatDelivery:

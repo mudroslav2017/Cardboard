@@ -12,7 +12,7 @@ namespace Cardboard
         public Material[] Materials { get; private set; }
         public bool Peeled { get; private set; }
         public float PeelProgress => Peeled ? 1f : potatoSkin?.Progress ?? 0f;
-        public bool OnPeelingStand { get; private set; }
+        public bool BeingPeeled { get; private set; }
         public bool Dusty { get; private set; }
         public bool Burnt { get; private set; }
         public bool Fried => !Burnt && fryTime >= FryDuration;
@@ -67,24 +67,30 @@ namespace Cardboard
         {
             if (potatoSkin == null)
             {
-                potatoSkin = new FactoryPotatoSkin(Model);
+                potatoSkin = new FactoryPotatoSkin(Model, rawColors[0], flesh.GetColor("_BaseColor"));
                 skin.SetPropertyBlock(null);
                 for (int i = 0; i < Materials.Length; i++) skin.SetPropertyBlock(null, i);
                 GetComponent<MeshFilter>().sharedMesh = potatoSkin.Mesh;
-                skin.sharedMaterials = new[] { Materials[0], flesh };
+                skin.sharedMaterials = new[] { Materials[0] };
+                var surface = new MaterialPropertyBlock();
+                surface.SetColor("_BaseColor", Color.white);
+                surface.SetTexture("_BaseMap", potatoSkin.Texture);
+                skin.SetPropertyBlock(surface, 0);
             }
             potatoSkin.Turn(angle);
         }
 
-        internal float PeelHeight(Vector2 point) => potatoSkin?.HeightAt(point) ?? 0f;
+        internal float PeelBottom => potatoSkin.Bottom;
+        internal float PeelHeight(Vector2 point) => potatoSkin.HeightAt(point, potatoSkin.Bottom);
 
         internal bool ScrapePeel(Vector2 from, Vector2 to, Material flesh)
         {
             if (!potatoSkin.Scrape(from, to)) return false;
-            if (potatoSkin.Progress < 1f) return true;
+            if (potatoSkin.Progress < .95f) return true;
             Peeled = true;
             GetComponent<MeshFilter>().sharedMesh = Model;
-            Destroy(potatoSkin.Mesh);
+            skin.SetPropertyBlock(null, 0);
+            potatoSkin.Release();
             potatoSkin = null;
             for (int i = 0; i < Materials.Length - 1; i++)
             {
@@ -103,21 +109,26 @@ namespace Cardboard
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
             body.isKinematic = true;
             body.detectCollisions = false;
+            MoveWhilePeeling(position, rotation);
+            BeingPeeled = true;
+        }
+
+        internal void MoveWhilePeeling(Vector3 position, Quaternion rotation)
+        {
+            Prop.Body.position = position;
+            Prop.Body.rotation = rotation;
             transform.SetPositionAndRotation(position, rotation);
-            body.position = position;
-            body.rotation = rotation;
-            OnPeelingStand = true;
         }
 
         public void ReleaseFromPeeling()
         {
-            if (!OnPeelingStand) return;
+            if (!BeingPeeled) return;
             var body = Prop.Body;
             body.isKinematic = false;
             body.detectCollisions = true;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             body.WakeUp();
-            OnPeelingStand = false;
+            BeingPeeled = false;
         }
 
         public void Fry(float seconds)
@@ -199,7 +210,7 @@ namespace Cardboard
         void OnDestroy()
         {
             if (ownsModel && Model) Destroy(Model);
-            if (potatoSkin != null) Destroy(potatoSkin.Mesh);
+            potatoSkin?.Release();
             if (collisionModel) Destroy(collisionModel);
         }
     }
