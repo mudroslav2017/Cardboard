@@ -41,7 +41,8 @@ namespace Cardboard
         public FactoryCraneJob craneJob;
         public FactoryProductionLine production;
         internal R82C4916 R82C4916Item { get; private set; }
-        public bool HandsBusy => (lunch && lunch.Carrying) || (objectCarry && objectCarry.Held) || (production && production.Carrying);
+        public bool HandsBusy => (objectCarry && objectCarry.Held) || (!(MultiplayerPrototype && CoopActionLens) &&
+            ((lunch && lunch.LocalCarrying) || (production && production.Carrying && (!MultiplayerPrototype || CoopLocalProduction))));
         public bool MenuActive => mainMenu && mainMenu.BlocksGameplay;
         public bool CaptureActive => captureSequence && captureSequence.Active;
         public FactoryWorkstation[] stations;
@@ -72,10 +73,38 @@ namespace Cardboard
         public float MessageUntil {get;private set;}
         public bool Pretending {get;private set;}
         public bool Ended => State==FactoryState.Captured || State==FactoryState.Dead || State==FactoryState.Escaped;
-        public bool PlayerBlocked => MenuActive || FilmActive || Ended || IntroBusy || EndingBusy || (!CaptureActive && (DippingPart || (workbench && workbench.ConsumesMouse) || (station && station.ConsumesMouse) || (kitchen && kitchen.Preparing) || (production && production.HoldsPlayer)));
-        public bool CameraOverride => (mainMenu && mainMenu.OwnsCamera) || (paperDrama && paperDrama.Active) || (!FilmActive && ((captureSequence && captureSequence.CameraControlled) || IntroBusy || (ending && ending.CameraControlled)));
-        public Vector3 CameraPosition => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraPosition:(paperDrama && paperDrama.Active)?paperDrama.CameraPosition:IntroBusy?intro.CameraPosition:ending && ending.CameraControlled?ending.CameraPosition:captureSequence.CameraPosition;
-        public Quaternion CameraRotation => mainMenu && mainMenu.OwnsCamera?mainMenu.CameraRotation:(paperDrama && paperDrama.Active)?paperDrama.CameraRotation:IntroBusy?intro.CameraRotation:ending && ending.CameraControlled?ending.CameraRotation:captureSequence.CameraRotation;
+        internal bool MultiplayerPrototype { get; set; }
+        internal bool CoopInputBlocked { get; set; }
+        internal bool CoopLocalTray { get; set; }
+        internal bool CoopLocalHands { get; set; }
+        internal bool CoopLocalCrane { get; set; }
+        internal bool CoopLocalProduction { get; set; }
+        internal bool CoopKitchenAuthority { get; set; }
+        internal bool CoopLocalKitchen { get; set; }
+        internal FactoryCoopPlayer CoopLocalPlayer { get; set; }
+        internal void SetCoopPresentation(FactoryInteractable focus, bool pretending)
+        {
+            Focus = focus;
+            Pretending = pretending;
+        }
+        internal Transform CoopActionLens { get; set; }
+        internal Transform ActionLens => CoopActionLens ? CoopActionLens : Camera.main ? Camera.main.transform : null;
+        internal bool CoopToolView { get; set; }
+        internal FactoryCoopPose CoopToolCamera { get; set; }
+        internal bool CoopCaptureView { get; set; }
+        internal FactoryCoopPose CoopCaptureCamera { get; set; }
+        public bool PlayerBlocked => MultiplayerPrototype
+            ? !Application.isFocused || CoopInputBlocked || Ended
+            : MenuActive || FilmActive || Ended || IntroBusy || EndingBusy || (!CaptureActive && (DippingPart || (workbench && workbench.ConsumesMouse) || (station && station.ConsumesMouse) || (kitchen && kitchen.Preparing) || (production && production.HoldsPlayer)));
+        public bool CameraOverride => MultiplayerPrototype ? CoopCaptureView || CoopToolView ||
+            captureSequence && captureSequence.CameraControlled || ending && ending.CameraControlled :
+            (mainMenu && mainMenu.OwnsCamera) || (paperDrama && paperDrama.Active) || (!FilmActive && ((captureSequence && captureSequence.CameraControlled) || IntroBusy || (ending && ending.CameraControlled)));
+        public Vector3 CameraPosition => MultiplayerPrototype ? (CoopCaptureView ? CoopCaptureCamera.Position :
+            CoopToolView ? CoopToolCamera.Position : ending && ending.CameraControlled ? ending.CameraPosition : captureSequence.CameraPosition) :
+            mainMenu && mainMenu.OwnsCamera?mainMenu.CameraPosition:(paperDrama && paperDrama.Active)?paperDrama.CameraPosition:IntroBusy?intro.CameraPosition:ending && ending.CameraControlled?ending.CameraPosition:captureSequence.CameraPosition;
+        public Quaternion CameraRotation => MultiplayerPrototype ? (CoopCaptureView ? CoopCaptureCamera.Rotation :
+            CoopToolView ? CoopToolCamera.Rotation : ending && ending.CameraControlled ? ending.CameraRotation : captureSequence.CameraRotation) :
+            mainMenu && mainMenu.OwnsCamera?mainMenu.CameraRotation:(paperDrama && paperDrama.Active)?paperDrama.CameraRotation:IntroBusy?intro.CameraRotation:ending && ending.CameraControlled?ending.CameraRotation:captureSequence.CameraRotation;
         public bool ReadyToLeave => RepairGoal>0 && Repairs>=RepairGoal && WorkingGears==gears.Length;
         public int WorkingGears {get { int count=0;foreach(var gear in gears) if(!gear.broken) count++;return count; } }
         float jumpWatch,runSeen,runGrace;
@@ -198,8 +227,12 @@ namespace Cardboard
         public bool IsWatched()=>FindWitness()!=null;
         public CardboardRunner FindWitness()
         {
-            if(!CardboardRunner.Player || !crowd || crowd.runners==null)return null;
-            Vector3 eyes=CardboardRunner.Player.transform.position+Vector3.up*1.5f;
+            return CardboardRunner.Player ? FindWitness(CardboardRunner.Player.transform.position) : null;
+        }
+        internal CardboardRunner FindWitness(Vector3 position)
+        {
+            if(!crowd || crowd.runners==null)return null;
+            Vector3 eyes=position+Vector3.up*1.5f;
             CardboardRunner chosen=null;float nearest=5.5f;
             foreach(var worker in crowd.runners)
             {
@@ -251,7 +284,8 @@ namespace Cardboard
         }
         public bool RegisterMistake(string reason,float stars=1f,CardboardRunner witness=null,FactoryWorkerEmotion emotion=FactoryWorkerEmotion.Machine)
         {
-            if(MenuActive || Ended || CaptureActive || EndingBusy || Mistakes>=MistakeLimit || stars<=0 || float.IsNaN(stars) || float.IsInfinity(stars)) return false;
+            if((MenuActive && !MultiplayerPrototype) || Ended || CaptureActive || EndingBusy ||
+                Mistakes>=MistakeLimit || stars<=0 || float.IsNaN(stars) || float.IsInfinity(stars)) return false;
             LastMistakeReason=string.IsNullOrWhiteSpace(reason)?"Shift rules violation.":reason;
             mistakeReasons.Add(LastMistakeReason);Mistakes=Mathf.Min(MistakeLimit,Mistakes+stars);
             Suspicion=100f*Mistakes/MistakeLimit;Disguise=100-Mistakes*25;
@@ -282,7 +316,7 @@ namespace Cardboard
         }
         public void TickShiftClock(float dt)
         {
-            if(MenuActive || Ended || IntroActive || EndingBusy) return;
+            if((MenuActive && !MultiplayerPrototype) || Ended || IntroActive || EndingBusy) return;
             ShiftRemaining=Mathf.Max(0,ShiftRemaining-Mathf.Max(0,dt));
         }
         // Compatibility for the preserved legacy machine's discrete jam event.
@@ -295,18 +329,20 @@ namespace Cardboard
             Focus=null;var cam=Camera.main;if(!cam || PlayerBlocked || CardboardMarker.DrawingMode || (craneJob && craneJob.HoldsPlayer)) return;
             Focus=TargetForRay(cam.ViewportPointToRay(new Vector3(.5f,.5f)));
         }
-        public FactoryInteractable TargetForRay(Ray ray)
+        public FactoryInteractable TargetForRay(Ray ray, Collider ignored = null)
         {
+            bool handsBusy = !MultiplayerPrototype && HandsBusy;
             var hits=focusHits;int count=Physics.RaycastNonAlloc(ray,hits,3.5f,~((1<<9)|(1<<CardboardMarkerHand.HandLayer)),QueryTriggerInteraction.Collide);
             System.Array.Sort(hits,0,count,hitOrder);
             for(int i=0;i<count;i++)
             {
                 var hit=hits[i];
+                if(ignored && hit.collider==ignored)continue;
                 if(kitchen && kitchen.IgnoreHeldCollider(hit.collider))continue;
                 // The liquid, rim and outside of a vessel all select the same bath.
                 // Resolve the first visible vessel only, so walls still block interaction.
                 var owner=hit.collider.GetComponentInParent<FactoryWorkstation>();
-                if(owner && owner.isPlayerStation && !HandsBusy)
+                if(owner && owner.isPlayerStation && !handsBusy)
                     foreach(var bath in owner.baths)
                         if(bath && hit.collider.transform.IsChildOf(bath))
                         {
@@ -321,18 +357,18 @@ namespace Cardboard
                     {
                         var control=hits[j].collider.GetComponent<FactoryStationControl>();
                         if(control && control.station==station && hits[j].distance-hit.distance<=.45f)
-                            return !HandsBusy?control.GetComponent<FactoryInteractable>():null;
+                            return !handsBusy?control.GetComponent<FactoryInteractable>():null;
                     }
                 }
                 var target=hit.collider.GetComponentInParent<FactoryInteractable>();
                 if (target && target.action == FactoryAction.RatFood &&
-                    (!ratHunt || !ratHunt.CanGrab || !target.GetComponent<FactoryRatTarget>().Available))
+                    (!ratHunt || !MultiplayerPrototype && !ratHunt.CanGrab || !target.GetComponent<FactoryRatTarget>().Available))
                     continue;
-                if (target && target.action == FactoryAction.RatDelivery && (!ratHunt || !ratHunt.CanDeliver))
+                if (target && target.action == FactoryAction.RatDelivery && (!ratHunt || !MultiplayerPrototype && !ratHunt.CanDeliver))
                     continue;
                 if (target && target.action == FactoryAction.Crane && (!craneJob || !craneJob.IsAvailable))
                     return null;
-                return HandsBusy && target && !CanUseWithBusyHands(target)?null:target;
+                return handsBusy && target && !CanUseWithBusyHands(target)?null:target;
             }
             return null;
         }
@@ -341,13 +377,14 @@ namespace Cardboard
         {
             get
             {
-                if(kitchen && kitchen.KnifeHeld)return "";
+                bool carryingGear=MultiplayerPrototype ? CoopLocalPlayer != null && CoopLocalPlayer.Hand.HasPart : HasPart;
+                if(kitchen && kitchen.KnifeHeld && (!MultiplayerPrototype || CoopLocalKitchen))return "";
                 if(Focus && Focus.TryGetComponent(out FactoryKitchenControl kitchenControl))return kitchenControl.Prompt;
                 if(Focus && Focus.action==FactoryAction.Production && !string.IsNullOrEmpty(Focus.prompt))return Focus.prompt;
-                if(production && production.Carrying)return production.HeldPrompt;
-                if(objectCarry && objectCarry.Held)return kitchen && kitchen.OwnsHeld(objectCarry.Held)?kitchen.HeldPrompt(objectCarry.Held):objectCarry.Prompt;
-                if(lunch && lunch.NearDestination)return lunch.DeliveryPrompt;
-                if(!Focus) return HasPart && objectCarry?objectCarry.Prompt:"";
+                if(production && production.Carrying && (!MultiplayerPrototype || CoopLocalProduction))return production.HeldPrompt;
+                if(objectCarry && objectCarry.Held && (!MultiplayerPrototype || CoopLocalKitchen))return kitchen && kitchen.OwnsHeld(objectCarry.Held)?kitchen.HeldPrompt(objectCarry.Held):objectCarry.Prompt;
+                if(lunch && lunch.LocalCarrying && lunch.NearDestination)return lunch.DeliveryPrompt;
+                if(!Focus) return carryingGear && objectCarry?objectCarry.Prompt:"";
                 if(Focus.action==FactoryAction.Lunch)
                 {
                     var lunchControl=Focus.GetComponent<FactoryLunchControl>();
@@ -357,8 +394,8 @@ namespace Cardboard
                     return kitchen && kitchen.CanResumePeeling(food)?"E - PEEL POTATO ON BOARD":food.PickupPrompt;
                 if(Focus.action==FactoryAction.Door) return Focus.GetComponentInParent<FactoryDoor>().Prompt;
                 if(Focus.action==FactoryAction.Bench) return "";
-                if(Focus.action==FactoryAction.Gear) return Focus.gear.broken && HasPart?"E - INSTALL GEAR":"";
-                if(Focus.action==FactoryAction.SewerAccess && ratHunt && HasPart) return "Put the gear down before descending";
+                if(Focus.action==FactoryAction.Gear) return Focus.gear.broken && carryingGear?"E - INSTALL GEAR":"";
+                if(Focus.action==FactoryAction.SewerAccess && ratHunt && carryingGear) return "Put the gear down before descending";
                 if(Focus.action==FactoryAction.Exit) return ReadyToLeave?"E - FINISH SHIFT AND LEAVE":"Exit unlocks after six repairs";
                 return Focus.prompt;
             }
@@ -429,6 +466,7 @@ namespace Cardboard
         }
         public bool TryExit(bool atCorridorEnd=false)
         {
+            if(MultiplayerPrototype) return false;
             if(ending && ending.Active){if(atCorridorEnd)ending.EnterGlow();return true;}
             if(CaptureActive || HandsBusy) return false;
             if(ending && ReadyToLeave)return ending.Begin();
@@ -498,23 +536,70 @@ namespace Cardboard
         public bool TryInstall(FactoryGear gear)
         {
             if(!HasPart || !gear || !gear.broken || Ended || HandsBusy) return false;
-            if(gear.index+1!=CurrentOrder || !HeldRecipe.Equals(gear.recipe))
-            {
-                string reason=gear.index+1!=CurrentOrder?"Tried to install a gear in the wrong socket.":
-                    HeldRecipe.Type!=gear.recipe.Type?"Installed the wrong gear type.":
-                    HeldRecipe.finish==0?"Tried to install an untreated gear.":
-                    "Wrong finishing liquid: "+HeldRecipe.finish+" instead of "+gear.recipe.finish+".";
-                RegisterMistake(reason);return false;
-            }
+            if(!CanInstall(gear, HeldRecipe)) return false;
             gear.SetBroken(false);HasPart=false;if(carried){carried.SetActive(false);Destroy(carried);carried=null;}
             if(intro && intro.OnRepair(gear))return true;
+            CompleteRepair();
+            return true;
+        }
+        bool CanInstall(FactoryGear gear, FactoryRecipe recipe)
+        {
+            if(gear.index+1==CurrentOrder && recipe.Equals(gear.recipe)) return true;
+            string reason=gear.index+1!=CurrentOrder?"Tried to install a gear in the wrong socket.":
+                recipe.Type!=gear.recipe.Type?"Installed the wrong gear type.":
+                recipe.finish==0?"Tried to install an untreated gear.":
+                "Wrong finishing liquid: "+recipe.finish+" instead of "+gear.recipe.finish+".";
+            RegisterMistake(reason);
+            return false;
+        }
+        internal bool TryCoopInstall(FactoryCoopPlayer player, FactoryGear gear)
+        {
+            if(Ended || !gear || !gear.broken || !player.Hand.HasPart || player.Hand.Dipping ||
+                !CanInstall(gear, player.Hand.Recipe)) return false;
+            gear.SetBroken(false);
+            player.Hand = default;
+            CompleteRepair();
+            return true;
+        }
+        void CompleteRepair()
+        {
             Repairs++;
             SetOrder(0);nextFault=0;
             // Queue the next fault as part of completing this repair, rather than relying on a later Update.
             if(Repairs<RepairGoal)BreakRandomGear();
-            if(ReadyToLeave && ending)ending.Begin();
-            Toast(ReadyToLeave?"Six repairs complete. The lunch bell will ring in a moment.":"Socket repaired. Repairs: "+Repairs+" / "+RepairGoal+".",6);
-            if(sound) sound.Play("good");return true;
+            if(ReadyToLeave)
+            {
+                if(MultiplayerPrototype) Toast("Repairs complete. Head to the exit together.",6);
+                else
+                {
+                    if(ending)ending.Begin();
+                    Toast("Six repairs complete. The lunch bell will ring in a moment.",6);
+                }
+            }
+            else Toast("Socket repaired. Repairs: "+Repairs+" / "+RepairGoal+".",6);
+            if(sound) sound.Play("good");
+        }
+        internal void CompleteCoopExit()
+        {
+            if(!ReadyToLeave || Ended) return;
+            State=FactoryState.Escaped;
+            if(sound) sound.Play("good");
+        }
+        internal void ApplyCoopShift(int order, int repairs, float mistakes, float remaining, FactoryState state, string notice)
+        {
+            if(CurrentOrder != order)
+            {
+                CurrentOrder = order;
+                Memorized = order > 0 && order <= gears.Length ? gears[order - 1] : null;
+                for(int i = 0; i < gears.Length; i++)
+                    if(gears[i] && gears[i].broken != (i == order - 1)) gears[i].SetBroken(i == order - 1);
+            }
+            Repairs = repairs;
+            Mistakes = mistakes;
+            Suspicion = 100f * mistakes / MistakeLimit;
+            ShiftRemaining = remaining;
+            State = state;
+            Message = notice;
         }
         public void DropPart(){ReleasePart(false);}
         public void ReleasePart(bool thrown)

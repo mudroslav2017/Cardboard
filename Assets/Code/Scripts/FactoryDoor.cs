@@ -33,6 +33,13 @@ namespace Cardboard
             Openness=Mathf.MoveTowards(Openness,IsOpen?1:0,Mathf.Max(0,dt)/Mathf.Max(.05f,duration));
             Pose();
         }
+        internal float ReadCoopState() => IsOpen ? Openness + 2 : Openness;
+        internal void ApplyCoopState(float state)
+        {
+            IsOpen = state >= 2;
+            Openness = state - (IsOpen ? 2 : 0);
+            Pose();
+        }
         void Pose()
         {if(hinge)hinge.localRotation=Quaternion.Euler(0,angle*Mathf.SmoothStep(0,1,Openness),0);}
         public static bool ParkedLeafBlocks(Vector3 bottom,Vector3 top,float radius)

@@ -20,9 +20,10 @@ namespace Cardboard
         public float firstEmergence;
         public Route[] roamRoutes;
 
-        public bool Available => gameObject.activeSelf && (food != FactoryRatFood.LiveRat ||
+        bool? replicatedAvailability;
+        public bool Available => replicatedAvailability ?? (gameObject.activeSelf && (food != FactoryRatFood.LiveRat ||
             (motion == Motion.Roaming && (waypointIndex > 1 || ClearOfMouth)) ||
-            (motion == Motion.Returning && (waypointIndex > 0 || waypointIndex == 0 && ClearOfMouth)));
+            (motion == Motion.Returning && (waypointIndex > 0 || waypointIndex == 0 && ClearOfMouth))));
         bool ClearOfMouth => Vector3.Dot(transform.position - mouth, mouth - den) > .08f;
         Motion motion;
         float wait, gait, distanceToPause;
@@ -32,12 +33,26 @@ namespace Cardboard
 
         public void ResetTarget()
         {
+            replicatedAvailability = null;
             if (food == FactoryRatFood.LiveRat)
             {
                 nextRoute = 0;
                 Hide(firstEmergence);
             }
             else gameObject.SetActive(true);
+        }
+
+        internal FactoryCoopRat ReadCoopState() => new FactoryCoopRat
+        {
+            Visible = gameObject.activeSelf, Available = Available,
+            Pose = new FactoryCoopPose { Position = transform.position, Rotation = transform.rotation }
+        };
+
+        internal void ApplyCoopState(FactoryCoopRat state)
+        {
+            replicatedAvailability = state.Available;
+            gameObject.SetActive(state.Visible);
+            transform.SetPositionAndRotation(state.Pose.Position, state.Pose.Rotation);
         }
 
         public void Remove()

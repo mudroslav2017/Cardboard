@@ -26,7 +26,7 @@ namespace Cardboard
 
         void LateUpdate()
         {
-            bool visible=game && !game.MenuActive && !game.CaptureActive && !game.Ended;
+            bool visible=game && (!game.MenuActive || game.MultiplayerPrototype && !game.CoopInputBlocked) && !game.CaptureActive && !game.Ended;
             if(visible)SampleCameraMotion(Time.unscaledDeltaTime);else ResetInertia();
             Pose(Time.unscaledDeltaTime,visible,CardboardMarker.DrawingMode);
         }
@@ -108,7 +108,8 @@ namespace Cardboard
         }
         void OnDestroy()
         {
-            if(lens && overlay)lens.GetUniversalAdditionalCameraData().cameraStack.Remove(overlay);
+            if(!CardboardCamera.IsQuitting && lens && overlay && RenderPipelineManager.currentPipeline != null)
+                lens.GetUniversalAdditionalCameraData().cameraStack.Remove(overlay);
         }
     }
 }

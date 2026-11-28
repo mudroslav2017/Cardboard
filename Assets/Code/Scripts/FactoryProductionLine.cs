@@ -32,6 +32,13 @@ namespace Cardboard
         float pressTravel, beltTravel, rideTime, drillTime, spindleTime, stroke, windingAngle;
         int cuts, misses, pickedUpFrame, strikeResult;
         GUIStyle promptStyle, counterStyle;
+        bool coopReplica;
+        CardboardRunner coopOperator;
+        Transform coopLens;
+        FactoryCoopPlayer coopHands;
+        Transform ActionLens => game.MultiplayerPrototype ? coopLens : Camera.main ? Camera.main.transform : null;
+        bool HasPart => game.MultiplayerPrototype ? coopHands != null && coopHands.Hand.HasPart : game.HasPart;
+        bool HandsBusy => game.MultiplayerPrototype ? coopHands != null && coopHands.Prop > 0 : game.HandsBusy;
 
         internal bool Carrying => work == Work.InHand && piece;
         internal bool HoldsPlayer => ride != Ride.None || work == Work.Cutting;
@@ -97,12 +104,13 @@ namespace Cardboard
 
         internal bool Use(FactoryInteractable target, CardboardRunner player)
         {
-            if (!player || !game || !crane || game.PlayerBlocked || game.CaptureActive || !crane.InHall(player.transform.position))
+            if (!player || !game || !crane || (!game.MultiplayerPrototype && game.PlayerBlocked) ||
+                game.CaptureActive || !crane.InHall(player.transform.position))
                 return false;
 
-            if (target == stock && work == Work.Empty && !game.HandsBusy && !game.HasPart)
+            if (target == stock && work == Work.Empty && !HandsBusy && !HasPart)
             {
-                if (!Camera.main) return false;
+                if (!ActionLens) return false;
                 piece = FactoryProductionPiece.Create(transform, models.Stock.position, cardboard, edge, ink);
                 AddControl(piece.gameObject);
                 return TakePiece();
@@ -114,7 +122,7 @@ namespace Cardboard
                     BeginRolling();
                     return true;
                 }
-                if (work != Work.Rolling && !game.HandsBusy && !game.HasPart)
+                if (work != Work.Rolling && !HandsBusy && !HasPart)
                 {
                     BoardBelt(player);
                     return true;
@@ -133,7 +141,7 @@ namespace Cardboard
                 }
                 if (work == Work.LatheDone) return TakePiece();
             }
-            if (target == latheButton && work == Work.LatheReady && !game.HandsBusy && !game.HasPart)
+            if (target == latheButton && work == Work.LatheReady && !HandsBusy && !HasPart)
             {
                 player.PlaceAtWorkAnchor(models.LatheOperator.position, true);
                 cuts = misses = strikeResult = 0;
@@ -151,7 +159,7 @@ namespace Cardboard
                 }
                 if (work == Work.DrillDone) return TakePiece();
             }
-            if (target == drillButton && work == Work.DrillReady && !game.HandsBusy && !game.HasPart)
+            if (target == drillButton && work == Work.DrillReady && !HandsBusy && !HasPart)
             {
                 drillTime = 0f;
                 SetWork(Work.Drilling);
@@ -162,32 +170,35 @@ namespace Cardboard
 
         bool TakePiece()
         {
-            var camera = Camera.main;
-            if (!camera || game.HandsBusy || game.HasPart) return false;
+            var lens = ActionLens;
+            if (!lens || HandsBusy || HasPart) return false;
             if (piece.Stage == ProductionPieceStage.Finished)
             {
                 // Feed the existing repair and finishing loop with the production line's round-hub gear.
-                game.ReceiveWorkbenchPart(FactoryRecipe.ForType(3, false));
+                var recipe = FactoryRecipe.ForType(3, false);
+                if (game.MultiplayerPrototype) coopHands.Hand.Take(recipe);
+                else game.ReceiveWorkbenchPart(recipe);
                 RemovePiece();
                 return true;
             }
-            if (CardboardMarker.Instance) CardboardMarker.Instance.SetDrawingMode(false);
-            piece.Hold(camera.transform, new Vector3(-.29f, -.44f, .86f), Quaternion.Euler(-19f, 13f, -10f));
+            if (!game.MultiplayerPrototype && CardboardMarker.Instance) CardboardMarker.Instance.SetDrawingMode(false);
+            piece.Hold(lens, new Vector3(-.29f, -.44f, .86f), Quaternion.Euler(-19f, 13f, -10f));
             pickedUpFrame = Time.frameCount;
             SetWork(Work.InHand);
             return true;
         }
 
-        void Drop(Camera camera, bool thrown)
+        void Drop(Transform lens, bool thrown)
         {
             Vector3 velocity = Vector3.zero;
-            if (camera && thrown) velocity = camera.transform.forward * 6f + Vector3.up * .35f;
+            if (lens && thrown) velocity = lens.forward * 6f + Vector3.up * .35f;
             piece.Release(transform, velocity);
             SetWork(Work.Loose);
         }
 
         void Update()
         {
+            if (game && game.MultiplayerPrototype) return;
             if (models == null || !game || game.MenuActive || game.FilmActive || game.CaptureActive || game.Ended) return;
             var mouse = Mouse.current;
             var keyboard = Keyboard.current;
@@ -211,8 +222,8 @@ namespace Cardboard
             }
             else if (Carrying && !game.PlayerBlocked && Time.frameCount != pickedUpFrame && mouse != null && Application.isFocused)
             {
-                if (mouse.rightButton.wasPressedThisFrame) Drop(Camera.main, false);
-                else if (left && Cursor.lockState == CursorLockMode.Locked) Drop(Camera.main, true);
+                if (mouse.rightButton.wasPressedThisFrame) Drop(ActionLens, false);
+                else if (left && Cursor.lockState == CursorLockMode.Locked) Drop(ActionLens, true);
             }
 
             TickMachines(Mathf.Min(Time.deltaTime, .05f));
@@ -220,7 +231,7 @@ namespace Cardboard
 
         void FixedUpdate()
         {
-            if (models == null || !game || game.CaptureActive || game.Ended) return;
+            if (models == null || !game || game.CaptureActive || game.Ended || coopReplica) return;
             if (work == Work.Loose && piece)
             {
                 if (piece.Body.position.y < transform.position.y - 3f)
@@ -232,6 +243,7 @@ namespace Cardboard
                     BeginRolling();
             }
 
+            if (game.MultiplayerPrototype) return;
             var player = CardboardRunner.Player;
             if (ride == Ride.None && work != Work.Rolling && player && !game.PlayerBlocked && !game.HandsBusy &&
                 !game.HasPart && !crane.HoldsPlayer && OnInfeed(player.transform.position, 0f))
@@ -316,7 +328,7 @@ namespace Cardboard
             SetWork(Work.LatheReady);
             models.LatheCutter.localPosition = cutterHome;
             rideLanding = models.LatheEject.position;
-            BeginRide(CardboardRunner.Player, Ride.Winding);
+            BeginRide(game.MultiplayerPrototype ? coopOperator : CardboardRunner.Player, Ride.Winding);
             game.RegisterMistake("The lathe jammed and caught your cardboard suit.", .5f);
         }
 
@@ -452,6 +464,7 @@ namespace Cardboard
 
         void AdoptView(Vector3 direction)
         {
+            if (game.MultiplayerPrototype && coopOperator != CardboardRunner.Player) return;
             var camera = Camera.main;
             if (!camera || !camera.TryGetComponent(out CardboardCamera view)) return;
             camera.transform.rotation = Quaternion.LookRotation(direction.normalized);
@@ -486,8 +499,9 @@ namespace Cardboard
 
         void OnGUI()
         {
-            if (!game || game.MenuActive || game.FilmActive || game.Ended || game.CaptureActive ||
-                game.CameraOverride || CardboardMarker.DrawingMode) return;
+            if (!game || game.FilmActive || game.Ended || game.CaptureActive || CardboardMarker.DrawingMode ||
+                (game.MultiplayerPrototype ? !game.CoopLocalProduction || !LatheRunning :
+                    game.MenuActive || game.CameraOverride)) return;
 
             bool timing = LatheRunning;
             if (!timing && (game.PlayerBlocked || (!Carrying && !NearStations()))) return;
@@ -538,6 +552,94 @@ namespace Cardboard
             }
             GUI.matrix = oldMatrix;
             GUI.color = oldColor;
+        }
+
+        internal void ConfigureCoop(bool replica) => coopReplica = replica;
+
+        internal void BindCoopOperator(CardboardRunner player, Transform lens, FactoryCoopPlayer hands)
+        {
+            coopOperator = player;
+            coopLens = lens;
+            coopHands = hands;
+        }
+
+        internal void TickCoop(float dt)
+        {
+            if (!coopReplica && game.State == FactoryState.Working) TickMachines(Mathf.Min(dt, .05f));
+        }
+
+        internal bool TryRideCoop(CardboardRunner runner)
+        {
+            if (!runner || ride != Ride.None || work == Work.Rolling || !crane.InHall(runner.transform.position) ||
+                !OnInfeed(runner.transform.position, 0f)) return false;
+            BoardBelt(runner);
+            return true;
+        }
+
+        internal void ControlCoop(FactoryCoopAction action)
+        {
+            if (action == FactoryCoopAction.LeaveTool && HoldsPlayer) CancelPlayer();
+            else if (action == FactoryCoopAction.ToolPrimary && LatheRunning) Strike();
+            else if (Carrying && (action == FactoryCoopAction.Throw || action == FactoryCoopAction.Drop))
+                Drop(ActionLens, action == FactoryCoopAction.Throw);
+        }
+
+        internal void ReadCoopState(FactoryCoopProductionState state)
+        {
+            state.Work = (int)work;
+            state.Ride = (int)ride;
+            state.Cuts = cuts;
+            state.Misses = misses;
+            state.Result = strikeResult;
+            state.Spindle = spindleTime;
+            state.Stroke = stroke;
+            state.Belt = beltTravel;
+            state.HasPiece = piece;
+            if (piece)
+            {
+                state.PartStage = (int)piece.Stage;
+                state.Piece = Pose(piece.transform);
+            }
+            state.Rotor = Pose(models.LatheRotor);
+            state.Cutter = Pose(models.LatheCutter);
+            state.Quill = Pose(models.DrillQuill);
+            state.FixedView = TryGetView(out var position, out var rotation);
+            state.View = new FactoryCoopPose { Position = position, Rotation = rotation };
+        }
+
+        static FactoryCoopPose Pose(Transform item) => new FactoryCoopPose { Position = item.position, Rotation = item.rotation };
+
+        internal bool ApplyCoopState(FactoryCoopProductionState state)
+        {
+            if (state == null || state.Work < (int)Work.Empty || state.Work > (int)Work.DrillDone ||
+                state.Ride < (int)Ride.None || state.Ride > (int)Ride.Crumpled ||
+                state.PartStage < (int)ProductionPieceStage.Raw || state.PartStage > (int)ProductionPieceStage.Finished ||
+                state.Cuts < 0 || state.Cuts > CutTargets.Length) return false;
+            if (state.HasPiece)
+            {
+                if (!piece)
+                {
+                    piece = FactoryProductionPiece.Create(transform, state.Piece.Position, cardboard, edge, ink);
+                    AddControl(piece.gameObject);
+                    piece.Body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+                    piece.Body.isKinematic = true;
+                }
+                if (piece.Stage != (ProductionPieceStage)state.PartStage) piece.SetStage((ProductionPieceStage)state.PartStage);
+                piece.transform.SetPositionAndRotation(state.Piece.Position, state.Piece.Rotation);
+            }
+            else if (piece) RemovePiece();
+            ride = (Ride)state.Ride;
+            cuts = state.Cuts;
+            misses = state.Misses;
+            strikeResult = state.Result;
+            spindleTime = state.Spindle;
+            stroke = state.Stroke;
+            SetWork((Work)state.Work);
+            models.AnimatePress(state.Belt);
+            models.LatheRotor.SetPositionAndRotation(state.Rotor.Position, state.Rotor.Rotation);
+            models.LatheCutter.SetPositionAndRotation(state.Cutter.Position, state.Cutter.Rotation);
+            models.DrillQuill.SetPositionAndRotation(state.Quill.Position, state.Quill.Rotation);
+            return true;
         }
 
         bool NearStations()

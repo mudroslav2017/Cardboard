@@ -30,7 +30,7 @@ namespace Cardboard
         public void RefreshPose(float dt)
         {
             if(!initialized || !lens)return;
-            if(game && (game.MenuActive || game.CaptureActive || game.Ended))
+            if(game && (game.MenuActive && !game.MultiplayerPrototype || game.CaptureActive || game.Ended))
             {ResetInertia();return;}
             var position=lens.transform.position;var rotation=lens.transform.rotation;
             if(!sampled || dt<=0 || dt>.15f || Vector3.Distance(position,previousPosition)>1.5f ||

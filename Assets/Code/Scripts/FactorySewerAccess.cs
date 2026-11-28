@@ -7,6 +7,8 @@ namespace Cardboard
     {
         [SerializeField] Transform landing;
         [SerializeField] Transform surfaceReturn;
+        internal bool LeadsUnderground => surfaceReturn != null;
+        internal Vector3 Arrival => landing.position;
 
         public void Configure(Transform arrival, Transform returnLanding = null)
         {

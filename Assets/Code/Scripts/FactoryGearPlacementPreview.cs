@@ -16,7 +16,9 @@ namespace Cardboard
         public void Refresh()
         {
             var focus=game?game.Focus:null;
-            bool visible=game && game.HasPart && !game.DippingPart && !game.HandsBusy && !game.CaptureActive && !game.PlayerBlocked && !CardboardMarker.DrawingMode;
+            bool carrying=game && (game.MultiplayerPrototype ? game.CoopLocalPlayer != null &&
+                game.CoopLocalPlayer.Hand.HasPart && !game.CoopLocalPlayer.Hand.Dipping : game.HasPart && !game.DippingPart);
+            bool visible=carrying && !game.HandsBusy && !game.CaptureActive && !game.PlayerBlocked && !CardboardMarker.DrawingMode;
             SetTarget(visible && focus && focus.action==FactoryAction.Gear && focus.gear && focus.gear.broken?focus.gear:null);
             var control=visible && focus && focus.action==FactoryAction.Station?focus.GetComponent<FactoryStationControl>():null;
             SetBathTarget(control && control.part==StationPart.Bath && control.station && control.station.isPlayerStation &&

@@ -7,6 +7,15 @@ namespace Cardboard
     public class CardboardCamera : MonoBehaviour
     {
         public const float GameplayFov=80;
+        internal static bool IsQuitting { get; private set; }
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void TrackShutdown()
+        {
+            IsQuitting = false;
+            Application.quitting -= MarkQuitting;
+            Application.quitting += MarkQuitting;
+        }
+        static void MarkQuitting() => IsQuitting = true;
         public Transform player;
         public float sensitivity=.10f;
         public Vector3 WalkingOffset {get;private set;}
@@ -33,9 +42,10 @@ namespace Cardboard
         {
             var factory=CardboardFactoryGame.Instance;
             var mouse=Mouse.current;var keyboard=Keyboard.current;
-            bool kitchenMouse=factory && factory.kitchen && mouse!=null && factory.kitchen.ConsumesMouse(mouse);
+            bool kitchenMouse=factory && !factory.MultiplayerPrototype && factory.kitchen && mouse!=null && factory.kitchen.ConsumesMouse(mouse);
             bool capture=Cursor.lockState==CursorLockMode.Locked;
-            bool hatchMotion=factory && factory.craneJob && factory.craneJob.HatchInMotion;
+            bool hatchMotion=factory && factory.craneJob && factory.craneJob.HatchInMotion &&
+                (!factory.MultiplayerPrototype || factory.CoopLocalCrane);
             CardboardWebMouse.Configure(capture,Application.isFocused && !CardboardMarker.DrawingMode && !hatchMotion &&
                 (!factory || (!factory.CameraOverride && (!factory.PlayerBlocked || kitchenMouse))));
             if(factory && factory.CameraOverride)
@@ -45,13 +55,13 @@ namespace Cardboard
             {factory.kitchen.HandleMouse(mouse,CardboardWebMouse.ReadDelta());return;}
             if(factory && factory.PlayerBlocked)return;
             if(CardboardMarker.DrawingMode)return;
-            if(keyboard!=null && keyboard.escapeKey.wasPressedThisFrame)Release();
+            if(keyboard!=null && keyboard.escapeKey.wasPressedThisFrame && (!factory || !factory.MultiplayerPrototype))Release();
             else if(mouse!=null && mouse.leftButton.wasPressedThisFrame && Application.isFocused && Cursor.lockState!=CursorLockMode.Locked)
             {Cursor.lockState=CursorLockMode.Locked;FactoryVolumeCursor.SetSystemVisible(false);}
             if(mouse!=null && Cursor.lockState==CursorLockMode.Locked)
             {
                 Vector2 delta=CardboardWebMouse.ReadDelta();
-                if(!factory || !factory.kitchen || !factory.kitchen.ReadUtensilInput(mouse,delta,sensitivity))
+                if(!factory || factory.MultiplayerPrototype || !factory.kitchen || !factory.kitchen.ReadUtensilInput(mouse,delta,sensitivity))
                     ApplyLookDelta(delta);
             }
             transform.rotation=Quaternion.Euler(pitch,yaw,0);
@@ -85,11 +95,13 @@ namespace Cardboard
             var factory=CardboardFactoryGame.Instance;
             if(factory && factory.CameraOverride)
             {ResetWalkingMotion();transform.SetPositionAndRotation(factory.CameraPosition,factory.CameraRotation);return;}
-            if(factory && factory.craneJob && factory.craneJob.TryGetHatchView(out var hatchPosition,out var hatchRotation))
+            if(factory && factory.craneJob && (!factory.MultiplayerPrototype || factory.CoopLocalCrane) &&
+                factory.craneJob.TryGetHatchView(out var hatchPosition,out var hatchRotation))
             {ResetWalkingMotion();transform.SetPositionAndRotation(hatchPosition,hatchRotation);return;}
-            if(factory && factory.production && factory.production.TryGetView(out var productionPosition,out var productionRotation))
+            if(factory && factory.production && (!factory.MultiplayerPrototype || factory.CoopLocalProduction) &&
+                factory.production.TryGetView(out var productionPosition,out var productionRotation))
             {ResetWalkingMotion();transform.SetPositionAndRotation(productionPosition,productionRotation);return;}
-            if(factory && factory.kitchen && factory.kitchen.Preparing)
+            if(factory && factory.kitchen && factory.kitchen.Preparing && (!factory.MultiplayerPrototype || factory.CoopLocalKitchen))
             {ResetWalkingMotion();transform.SetPositionAndRotation(factory.kitchen.PrepCameraPosition,factory.kitchen.PrepCameraRotation);return;}
             if(!player)return;
             if(factory && factory.craneJob && factory.craneJob.TryGetForkliftSeat(player,out var seatPosition,out var supportYaw))
@@ -106,7 +118,7 @@ namespace Cardboard
             bool active=(!factory || !factory.PlayerBlocked) && !CardboardMarker.DrawingMode;
             float speed=dt>.00001f?Mathf.Min(movement.magnitude/dt,controller?controller.speed:6):0;
             TickWalkingMotion(dt,active?speed:0,!controller || controller.JumpHeight<.01f);
-            var lunch=factory?factory.lunch:null;
+            var lunch=factory && factory.lunch && factory.lunch.LocalCarrying ? factory.lunch : null;
             var sway=active && lunch?new Vector3(lunch.SwayOffset,0,0):Vector3.zero;
             float roll=active && lunch?lunch.SwayRoll:0;
             transform.position=player.position+Vector3.up*(1.62f+(controller?controller.JumpHeight:0))+Quaternion.Euler(0,yaw,0)*(WalkingOffset+sway);

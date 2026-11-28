@@ -88,7 +88,7 @@ namespace Cardboard
             if (!player || driver) return false;
             driver = player;
             driver.PlaceAtWorkAnchor(seat.position, false);
-            var view = Camera.main ? Camera.main.GetComponent<CardboardCamera>() : null;
+            var view = player == CardboardRunner.Player && Camera.main ? Camera.main.GetComponent<CardboardCamera>() : null;
             if (view)
             {
                 view.transform.rotation = Quaternion.LookRotation(transform.forward - Vector3.up * .16f);
@@ -124,7 +124,7 @@ namespace Cardboard
 
         void Update()
         {
-            if (!Driving) return;
+            if (!Driving || game.MultiplayerPrototype) return;
             var keyboard = Keyboard.current;
             if (game.PlayerBlocked || !Application.isFocused || Cursor.lockState != CursorLockMode.Locked || keyboard == null)
             {
@@ -137,7 +137,14 @@ namespace Cardboard
 
         void ReadControls(Keyboard keyboard, Mouse mouse)
         {
-            if (keyboard.tabKey.wasPressedThisFrame)
+            Control(keyboard.tabKey.wasPressedThisFrame,
+                Axis(keyboard.aKey.isPressed, keyboard.dKey.isPressed), Axis(keyboard.sKey.isPressed, keyboard.wKey.isPressed),
+                mouse == null ? 0f : Axis(mouse.leftButton.isPressed, mouse.rightButton.isPressed));
+        }
+
+        internal void Control(bool dismount, float steer, float forward, float lift)
+        {
+            if (dismount)
             {
                 driveInput = Vector2.zero;
                 hoistInput = 0f;
@@ -149,9 +156,16 @@ namespace Cardboard
                 else if (CanDismount(right)) Dismount(right);
                 return;
             }
-            driveInput = new Vector2(Axis(keyboard.aKey.isPressed, keyboard.dKey.isPressed),
-                Axis(keyboard.sKey.isPressed, keyboard.wKey.isPressed));
-            hoistInput = mouse == null ? 0f : Axis(mouse.leftButton.isPressed, mouse.rightButton.isPressed);
+            driveInput = new Vector2(steer, forward);
+            hoistInput = lift;
+        }
+
+        internal void AddCoopParts(System.Collections.Generic.List<Transform> parts)
+        {
+            parts.Add(body.transform);
+            parts.Add(carriage);
+            parts.AddRange(frontSteering);
+            parts.AddRange(wheelDrums);
         }
 
         static bool CanDismount(Vector3 point) => !Physics.CheckCapsule(point + Vector3.up * .34f,

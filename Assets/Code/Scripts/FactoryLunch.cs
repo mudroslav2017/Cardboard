@@ -29,6 +29,7 @@ namespace Cardboard
         public Renderer deliveryBulb;
         public LunchState State {get;private set;}
         public bool Carrying=>State==LunchState.Carrying;
+        internal bool LocalCarrying => Carrying && (!game.MultiplayerPrototype || game.CoopLocalTray);
         public float Tilt {get;private set;}
         public float PitchTilt {get;private set;}
         public float AngularSpeed {get;private set;}
@@ -44,10 +45,12 @@ namespace Cardboard
         MaterialPropertyBlock bulbProperties;
         bool previousLeft,previousRight,ordinaryStarted,cookedLunchStarted;
         public bool CanServe=>NearDestination && Mathf.Abs(Tilt)<=.4f && Mathf.Abs(PitchTilt)<=.45f;
-        bool Gameplay=>game && !game.MenuActive && !game.Ended && !game.CaptureActive && !game.IntroBusy && !game.EndingBusy;
+        bool Gameplay=>game && (!game.MenuActive || game.MultiplayerPrototype) && !game.Ended &&
+            !game.CaptureActive && !game.IntroBusy && !game.EndingBusy;
+        bool coopAttendance;
         public void ResetLunch()
         {
-            Attended=Missed=FinalLunch=ordinaryStarted=cookedLunchStarted=previousLeft=previousRight=false;AttendanceElapsed=0;
+            Attended=Missed=FinalLunch=ordinaryStarted=cookedLunchStarted=previousLeft=previousRight=coopAttendance=false;AttendanceElapsed=0;
             State=LunchState.Waiting;Tilt=PitchTilt=AngularSpeed=Elapsed=CarryTime=ResultUntil=0;
             if(diners)diners.ResetLunch();
             RestoreTray();RefreshWorld();
@@ -85,12 +88,19 @@ namespace Cardboard
         {
             if(FinalLunch || Attended || Missed || !CardboardRunner.Player)return;
             Vector3 p=CardboardRunner.Player.transform.position;
-            if(p.x>CardboardFactoryWorld.CanteenWest && p.x<CardboardFactoryWorld.CanteenEast &&
-                p.z>CardboardFactoryWorld.CanteenSouth && p.z<CardboardFactoryWorld.CanteenNorth)
+            if(game.MultiplayerPrototype ? coopAttendance : InCanteen(p))
             {Attended=true;return;}
             AttendanceElapsed+=Mathf.Max(0,dt);
             if(AttendanceElapsed<attendanceGrace)return;
             Missed=true;game.RegisterMistake("Missed the lunch break.",1.5f,emotion:FactoryWorkerEmotion.None);
+        }
+        static bool InCanteen(Vector3 p) => p.x > CardboardFactoryWorld.CanteenWest && p.x < CardboardFactoryWorld.CanteenEast &&
+            p.z > CardboardFactoryWorld.CanteenSouth && p.z < CardboardFactoryWorld.CanteenNorth;
+
+        internal void TickCoopSchedule(float dt, FactoryCoopPlayer[] players)
+        {
+            coopAttendance = System.Array.TrueForAll(players, actor => !actor.Active || InCanteen(actor.Position));
+            TickSchedule(dt);
         }
         public void BeginFinalLunch()
         {
@@ -118,14 +128,27 @@ namespace Cardboard
                 CardboardRunner.Player.JumpHeight>.01f || Vector3.Distance(CardboardRunner.Player.transform.position,pickup.position)>3.5f || !physicsTray)return false;
             if(game.station)game.station.EndGrip(false);
             if(CardboardMarker.Instance)CardboardMarker.Instance.SetDrawingMode(false);
-            Attended=true;previousLeft=previousRight=false;State=LunchState.Carrying;Tilt=0;AngularSpeed=0;PitchTilt=0;CarryTime=0;
-            tray.SetParent(transform,true);
-            HoldingPose(out var position,out var rotation);physicsTray.Begin(position,rotation);RefreshWorld();
+            var camera=Camera.main.transform;
+            BeginCarry(camera.position, camera.rotation);
             Cursor.lockState=CursorLockMode.Locked;FactoryVolumeCursor.SetSystemVisible(false);
             return true;
         }
+        internal bool TryTakeCoop(FactoryCoopPlayer actor)
+        {
+            if (!Gameplay || State != LunchState.Ready || actor.Jump > .015f ||
+                (actor.Position - pickup.position).sqrMagnitude > 12.25f || !physicsTray) return false;
+            BeginCarry(actor.Position + Vector3.up * 1.62f, actor.Look);
+            return true;
+        }
+        void BeginCarry(Vector3 eyes, Quaternion look)
+        {
+            Attended=true;previousLeft=previousRight=false;State=LunchState.Carrying;Tilt=0;AngularSpeed=0;PitchTilt=0;CarryTime=0;
+            tray.SetParent(transform,true);
+            HoldingPose(eyes, look, out var position,out var rotation);physicsTray.Begin(position,rotation);RefreshWorld();
+        }
         void Update()
         {
+            if (game && game.MultiplayerPrototype) return;
             if(!Gameplay || !Carrying || !Application.isFocused){previousLeft=previousRight=false;if(physicsTray)physicsTray.SetBalanceInput(0);return;}
             var mouse=Mouse.current;
             TickBalance(Time.deltaTime,mouse!=null && mouse.leftButton.isPressed,mouse!=null && mouse.rightButton.isPressed,
@@ -133,29 +156,46 @@ namespace Cardboard
         }
         public void TickBalance(float dt,bool leftHeld,bool rightHeld,bool leftPressed=false,bool rightPressed=false)
         {
+            if (!Camera.main) return;
+            var camera = Camera.main.transform;
+            TickBalance(dt, leftHeld, rightHeld, camera.position, camera.rotation, leftPressed, rightPressed);
+        }
+        internal void TickCoopBalance(float dt, FactoryCoopPlayer actor)
+        {
+            TickBalance(dt, actor.Left, actor.Right, actor.Position + Vector3.up * (1.62f + actor.Jump), actor.Look);
+        }
+        void TickBalance(float dt, bool leftHeld, bool rightHeld, Vector3 eyes, Quaternion look,
+            bool leftPressed = false, bool rightPressed = false)
+        {
             if(!Gameplay || !Carrying || dt<=0)return;
             dt=Mathf.Min(dt,.1f);CarryTime+=dt;
             bool left=leftPressed || (leftHeld && !previousLeft),right=rightPressed || (rightHeld && !previousRight);
             if(left!=right)physicsTray.PressBalance(right?1:-1);
             previousLeft=leftHeld;previousRight=rightHeld;
             physicsTray.SetBalanceInput((rightHeld?1:0)-(leftHeld?1:0));
-            ReadPhysicalBalance();PoseTray();
+            ReadPhysicalBalance();PoseTray(eyes, look);
         }
-        void HoldingPose(out Vector3 position,out Quaternion rotation)
+        void HoldingPose(Vector3 eyes, Quaternion look, out Vector3 position,out Quaternion rotation)
         {
-            var camera=Camera.main.transform;
+            var angles = look.eulerAngles;
             // Looking down must not drive the tray through the counter or floor.
-            position=camera.position+Quaternion.Euler(0,camera.eulerAngles.y,0)*new Vector3(SwayOffset*.35f,-.30f,.72f);
-            float pitch=Mathf.Clamp(Mathf.DeltaAngle(0,camera.eulerAngles.x)*.15f,-10,10);
-            rotation=Quaternion.Euler(pitch+2+Mathf.Sin(CarryTime*2.6f)*.4f,camera.eulerAngles.y,0);
+            position=eyes+Quaternion.Euler(0,angles.y,0)*new Vector3(SwayOffset*.35f,-.30f,.72f);
+            float pitch=Mathf.Clamp(Mathf.DeltaAngle(0,angles.x)*.15f,-10,10);
+            rotation=Quaternion.Euler(pitch+2+Mathf.Sin(CarryTime*2.6f)*.4f,angles.y,0);
         }
-        void PoseTray(){if(!physicsTray || !Camera.main)return;HoldingPose(out var position,out var rotation);physicsTray.Aim(position,rotation);}
+        void PoseTray(Vector3 eyes, Quaternion look)
+        {if(!physicsTray)return;HoldingPose(eyes,look,out var position,out var rotation);physicsTray.Aim(position,rotation);}
         void ReadPhysicalBalance()
         {
             if(!physicsTray || !physicsTray.body)return;
             Tilt=-physicsTray.RollDegrees/42;PitchTilt=physicsTray.PitchDegrees/42;AngularSpeed=-physicsTray.RollSpeed/42;
         }
-        void LateUpdate(){if(Carrying){PoseTray();ReadPhysicalBalance();}RefreshTrayLight();RefreshDeliveryLight();}
+        void LateUpdate()
+        {
+            if(Carrying && !game.MultiplayerPrototype && Camera.main)
+            {var camera=Camera.main.transform;PoseTray(camera.position,camera.rotation);ReadPhysicalBalance();}
+            RefreshTrayLight();RefreshDeliveryLight();
+        }
         public void RefreshDeliveryLight()
         {
             bool bright=!Carrying || Mathf.Repeat(CarryTime,1.25f)<.8f;
@@ -181,7 +221,7 @@ namespace Cardboard
         public void RefreshTrayLight()
         {
             if(!tray)return;EnsureTraySpotlight();
-            traySpotlight.enabled=game && !game.MenuActive && !game.Ended && !FinalLunch &&
+            traySpotlight.enabled=game && (!game.MenuActive || game.MultiplayerPrototype) && !game.Ended && !FinalLunch &&
                 (State==LunchState.Ready || Carrying || State==LunchState.Served);
             Vector3 forward=Camera.main?Quaternion.Euler(0,Camera.main.transform.eulerAngles.y,0)*Vector3.forward:Vector3.forward;
             Vector3 center=physicsTray && physicsTray.body?physicsTray.body.position:tray.position;
@@ -191,8 +231,53 @@ namespace Cardboard
         public bool TryServe()
         {
             if(!Gameplay || !CanServe)return false;
+            return Serve();
+        }
+        internal bool CanReachCoopTable(Vector3 position) => Carrying && (position - destination.position).sqrMagnitude < 7.56f;
+        internal bool TryServeCoop(Vector3 position) => Gameplay && CanReachCoopTable(position) &&
+            Mathf.Abs(Tilt)<=.4f && Mathf.Abs(PitchTilt)<=.45f && Serve();
+        bool Serve()
+        {
             physicsTray.Park(destination);State=LunchState.Served;Tilt=AngularSpeed=PitchTilt=0;ResultUntil=Time.time+6;
             RefreshWorld();game.PlayCaptureSound("good");return true;
+        }
+        internal void ReadCoopState(FactoryCoopLunchState state)
+        {
+            state.State = State;
+            state.CarryTime = CarryTime;
+            state.Tilt = Tilt;
+            state.PitchTilt = PitchTilt;
+            state.Attendance = AttendanceElapsed;
+            state.Attended = Attended;
+            state.Missed = Missed;
+            state.Final = FinalLunch;
+            state.Visible = tray.gameObject.activeSelf;
+            state.CookedService = cookedLunchStarted;
+            state.Tray = new FactoryCoopPose { Position = tray.position, Rotation = tray.rotation };
+            if (state.Food == null) state.Food = new FactoryCoopPose[food.Length];
+            for (int i = 0; i < food.Length; i++)
+                state.Food[i] = new FactoryCoopPose { Position = food[i].position, Rotation = food[i].rotation };
+        }
+        internal bool ApplyCoopState(FactoryCoopLunchState state)
+        {
+            if (state == null || state.Food?.Length != food.Length || state.State < LunchState.Waiting ||
+                state.State > LunchState.Spilled) return false;
+            bool changed = State != state.State || cookedLunchStarted != state.CookedService;
+            State = state.State;
+            CarryTime = state.CarryTime;
+            Tilt = state.Tilt;
+            PitchTilt = state.PitchTilt;
+            AttendanceElapsed = state.Attendance;
+            Attended = state.Attended;
+            Missed = state.Missed;
+            FinalLunch = state.Final;
+            cookedLunchStarted = state.CookedService;
+            tray.gameObject.SetActive(state.Visible);
+            tray.SetPositionAndRotation(state.Tray.Position, state.Tray.Rotation);
+            for (int i = 0; i < food.Length; i++)
+                food[i].SetPositionAndRotation(state.Food[i].Position, state.Food[i].Rotation);
+            if (changed) RefreshWorld();
+            return true;
         }
         public void Spill()
         {

@@ -22,6 +22,8 @@ namespace Cardboard
         public bool Erasing {get;private set;}
         public float wipeRadius=.09f;
         public Color Ink => Colors[colorIndex];
+        internal System.Action<CardboardDrawingSurface, FactoryCoopStroke> SubmitCoopStroke;
+        internal System.Func<bool> CoopHandsBusy;
         bool drawing,dragging;
         int previousSide;
         CardboardDrawingSurface previous;
@@ -32,7 +34,7 @@ namespace Cardboard
 
         void Update()
         {
-            if(CardboardFactoryGame.Instance && (CardboardFactoryGame.Instance.FilmActive || CardboardFactoryGame.Instance.PlayerBlocked || CardboardFactoryGame.Instance.HandsBusy ||
+            if(CardboardFactoryGame.Instance && (CardboardFactoryGame.Instance.FilmActive || CardboardFactoryGame.Instance.PlayerBlocked || CardboardFactoryGame.Instance.HandsBusy || CoopHandsBusy?.Invoke()==true ||
                 (CardboardFactoryGame.Instance.ratHunt && CardboardRunner.Player && CardboardRunner.Player.InSewer) ||
                 (CardboardFactoryGame.Instance.craneJob && CardboardFactoryGame.Instance.craneJob.HoldsPlayer)))
             { if(drawing) SetDrawingMode(false,false);return; }
@@ -81,7 +83,13 @@ namespace Cardboard
                         int side=surface.transparentInk?0:CardboardDrawingSurface.SideOf(hit);
                         Vector2 uv=hit.textureCoord;
                         var from=dragging && previous==surface && previousSide==side?lastUV:uv;
-                        if(Erasing)surface.EraseStroke(from,uv,wipeRadius,side);else surface.PaintStroke(from,uv,Ink,radius,side);
+                        if(SubmitCoopStroke != null)
+                            SubmitCoopStroke(surface, new FactoryCoopStroke
+                            {
+                                From = from, To = uv, Side = side, Contact = hit.point,
+                                Color = colorIndex, Radius = Erasing ? wipeRadius : radius, Erase = Erasing
+                            });
+                        else if(Erasing)surface.EraseStroke(from,uv,wipeRadius,side);else surface.PaintStroke(from,uv,Ink,radius,side);
                         previous=surface;previousSide=side;lastUV=uv;dragging=true;IsTouching=true;
                         if(writingSound){if(Erasing)writingSound.EndStroke();else writingSound.Stroke(surface,ContactPoint);}return;
                     }
@@ -92,7 +100,7 @@ namespace Cardboard
         void BreakStroke() { previous=null;dragging=false;if(writingSound)writingSound.EndStroke(); }
         public void SetDrawingMode(bool active,bool captureOnExit=true)
         {
-            if(active && CardboardFactoryGame.Instance && CardboardFactoryGame.Instance.HandsBusy) return;
+            if(active && (CardboardFactoryGame.Instance && CardboardFactoryGame.Instance.HandsBusy || CoopHandsBusy?.Invoke()==true)) return;
             drawing=active;Erasing=false;Target=null;IsTouching=false;IsPressed=false;BreakStroke();
             Cursor.lockState=active || !captureOnExit?CursorLockMode.None:CursorLockMode.Locked;
             FactoryVolumeCursor.SetSystemVisible(active || !captureOnExit);

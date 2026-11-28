@@ -60,6 +60,7 @@ namespace Cardboard
         float swingRatio;
         TruckPhase truckPhase;
         int deliveries;
+        bool coopReplica;
 
         public bool HatchInMotion { get; private set; }
         public bool HoldsPlayer => operating || climbBottom != null || HatchInMotion || (forklift && forklift.Driving);
@@ -140,7 +141,7 @@ namespace Cardboard
                     operating = true;
                     waitForInteractRelease = true;
                     player.PlaceAtWorkAnchor(driverStand.position, false);
-                    view = Camera.main ? Camera.main.GetComponent<CardboardCamera>() : null;
+                    view = player == CardboardRunner.Player && Camera.main ? Camera.main.GetComponent<CardboardCamera>() : null;
                     if (view)
                     {
                         view.transform.rotation = Quaternion.LookRotation(slew.forward - Vector3.up * .65f);
@@ -180,7 +181,7 @@ namespace Cardboard
 
         void BeginHatch(bool entering)
         {
-            view = Camera.main ? Camera.main.GetComponent<CardboardCamera>() : null;
+            view = operatorPlayer == CardboardRunner.Player && Camera.main ? Camera.main.GetComponent<CardboardCamera>() : null;
             enteringHatch = entering;
             hatchStart = operatorPlayer.transform.position;
             hatchStartRotation = view ? view.transform.rotation : Quaternion.LookRotation(slew.forward);
@@ -270,6 +271,7 @@ namespace Cardboard
 
         void Update()
         {
+            if (game.MultiplayerPrototype) return;
             if (!HoldsPlayer) return;
             if (game.Ended || game.CaptureActive || game.EndingBusy)
             {
@@ -330,7 +332,7 @@ namespace Cardboard
 
         void FixedUpdate()
         {
-            Advance(Time.fixedDeltaTime);
+            if (!coopReplica) Advance(Time.fixedDeltaTime);
         }
 
         void Advance(float dt)
@@ -367,6 +369,7 @@ namespace Cardboard
 
         void LateUpdate()
         {
+            if (coopReplica) return;
             string status = load.Spilled ? "REPLACING SPILLED LOAD" :
                 truckPhase == TruckPhase.Reversing ? "TRUCK REVERSING" :
                 truckPhase != TruckPhase.Parked ? "TRUCK DEPARTING" :
@@ -375,6 +378,80 @@ namespace Cardboard
             string count = $"LOADS {deliveries}  /  TRUCK {truckDamage.Condition}%";
             if (boardCount.text != count) boardCount.text = count;
             UpdateLoadGauge(Time.unscaledDeltaTime);
+        }
+
+        internal Transform[] PrepareCoopReplication(bool replica)
+        {
+            coopReplica = replica;
+            var parts = new System.Collections.Generic.List<Transform>
+            {
+                chassis, slew, hook.transform, truck.transform, load.transform
+            };
+            hoistLine.AddCoopParts(parts);
+            load.AddCoopParts(parts);
+            if (forklift) forklift.AddCoopParts(parts);
+            if (replica)
+            {
+                if (forklift) forklift.enabled = false;
+                foreach (var item in parts)
+                    if (item.TryGetComponent(out Rigidbody body))
+                    {
+                        body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+                        body.isKinematic = true;
+                    }
+            }
+            return parts.ToArray();
+        }
+
+        internal void TickCoop(FactoryCoopControls input, float dt)
+        {
+            if (!HoldsPlayer || coopReplica) return;
+            if (game.Ended || game.CaptureActive)
+            {
+                ReturnToWorkshop(operatorPlayer);
+                return;
+            }
+            float lateral = Axis((input & FactoryCoopControls.Left) != 0, (input & FactoryCoopControls.Right) != 0);
+            float forward = Axis((input & FactoryCoopControls.Back) != 0, (input & FactoryCoopControls.Forward) != 0);
+            float lift = Axis((input & FactoryCoopControls.Primary) != 0, (input & FactoryCoopControls.Secondary) != 0);
+            if (forklift && forklift.Driving) forklift.Control(false, lateral, forward, lift);
+            else if (HatchInMotion) AnimateHatch(dt);
+            else if (climbBottom) Climb(forward * 2.5f * dt);
+            else
+            {
+                bool interact = (input & FactoryCoopControls.E) != 0;
+                if (!interact) waitForInteractRelease = false;
+                railInput = lateral;
+                slewInput = Axis((input & FactoryCoopControls.Q) != 0, interact && !waitForInteractRelease);
+                hoistInput = lift;
+                precision = (input & FactoryCoopControls.Precision) != 0 ? .3f : 1f;
+            }
+        }
+
+        internal void CoopControl(FactoryCoopAction action)
+        {
+            if (forklift && forklift.Driving)
+            {
+                if (action == FactoryCoopAction.LeaveTool) forklift.Control(true, 0, 0, 0);
+            }
+            else if (operating)
+            {
+                if (action == FactoryCoopAction.LeaveTool) LeaveControls();
+                if (action == FactoryCoopAction.ToolSpace) releaseLoad = true;
+                if (action == FactoryCoopAction.ToolReset) resetLoad = true;
+            }
+        }
+
+        internal void ReadCoopBoard(FactoryCoopCraneState state)
+        {
+            state.Status = boardStatus.text;
+            state.Counter = boardCount.text;
+        }
+
+        internal void ApplyCoopBoard(FactoryCoopCraneState state)
+        {
+            boardStatus.text = state.Status;
+            boardCount.text = state.Counter;
         }
 
         void UpdateLoadGauge(float dt)

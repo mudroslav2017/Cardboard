@@ -35,7 +35,8 @@ namespace Cardboard
 
         public bool Begin()
         {
-            if(Phase!=FactoryEndingPhase.None || game.MenuActive || game.Ended || game.CaptureActive || game.IntroActive || !game.ReadyToLeave || !CardboardRunner.Player)return false;
+            if(Phase!=FactoryEndingPhase.None || (game.MenuActive && !game.MultiplayerPrototype) || game.Ended ||
+                game.CaptureActive || game.IntroActive || !game.ReadyToLeave || !CardboardRunner.Player)return false;
             lens=Camera.main;homeFov=lens.fieldOfView;
             if(CardboardMarker.Instance)CardboardMarker.Instance.SetDrawingMode(false,false);
             if(game.station)game.station.EndGrip(false);
@@ -108,7 +109,9 @@ namespace Cardboard
                     if(PhaseTime>=.7f)
                     {
                         RestoreBody();lens.fieldOfView=homeFov;
-                        game.mainMenu.ShowNewShift();Change(FactoryEndingPhase.MenuReveal);
+                        if(game.MultiplayerPrototype) game.CompleteCoopExit();
+                        else game.mainMenu.ShowNewShift();
+                        Change(FactoryEndingPhase.MenuReveal);
                     }
                     break;
                 case FactoryEndingPhase.MenuReveal:
@@ -116,6 +119,12 @@ namespace Cardboard
                     if(PhaseTime>=.8f){if(glow)glow.gameObject.SetActive(false);Change(FactoryEndingPhase.None);}
                     break;
             }
+        }
+        internal float CoopFade => white ? white.color.a : 0;
+        internal void ApplyCoopPresentation(float alpha, bool light)
+        {
+            Fade(alpha);
+            if (glow) glow.gameObject.SetActive(light);
         }
 
         void Run(float dt)

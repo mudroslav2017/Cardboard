@@ -30,6 +30,10 @@ namespace Cardboard
 
         public float InitialLength => initialLength;
         public float Length => length > 0f ? length : initialLength;
+        internal void AddCoopParts(System.Collections.Generic.List<Transform> parts)
+        {
+            foreach (var link in links) parts.Add(link.body.transform);
+        }
 
         void Awake()
         {

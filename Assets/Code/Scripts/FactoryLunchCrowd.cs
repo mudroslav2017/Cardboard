@@ -139,7 +139,8 @@ namespace Cardboard
         public void Tick(float dt)
         {
             RefreshDeliveryAccess();
-            if(!Active || !lunch.game || lunch.game.MenuActive || lunch.game.CaptureActive || lunch.game.Ended) return;
+            if(!Active || !lunch.game || (lunch.game.MenuActive && !lunch.game.MultiplayerPrototype) ||
+                lunch.game.CaptureActive || lunch.game.Ended) return;
             Elapsed+=Mathf.Max(0,dt);
             bool playerDone=kitchenService || lunch.State==LunchState.Served || lunch.State==LunchState.Spilled || lunch.Missed;
             playerFinished=playerDone?playerFinished+Mathf.Max(0,dt):0;

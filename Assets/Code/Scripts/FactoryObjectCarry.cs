@@ -21,13 +21,14 @@ namespace Cardboard
         public void ItemReceived(){pickupFrame=Time.frameCount;}
         public bool Take(FactoryPhysicsProp prop)
         {
-            if(Held || !prop || !Camera.main || game.HandsBusy || game.HasPart || game.PlayerBlocked || game.CaptureActive)return false;
+            if(Held || !prop || !game.ActionLens || game.HandsBusy || game.HasPart ||
+                (!game.MultiplayerPrototype && game.PlayerBlocked) || game.CaptureActive)return false;
             if(prop.TryGetComponent(out FactoryKitchenTool kitchenTool))kitchenTool.Undock();
             Held=prop;ItemReceived();prop.BeginCarry();
             if(CardboardMarker.Instance)CardboardMarker.Instance.SetDrawingMode(false);
             if(prop.TryGetComponent(out stapler))
             {
-                stapler.BeginGrip(Camera.main.transform);
+                stapler.BeginGrip(game.ActionLens);
                 return true;
             }
             var body=prop.Body;
@@ -37,12 +38,13 @@ namespace Cardboard
                 radius=Mathf.Max(radius,shape.bounds.extents.magnitude);
             HoldDistance=prop.instructionSheet?.72f:Mathf.Clamp(1.05f+radius*.8f,1.2f,2);
             if(prop.instructionSheet && game.instruction)game.instruction.MarkPickedUp();
-            gripRotation=prop.instructionSheet?Quaternion.identity:Quaternion.Inverse(Camera.main.transform.rotation)*body.rotation;
+            gripRotation=prop.instructionSheet?Quaternion.identity:Quaternion.Inverse(game.ActionLens.rotation)*body.rotation;
             if(!game.kitchen || !game.kitchen.OwnsHeld(prop))game.Toast(Prompt,5);
             return true;
         }
         void Update()
         {
+            if(game.MultiplayerPrototype)return;
             if(game.FilmActive)return;if(!Held && !game.HasPart){return;}
             if(game.CaptureActive || game.Ended){if(Held)Release(false);return;}
             if(game.MenuActive || game.PlayerBlocked || CardboardMarker.DrawingMode){return;}
@@ -70,21 +72,21 @@ namespace Cardboard
         void FixedUpdate(){TickGrip();}
         void LateUpdate()
         {
-            if(!stapler || !Camera.main || game.PlayerBlocked || game.CaptureActive || game.CameraOverride) return;
-            stapler.AdvanceGrip(Camera.main.transform, Time.deltaTime);
+            if(!stapler || !game.ActionLens || game.PlayerBlocked || game.CaptureActive || game.CameraOverride) return;
+            stapler.AdvanceGrip(game.ActionLens, Time.deltaTime);
             TargetPosition = stapler.transform.position;
             TargetRotation = stapler.transform.rotation;
         }
         public void TickGrip()
         {
-            if(!Held || stapler || !Camera.main || Time.timeScale<=0)return;
-            var lens=Camera.main.transform;var body=Held.Body;
+            if(!Held || stapler || !game.ActionLens || Time.timeScale<=0)return;
+            var lens=game.ActionLens;var body=Held.Body;
             TargetRotation=lens.rotation*gripRotation;
             Vector3 center=lens.TransformPoint(new Vector3(0,Held.instructionSheet?-.075f:-.20f,HoldDistance));
             bool utensilHeld=Held.TryGetComponent(out FactoryKitchenUtensil utensil);
             if(utensilHeld)
             {
-                if(game.PlayerBlocked || game.CaptureActive || game.CameraOverride)return;
+                if(!game.MultiplayerPrototype && (game.PlayerBlocked || game.CameraOverride) || game.CaptureActive)return;
                 utensil.SampleVelocity();
                 utensil.GripPose(lens,out center,out var orientation);
                 TargetRotation=orientation;
@@ -123,7 +125,8 @@ namespace Cardboard
             if(thrown)
             {
                 float speed=ThrowSpeed(prop.Body.mass,prop.instructionSheet);
-                velocity=Camera.main.transform.forward*speed+(CardboardRunner.Player?CardboardRunner.Player.Velocity*.35f:Vector3.zero);
+                velocity=(game.ActionLens ? game.ActionLens.forward : Vector3.forward)*speed+
+                    (!game.MultiplayerPrototype && CardboardRunner.Player?CardboardRunner.Player.Velocity*.35f:Vector3.zero);
             }
             prop.Release(velocity,thrown);
             if(prop.TryGetComponent(out FactoryKitchenUtensil utensil))utensil.Rest();

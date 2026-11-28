@@ -77,7 +77,7 @@ namespace Cardboard
             var body = Prop.Body;
             body.isKinematic = false;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            GripPose(Camera.main.transform, out var position, out var rotation);
+            GripPose(game.ActionLens, out var position, out var rotation);
             body.position = position;
             body.rotation = rotation;
             transform.SetPositionAndRotation(position, rotation);
@@ -104,16 +104,18 @@ namespace Cardboard
         }
 
         internal bool ReadInput(Mouse mouse, Vector2 delta, float sensitivity)
+            => ReadInput(mouse.leftButton.isPressed, mouse.rightButton.isPressed, mouse.scroll.ReadValue().y, delta, sensitivity);
+
+        internal bool ReadInput(bool primary, bool secondary, float scroll, Vector2 delta, float sensitivity)
         {
             if (Tool == Kind.Knife)
             {
-                float scroll = mouse.scroll.ReadValue().y;
                 if (Mathf.Abs(scroll) > .01f) angle = Mathf.Repeat(angle + Mathf.Sign(scroll) * 12f, 360f);
                 RecordKnifeMotion(-delta.y * sensitivity);
                 return false;
             }
-            Dipping = mouse.leftButton.isPressed;
-            if (!mouse.rightButton.isPressed) return false;
+            Dipping = primary;
+            if (!secondary) return false;
             Tilt = Mathf.Clamp(Tilt + delta.y * .48f, -125f, 125f);
             return true;
         }

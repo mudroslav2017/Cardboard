@@ -12,12 +12,14 @@ namespace Cardboard
         void LateUpdate()
         {
             var game=lunch?lunch.game:null;
-            bool visible=game && !game.MenuActive && !game.CaptureActive && !game.Ended && !game.EndingBusy && !lunch.FinalLunch &&
-                (!lunch.Missed || lunch.Carrying || Time.time<lunch.ResultUntil) &&
-                (lunch.State==LunchState.Ready || lunch.Carrying || Time.time<lunch.ResultUntil);
+            bool carrying=lunch && lunch.LocalCarrying;
+            bool visiting=game && !game.MultiplayerPrototype || carrying || lunch && !lunch.Carrying;
+            bool visible=game && (!game.MenuActive || game.MultiplayerPrototype) && !game.CaptureActive && !game.Ended && !game.EndingBusy && !lunch.FinalLunch && visiting &&
+                (!lunch.Missed || carrying || Time.time<lunch.ResultUntil) &&
+                (lunch.State==LunchState.Ready || carrying || Time.time<lunch.ResultUntil);
             panel.SetActive(visible);if(!visible)return;
             var background=panel.GetComponent<Image>();if(background)background.enabled=false;
-            title.gameObject.SetActive(true);hint.gameObject.SetActive(lunch.Carrying);
+            title.gameObject.SetActive(true);hint.gameObject.SetActive(carrying);
             hint.rectTransform.anchoredPosition=new Vector2(0,112);hint.rectTransform.sizeDelta=new Vector2(1000,40);
             hint.fontSize=22;hint.alignment=TextAnchor.MiddleCenter;hint.lineSpacing=1;
             hint.text="LMB - BALANCE LEFT     RMB - BALANCE RIGHT";
@@ -27,8 +29,8 @@ namespace Cardboard
                 lunch.State==LunchState.Spilled?"LUNCH SPILLED. BACK TO WORK.":
                 lunch.NearDestination?lunch.DeliveryPrompt:
                 lunch.State==LunchState.Ready && !lunch.Attended?"LUNCH TIME! REACH THE CANTEEN IN "+lunch.ArrivalCountdown:"CARRY THE TRAY TO THE FAR END TABLE.";
-            aim.SetActive(!CardboardMarker.DrawingMode && (lunch.Carrying || lunch.State==LunchState.Ready));
-            balance.SetActive(lunch.Carrying);balance.GetComponent<RectTransform>().anchoredPosition=new Vector2(0,84);
+            aim.SetActive(!CardboardMarker.DrawingMode && (carrying || lunch.State==LunchState.Ready));
+            balance.SetActive(carrying);balance.GetComponent<RectTransform>().anchoredPosition=new Vector2(0,84);
             needle.anchoredPosition=new Vector2(Mathf.Clamp(lunch.Tilt,-1,1)*190,0);
         }
     }

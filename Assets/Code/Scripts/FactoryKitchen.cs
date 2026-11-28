@@ -37,6 +37,7 @@ namespace Cardboard
         Transform soupBurnerSeat;
         Renderer soupCoals;
         Vector2 pointer;
+        bool peelerPressed;
         int prepStartedFrame;
         bool burner, soupBurnerLit, charging, panHasCookedFood, panHasBurntFood;
         float boil, peelAngle, peelSoundAt;
@@ -71,9 +72,22 @@ namespace Cardboard
             }
         }
         bool HeatingSoup => soupBurnerLit && PotOnBurner;
-        bool Active => game && game.State == FactoryState.Working && !game.MenuActive && !game.IntroActive &&
+        bool Active => game && game.State == FactoryState.Working &&
+            (!game.MenuActive || game.MultiplayerPrototype && game.CoopKitchenAuthority) && !game.IntroActive &&
             !game.CaptureActive && !game.EndingBusy && !game.FilmActive;
-        internal bool ToolsActive => Active && !game.PlayerBlocked && !CardboardMarker.DrawingMode;
+        internal bool ToolsActive => Active && (game.MultiplayerPrototype || !game.PlayerBlocked && !CardboardMarker.DrawingMode);
+        internal bool CoopHolding => Held;
+        internal string CoopHint => Time.time <= hintUntil ? hint : "";
+        internal float CoopPeel => Preparing && peelingPotato ? peelingPotato.PeelProgress : 0;
+        internal Vector2 CoopPeelPointer => pointer;
+        internal bool CoopPeelerPressed => peelerPressed;
+        internal void ApplyCoopCounters(FactoryCoopKitchenState state)
+        {
+            RatStock = state.Stock;
+            Portions = state.Portions;
+            RatInPot = state.RatMass;
+            PotatoInPot = state.PotatoMass;
+        }
 
         void Awake()
         {
@@ -214,7 +228,7 @@ namespace Cardboard
         {
             if (!ToolsActive || !HeldUtensil) return false;
             if (HeldUtensil != ladle) return HeldUtensil.ReadInput(mouse, delta, sensitivity);
-            if (mouse.leftButton.wasPressedThisFrame) UseLadle(Camera.main.transform);
+            if (mouse.leftButton.wasPressedThisFrame) UseLadle(game.ActionLens);
             return false;
         }
 
@@ -377,9 +391,8 @@ namespace Cardboard
 
         bool TakePotato()
         {
-            var camera = Camera.main;
-            if (!camera) return false;
-            var eyes = camera.transform;
+            var eyes = game.ActionLens;
+            if (!eyes) return false;
             var potato = SpawnPiece(false, cuttablePotato, potatoMaterials, 1,
                 eyes.position + eyes.forward * .68f - Vector3.up * .18f, Quaternion.identity, null);
             if (potato.Prop.Take(game))
@@ -451,26 +464,50 @@ namespace Cardboard
             (Preparing || HeldTransferTool && (charging || mouse.leftButton.isPressed || mouse.leftButton.wasReleasedThisFrame));
 
         public void HandleMouse(Mouse mouse, Vector2 delta)
+            => HandleToolInput(delta, mouse.scroll.ReadValue().y, mouse.leftButton.isPressed,
+                mouse.leftButton.wasPressedThisFrame, mouse.leftButton.wasReleasedThisFrame,
+                mouse.rightButton.wasPressedThisFrame, Keyboard.current?.eKey.wasPressedThisFrame == true);
+
+        void HandleToolInput(Vector2 delta, float scroll, bool primary, bool pressed, bool released, bool secondary, bool interact)
         {
             if (Preparing)
             {
-                if (mouse.rightButton.wasPressedThisFrame || Time.frameCount != prepStartedFrame && Keyboard.current?.eKey.wasPressedThisFrame == true)
+                if (secondary || Time.frameCount != prepStartedFrame && interact)
                 { EndPrep(); return; }
-                float scroll = mouse.scroll.ReadValue().y;
                 if (Mathf.Abs(scroll) > .01f) TurnPotato(Mathf.Sign(scroll) * 30f);
-                MovePrepTool(delta, mouse.leftButton.isPressed);
+                MovePrepTool(delta, primary);
                 return;
             }
-            if (mouse.rightButton.wasPressedThisFrame) { CancelFlick(); return; }
-            if (mouse.leftButton.wasPressedThisFrame) { charging = true; flick = Vector2.zero; }
+            if (secondary) { CancelFlick(); return; }
+            if (pressed) { charging = true; flick = Vector2.zero; }
             if (!charging) return;
             flick = Vector2.ClampMagnitude(flick + delta, 175f);
             HeldTool.Pitch = Mathf.Clamp(flick.y * .10f, -8f, 12f);
-            if (mouse.leftButton.wasReleasedThisFrame)
+            if (released)
             {
                 Toss(HeldTool, flick);
                 CancelFlick();
             }
+        }
+
+        internal void CoopInput(FactoryCoopCommand command)
+        {
+            if (!Active) return;
+            bool primary = (command.Buttons & FactoryCoopControls.Primary) != 0;
+            bool secondary = (command.Buttons & FactoryCoopControls.Secondary) != 0;
+            if (Preparing || HeldTransferTool)
+            {
+                HandleToolInput(command.PointerDelta, command.Amount, primary, command.Pressed, command.Released, command.SecondaryPressed, false);
+                if (!Preparing && command.SecondaryPressed) game.objectCarry.Release(false);
+            }
+            else if (HeldUtensil)
+            {
+                if (HeldUtensil == ladle && command.Pressed) UseLadle(game.ActionLens);
+                else HeldUtensil.ReadInput(primary, secondary, command.Amount, command.PointerDelta, .10f);
+                if (command.SecondaryPressed) ReturnUtensil();
+            }
+            else if (Held && (command.Pressed || command.SecondaryPressed))
+                game.objectCarry.TickInput(command.Pressed, command.SecondaryPressed);
         }
 
         public void CancelFlick()
@@ -484,15 +521,20 @@ namespace Cardboard
         {
             if (!Preparing) return;
             Vector2 previous = pointer;
-            pointer += pixels * .0026f;
-            pointer.x = Mathf.Clamp(pointer.x, -.23f, .23f);
-            pointer.y = Mathf.Clamp(pointer.y, -.14f, .14f);
+            pointer = MovePeelPointer(pointer, pixels);
             if (pressed) Peel(previous, pointer);
             if (Preparing) PosePeeler(pressed);
         }
 
+        internal static Vector2 MovePeelPointer(Vector2 current, Vector2 pixels)
+        {
+            var next = current + pixels * .0026f;
+            return new Vector2(Mathf.Clamp(next.x, -.23f, .23f), Mathf.Clamp(next.y, -.14f, .14f));
+        }
+
         void PosePeeler(bool pressed)
         {
+            peelerPressed = pressed;
             float height = peelingPotato.PeelHeight(pointer) + (pressed ? .001f : .064f);
             var rotation = board.transform.rotation;
             peeler.SetPositionAndRotation(PeelOrigin + rotation * new Vector3(pointer.x, height - .018f, pointer.y - .035f), rotation);
@@ -848,7 +890,7 @@ namespace Cardboard
 
         void Update()
         {
-            if (Active && Application.isFocused) return;
+            if (Active && (game.MultiplayerPrototype || Application.isFocused)) return;
             if (Preparing) EndPrep();
             if (charging) CancelFlick();
             if (sizzle.isPlaying) sizzle.Stop();
@@ -895,7 +937,7 @@ namespace Cardboard
 
         void OnGUI()
         {
-            if (!Active || KnifeHeld || CardboardMarker.DrawingMode || !Camera.main ||
+            if (!game || game.MultiplayerPrototype || !Active || KnifeHeld || CardboardMarker.DrawingMode || !Camera.main ||
                 !Preparing && Vector3.Distance(Camera.main.transform.position, transform.position) > 7f && !OwnsHeld(Held)) return;
             string prompt = Preparing ? $"LMB + MOVE - PEEL  /  WHEEL - TURN  /  {Mathf.FloorToInt(peelingPotato.PeelProgress * 100f)}%  /  RMB - LEAVE" : game.FocusPrompt;
             bool kitchenFocus = game.Focus && (game.Focus.action == FactoryAction.Kitchen || game.Focus.GetComponent<FactoryKitchenFood>() ||

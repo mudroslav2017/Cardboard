@@ -42,12 +42,14 @@ namespace Cardboard
         {
             if(!Body)Initialize();
             IsHeld=false;throwUntil=0;hitWorkers.Clear();RestorePlayerCollision();
-            Body.useGravity=true;Body.linearVelocity=Body.angularVelocity=Vector3.zero;
+            Body.useGravity=true;
+            if(!Body.isKinematic) Body.linearVelocity=Body.angularVelocity=Vector3.zero;
             Body.position=homePosition;Body.rotation=homeRotation;Body.WakeUp();
         }
         public bool Take(CardboardFactoryGame game)
         {
-            if(!game || game.HandsBusy || game.HasPart || game.PlayerBlocked || game.CaptureActive || game.Ended)return false;
+            if(!game || game.HandsBusy || game.HasPart || (!game.MultiplayerPrototype && game.PlayerBlocked) ||
+                game.CaptureActive || game.Ended)return false;
             if(workbenchPart)
             {game.ReceiveWorkbenchPart(recipe);gameObject.SetActive(false);Destroy(gameObject);return true;}
             return game.objectCarry && game.objectCarry.Take(this);

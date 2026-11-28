@@ -33,9 +33,11 @@ namespace Cardboard
         float nextShot, traceUntil, hitUntil, recoil, raise;
 
         internal bool Drawn => equipped && CanUse;
+        internal System.Action SubmitCoopShot;
+        internal System.Func<bool> CoopHandsBusy;
         bool CanUse => CardboardRunner.Player && !game.PlayerBlocked && !game.CaptureActive &&
             !game.CameraOverride && !game.HandsBusy && !game.HasPart && !CardboardMarker.DrawingMode &&
-            (!game.craneJob || !game.craneJob.HoldsPlayer);
+            CoopHandsBusy?.Invoke() != true && (!game.craneJob || (game.MultiplayerPrototype ? !game.CoopLocalCrane : !game.craneJob.HoldsPlayer));
 
         void Awake()
         {
@@ -223,7 +225,8 @@ namespace Cardboard
             nextShot = now + ShotInterval;
             Physics.SyncTransforms();
             bool contact = PickContact(ray, out var hit, out var rat);
-            if (contact && ApplyContact(hit, rat, ray.direction)) hitUntil = now + .13f;
+            if (SubmitCoopShot != null) SubmitCoopShot();
+            else if (contact && ApplyContact(hit, rat, ray.direction)) hitUntil = now + .13f;
             Vector3 end = contact ? hit.point : ray.GetPoint(Reach);
             Vector3 start = view.transform.TransformPoint(model.Muzzle);
             if (Vector3.Dot(end - start, ray.direction) <= 0f) start = ray.origin;
@@ -233,6 +236,11 @@ namespace Cardboard
             traceUntil = now + TraceDuration;
             recoil = 1f;
             speaker.PlayOneShot(pulseSound);
+        }
+        internal void ApplyCoopShot(Ray ray)
+        {
+            Physics.SyncTransforms();
+            if (PickContact(ray, out var hit, out var rat)) ApplyContact(hit, rat, ray.direction);
         }
 
         bool PickContact(Ray ray, out RaycastHit nearest, out FactoryRatTarget target)

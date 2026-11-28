@@ -44,6 +44,7 @@ namespace Cardboard
         public bool Manipulating { get; private set; }
         public bool LeverAnimating { get; private set; }
         public float LeverTravel { get; private set; }
+        internal int CoopLeverOwner { get; private set; }
         public int OrderNumber { get; private set; }
         public int QueuedOrder { get; private set; }
         public float OrderTravel { get; private set; }
@@ -63,6 +64,9 @@ namespace Cardboard
         StationPart activeLever;
         Vector2 pointer;
         GameObject dippingVisual;
+        FactoryCoopPlayer dippingPlayer;
+        FactoryRecipe dippingRecipe;
+        float executionLever, executionCrush;
         FactoryWorkbenchSound sound;
         FactoryGuardAnimation guardAnimation;
 
@@ -91,11 +95,15 @@ namespace Cardboard
             if(printerSignal)printerSignal.SetSignal(false);
             if(sound)sound.StopCutting();
             if (dippingVisual) Destroy(dippingVisual);
+            if (dippingPlayer != null) dippingPlayer.Hand.Dipping = false;
+            dippingPlayer = null;
+            dippingBath = 0;
             if (machiningEffects) machiningEffects.Clear();
             if (initialized) Refresh();
         }
         public void PrintOrder(int number) { QueuedOrder = Mathf.Max(number,0); }
-        bool Available => isPlayerStation && Game && !Game.MenuActive && !Game.Ended && !Game.HandsBusy && !Game.IntroBusy && Game.State != FactoryState.Chased;
+        bool Available => isPlayerStation && Game && (Game.MultiplayerPrototype && Game.State == FactoryState.Working ||
+            !Game.MenuActive && !Game.Ended && !Game.HandsBusy && !Game.IntroBusy && Game.State != FactoryState.Chased);
         void Update()
         {
             if (ExecutionControlled || (Game && Game.MenuActive)) return;
@@ -125,13 +133,13 @@ namespace Cardboard
         // Also used by the Play Mode checks, so timed machinery has a single path.
         public void Tick(float dt)
         {
-            if(Game && !Game.MenuActive && !Game.Ended && !Game.CaptureActive && (!Game.intro || Game.intro.AllowPrinter))TickOrder(dt);
+            if(Game && !Game.Ended && (Game.MultiplayerPrototype || !Game.MenuActive && !Game.CaptureActive &&
+                (!Game.intro || Game.intro.AllowPrinter)))TickOrder(dt);
             if (!Available) return;
             if (LeverAnimating)
             {
                 leverTime += dt;
-                LeverTravel = leverTime < .35f ? Mathf.SmoothStep(0, 1, leverTime / .35f) :
-                    leverTime < .45f ? 1 : Mathf.SmoothStep(1, 0, (leverTime - .45f) / .55f);
+                LeverTravel = TravelAt(leverTime);
                 if (!leverFired && leverTime >= .35f)
                 {
                     leverFired = true;
@@ -145,7 +153,7 @@ namespace Cardboard
                     Clunk(true);
                 }
                 if (leverTime >= 1)
-                { LeverAnimating = false; LeverTravel = 0; releasedFrame = Time.frameCount; if (operatorHand) operatorHand.Release(); }
+                { LeverAnimating = false; LeverTravel = 0; CoopLeverOwner = 0; releasedFrame = Time.frameCount; if (operatorHand) operatorHand.Release(); }
             }
             GuardBlend = Mathf.MoveTowards(GuardBlend, GuardClosed ? 1 : 0, dt / .65f);
             pressBlend = Mathf.MoveTowards(pressBlend, PressClosed ? 1 : 0, dt / .55f);
@@ -176,7 +184,15 @@ namespace Cardboard
                 }
                 if (elapsed >= 1.1f)
                 {
-                    Game.FinishDip(dippingBath); if (dippingVisual) Destroy(dippingVisual);
+                    if (dippingPlayer == null) Game.FinishDip(dippingBath);
+                    else
+                    {
+                        dippingRecipe.finish = dippingBath;
+                        dippingPlayer.Hand.Recipe = dippingRecipe;
+                        dippingPlayer.Hand.Dipping = false;
+                        dippingPlayer = null;
+                    }
+                    if (dippingVisual) Destroy(dippingVisual);
                     Stage = StationStage.Empty; elapsed = 0; Clunk(false);
                 }
             }
@@ -191,6 +207,11 @@ namespace Cardboard
                 OrderNumber = QueuedOrder;
                 OrderTravel = Mathf.MoveTowards(OrderTravel, OrderNumber == 0 ? 0 : 1, dt / PrintDuration);
             }
+            PoseOrder();
+        }
+        void PoseOrder()
+        {
+            if (!orderCard) return;
             orderCard.gameObject.SetActive(OrderTravel > 0);
             if(orderNumber)orderNumber.text="";
             if(!orderView)orderView=orderCard.GetComponent<FactoryPunchcardView>();
@@ -198,80 +219,197 @@ namespace Cardboard
             if(printerSignal)printerSignal.SetSignal(IsPrinting);
             orderCard.localPosition = new Vector3(0, -.65f * Mathf.SmoothStep(0, 1, OrderTravel), .055f);
         }
-        void PullLever(StationPart part)
+        static float TravelAt(float time) => time < .35f ? Mathf.SmoothStep(0, 1, time / .35f) :
+            time < .45f ? 1 : Mathf.SmoothStep(1, 0, (time - .45f) / .55f);
+
+        void PullLever(StationPart part, FactoryCoopPlayer player)
         {
             activeLever = part; LeverAnimating = true; leverTime = LeverTravel = 0; leverFired = false;
-            if(sound)sound.Lever((part==StationPart.Feed?feedGrip:pressGrip).position);
-            if (operatorHand) operatorHand.Attach(part == StationPart.Feed ? feedGrip : pressGrip);
+            CoopLeverOwner = player?.Role ?? 0;
+            PlayLeverSound(part);
+            if (operatorHand && !Game.MultiplayerPrototype) operatorHand.Attach(part == StationPart.Feed ? feedGrip : pressGrip);
         }
-        public bool CanInteract(StationPart part,int number=0)
+        internal void PlayLeverSound(StationPart part)
+        {
+            if (sound) sound.Lever((part == StationPart.Feed ? feedGrip : pressGrip).position);
+        }
+        internal FactoryStationState ReadCoopState() => new FactoryStationState
+        {
+            Stage = Stage, Lever = activeLever, SelectedType = SelectedType, CutType = CutType,
+            OrderNumber = OrderNumber, QueuedOrder = QueuedOrder, Bath = dippingBath, BathRecipe = dippingRecipe,
+            PressClosed = PressClosed, GuardClosed = GuardClosed, LeverAnimating = LeverAnimating,
+            Manipulating = Manipulating, Pressure = Pressure, CutProgress = CutProgress, GuardBlend = GuardBlend,
+            PressBlend = pressBlend, LeverTravel = LeverTravel, WheelAngle = wheelAngle, OrderTravel = OrderTravel,
+            LandingPulse = landingPulse, Elapsed = elapsed, SheetPosition = sheet.localPosition,
+            LeverOwner = CoopLeverOwner, LeverTime = leverTime,
+            Execution = ExecutionControlled, ExecutionLever = executionLever, ExecutionCrush = executionCrush
+        };
+        internal void ApplyCoopState(FactoryStationState state, int localRole, bool playedLeverSound)
+        {
+            if (state.Execution)
+            {
+                if (!ExecutionControlled) BeginExecution();
+                SetExecutionPose(state.ExecutionLever, state.ExecutionCrush);
+                return;
+            }
+            if (ExecutionControlled) ResetMachine();
+            if (state.Stage == StationStage.Cut && (Stage != StationStage.Cut || CutType != state.CutType))
+            {
+                CutType = state.CutType;
+                BuildCutPart();
+            }
+            if (state.LeverAnimating && !LeverAnimating && (!playedLeverSound || state.LeverOwner != localRole))
+                PlayLeverSound(state.Lever);
+            float cut = state.CutProgress - CutProgress;
+            if (cut > 0)
+            {
+                if (sound) sound.Cut(cut);
+                if (machiningEffects) machiningEffects.Cut(cut);
+            }
+            Stage = state.Stage;
+            activeLever = state.Lever;
+            SelectedType = state.SelectedType;
+            CutType = state.CutType;
+            Pressure = state.Pressure;
+            CutProgress = state.CutProgress;
+            PressClosed = state.PressClosed;
+            GuardClosed = state.GuardClosed;
+            GuardBlend = state.GuardBlend;
+            pressBlend = state.PressBlend;
+            LeverTravel = state.LeverTravel;
+            leverTime = state.LeverTime;
+            CoopLeverOwner = state.LeverOwner;
+            LeverAnimating = state.LeverAnimating;
+            Manipulating = state.Manipulating;
+            wheelAngle = state.WheelAngle;
+            landingPulse = state.LandingPulse;
+            OrderNumber = state.OrderNumber;
+            QueuedOrder = state.QueuedOrder;
+            OrderTravel = state.OrderTravel;
+            sheet.localPosition = state.SheetPosition;
+            if (Stage == StationStage.Dipping && state.Bath >= 1 && state.Bath <= baths.Length)
+            {
+                if (!dippingVisual) CreateDippingVisual(state.BathRecipe);
+                dippingVisual.transform.position = baths[state.Bath - 1].position +
+                    Vector3.up * Mathf.Lerp(1.05f, .35f, Mathf.Sin(Mathf.Clamp01(state.Elapsed / 1.1f) * Mathf.PI));
+            }
+            else if (dippingVisual)
+            {
+                Destroy(dippingVisual);
+                dippingVisual = null;
+            }
+            PoseOrder();
+            Refresh();
+        }
+        internal void PresentCoopControls(bool localWheel, float wheelOffset, bool localLever, StationPart predictedLever,
+            float predictedTime, float sinceSnapshot)
+        {
+            if (ExecutionControlled) return;
+            if (wheelOffset != 0)
+            {
+                float angle = wheelAngle + wheelOffset;
+                wheel.localRotation = Quaternion.AngleAxis(-angle, wheelAxis) * wheelHome;
+                sheet.localRotation = Quaternion.Euler(0, -angle, 0);
+            }
+            var lever = LeverAnimating ? activeLever : predictedLever;
+            float time = LeverAnimating ? leverTime + sinceSnapshot : 0;
+            if (predictedTime >= 0) time = Mathf.Max(time, predictedTime);
+            float travel = LeverAnimating || predictedTime >= 0 ? -58 * TravelAt(time) : 0;
+            FeedMotion.localRotation = feedHome * Quaternion.Euler(lever == StationPart.Feed ? travel : 0, 0, 0);
+            PressMotion.localRotation = pressLeverHome * Quaternion.Euler(lever == StationPart.Press ? travel : 0, 0, 0);
+            if (!operatorHand) return;
+            Transform grip = localWheel ? wheelGrip : localLever && time < 1 ?
+                (lever == StationPart.Feed ? feedGrip : pressGrip) : null;
+            if (grip == operatorHand.Grip) return;
+            if (grip) operatorHand.Attach(grip);
+            else operatorHand.Release();
+        }
+        public bool CanInteract(StationPart part,int number=0) => CanInteract(part, number, null);
+        internal bool CanInteract(StationPart part, int number, FactoryCoopPlayer player)
         {
             if(!Available || ExecutionControlled || Manipulating || LeverAnimating || Stage==StationStage.Dipping)return false;
+            bool hasPart = player == null ? Game.HasPart : player.Hand.HasPart;
+            var recipe = player == null ? Game.HeldRecipe : player.Hand.Recipe;
             switch(part)
             {
                 case StationPart.Feed:
-                    return Stage==StationStage.Empty && !Game.HasPart && !PressClosed && !GuardClosed;
+                    return Stage==StationStage.Empty && !hasPart && !PressClosed && !GuardClosed;
                 case StationPart.Selector:
-                    return (Stage==StationStage.Empty || Stage==StationStage.Loaded) && !Game.HasPart && !PressClosed && !GuardClosed;
+                    return (Stage==StationStage.Empty || Stage==StationStage.Loaded) && !hasPart && !PressClosed && !GuardClosed;
                 case StationPart.Press:
                     return !GuardClosed && GuardBlend<=.01f && ((!PressClosed && Stage==StationStage.Loaded) ||
                         (PressClosed && (Stage==StationStage.Loaded || Stage==StationStage.Cutting || Stage==StationStage.Cut)));
                 case StationPart.Guard:
                     return GuardClosed || (PressClosed && pressBlend>=.99f && (Stage==StationStage.Loaded || Stage==StationStage.Cutting));
                 case StationPart.Wheel:
-                    return !Game.HasPart;
+                    return !hasPart;
                 case StationPart.Output:
-                    return Stage==StationStage.Cut && !PressClosed && pressBlend<=.01f && !GuardClosed && GuardBlend<=.01f && !Game.HasPart;
+                    return Stage==StationStage.Cut && !PressClosed && pressBlend<=.01f && !GuardClosed && GuardBlend<=.01f && !hasPart;
                 case StationPart.Bath:
-                    return number>=1 && number<=baths.Length && Stage==StationStage.Empty && Game.HasPart && Game.HeldRecipe.finish==0 && !Game.DippingPart;
+                    return number>=1 && number<=baths.Length && Stage==StationStage.Empty && hasPart &&
+                        recipe.finish==0 && !(player == null ? Game.DippingPart : player.Hand.Dipping);
                 default:return false;
             }
         }
-        public bool Operate(StationPart part, int number = 0)
+        public bool Operate(StationPart part, int number = 0) => Operate(part, number, null);
+        internal bool Operate(StationPart part, int number, FactoryCoopPlayer player)
         {
             if (!Available || Manipulating || LeverAnimating || Stage == StationStage.Dipping) return false;
+            bool hasPart = player == null ? Game.HasPart : player.Hand.HasPart;
             bool accepted = false;
             switch (part)
             {
                 case StationPart.Feed:
-                    if (Stage == StationStage.Empty && !Game.HasPart && !PressClosed && !GuardClosed)
-                    { PullLever(part); accepted = true; }
+                    if (Stage == StationStage.Empty && !hasPart && !PressClosed && !GuardClosed)
+                    { PullLever(part, player); accepted = true; }
                     break;
                 case StationPart.Selector:
-                    if ((Stage == StationStage.Empty || Stage == StationStage.Loaded) && !Game.HasPart && !PressClosed && !GuardClosed)
+                    if ((Stage == StationStage.Empty || Stage == StationStage.Loaded) && !hasPart && !PressClosed && !GuardClosed)
                     { SelectedType = SelectedType % 3 + 1;wrongTypeFault=false; accepted = true; }
                     break;
                 case StationPart.Press:
                     if (!GuardClosed && GuardBlend <= .01f && ((!PressClosed && Stage == StationStage.Loaded) || (PressClosed && (Stage == StationStage.Loaded || Stage == StationStage.Cutting || Stage == StationStage.Cut))))
-                    { PullLever(part); accepted = true; }
+                    { PullLever(part, player); accepted = true; }
                     break;
                 case StationPart.Guard:
                     if (GuardClosed || (PressClosed && pressBlend >= .99f && (Stage == StationStage.Loaded || Stage == StationStage.Cutting)))
                     { GuardClosed = !GuardClosed; if (!GuardClosed) Pressure = 0; accepted = true; }
                     break;
                 case StationPart.Wheel:
-                    if (BeginWheel(Vector2.zero)) { autoTurnRemaining = 60; accepted = true; }
+                    if (player == null ? BeginWheel(Vector2.zero) : !hasPart && BeginCoopWheel())
+                    { autoTurnRemaining = 60; accepted = true; }
                     break;
                 case StationPart.Output:
-                    if (Stage == StationStage.Cut && !PressClosed && pressBlend <= .01f && !GuardClosed && GuardBlend <= .01f && !Game.HasPart)
+                    if (Stage == StationStage.Cut && !PressClosed && pressBlend <= .01f && !GuardClosed && GuardBlend <= .01f && !hasPart)
                     {
-                        Game.ReceiveWorkbenchPart(FactoryRecipe.ForType(CutType, false));
+                        var partRecipe = FactoryRecipe.ForType(CutType, false);
+                        if (player == null) Game.ReceiveWorkbenchPart(partRecipe);
+                        else player.Hand.Take(partRecipe);
                         Stage = StationStage.Empty; CutProgress = Pressure = 0; accepted = true;
                     }
                     break;
                 case StationPart.Bath:
-                    if (number >= 1 && number <= 3 && Stage == StationStage.Empty && Game.BeginDip())
+                    if (number >= 1 && number <= 3 && Stage == StationStage.Empty && (player == null ?
+                        Game.BeginDip() : hasPart && !player.Hand.Dipping && player.Hand.Recipe.finish == 0))
                     {
                         dippingBath = number; elapsed = 0; Stage = StationStage.Dipping;
-                        dippingVisual = new GameObject("Gear immersed in bath " + number);
-                        dippingVisual.transform.localScale = Vector3.one * .28f;
-                        dippingVisual.transform.rotation = Quaternion.Euler(0, 0, 15);
-                        FactoryGeometry.GearVisual(dippingVisual.transform, Game.HeldRecipe, Game.gearMeshes, Game.hubMeshes, Game.gearPaper, Game.gearEdge, Game.gearInk);
+                        dippingPlayer = player;
+                        dippingRecipe = player == null ? Game.HeldRecipe : player.Hand.Recipe;
+                        if (player != null) player.Hand.Dipping = true;
+                        CreateDippingVisual(dippingRecipe);
                         accepted = true;
                     }
                     break;
             }
             Clunk(!accepted); Refresh(); return accepted;
+        }
+        void CreateDippingVisual(FactoryRecipe recipe)
+        {
+            dippingVisual = new GameObject("Gear immersed in bath");
+            dippingVisual.transform.localScale = Vector3.one * .28f;
+            dippingVisual.transform.rotation = Quaternion.Euler(0, 0, 15);
+            FactoryGeometry.GearVisual(dippingVisual.transform, recipe, Game.gearMeshes, Game.hubMeshes,
+                Game.gearPaper, Game.gearEdge, Game.gearInk);
         }
         public bool IsOnPump(Vector3 worldPosition)
         {
@@ -305,7 +443,7 @@ namespace Cardboard
             {
                 wrongTypeFault=true;
                 Game.RegisterMistake("Cut the wrong gear type: the diagram does not match the punchcard.");
-                if(Game.CaptureActive) return false;
+                if(Game.CaptureActive || Game.Ended) return false;
             }
             float previousProgress=CutProgress;
             CutProgress = Mathf.Clamp01(CutProgress + degrees / 1080);
@@ -328,6 +466,14 @@ namespace Cardboard
             if (operatorHand) operatorHand.Attach(wheelGrip);
             DragWheel(pointer); return true;
         }
+        internal bool BeginCoopWheel()
+        {
+            if (!Available || Manipulating || LeverAnimating || Stage == StationStage.Dipping) return false;
+            Manipulating = true;
+            wheelAttemptFault = false;
+            autoTurnRemaining = 0;
+            return true;
+        }
         public void DragWheel(Vector2 screenPointer)
         {
             if (!Manipulating || !Camera.main) return;
@@ -345,8 +491,9 @@ namespace Cardboard
         {
             bool wasManipulating = Manipulating;
             Manipulating = LeverAnimating = false; LeverTravel = 0; autoTurnRemaining = 0; hasAngle = false;
+            CoopLeverOwner = 0;
             if (operatorHand) operatorHand.Release();
-            if (!wasManipulating) return;
+            if (!wasManipulating || (Game && Game.MultiplayerPrototype)) return;
             releasedFrame = Time.frameCount;
             bool lockLook = capture && returnToLook;
             Cursor.lockState = lockLook ? CursorLockMode.Locked : CursorLockMode.None; FactoryVolumeCursor.SetSystemVisible(!lockLook);
@@ -362,6 +509,7 @@ namespace Cardboard
         }
         public void SetExecutionPose(float leverTravel,float crush)
         {
+            executionLever = leverTravel; executionCrush = crush;
             PressMotion.localRotation=pressLeverHome*Quaternion.Euler(-58*Mathf.Clamp01(leverTravel),0,0);
             press.localPosition=pressHome+Vector3.down*(.65f*Mathf.Clamp01(crush));
         }
@@ -398,7 +546,7 @@ namespace Cardboard
             progressFill.localPosition = progressOrigin + progressFill.localRotation*Vector3.right * (1.1f * (CutProgress - 1) * .5f);
             if (operatorHand) operatorHand.SyncPose();
         }
-        void OnApplicationFocus(bool focused) { if (!focused && Manipulating) EndGrip(false); }
+        void OnApplicationFocus(bool focused) { if (!focused && Manipulating && (!Game || !Game.MultiplayerPrototype)) EndGrip(false); }
         void PoseGuard()
         {
             if(guardAnimation)guardAnimation.Evaluate(GuardBlend);

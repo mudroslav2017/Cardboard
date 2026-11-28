@@ -14,7 +14,7 @@ namespace Cardboard
         void LateUpdate(){Refresh();}
         public void Refresh()
         {
-            bool visible=game && !game.MenuActive && !game.Ended && !game.CaptureActive && !game.IntroBusy;
+            bool visible=game && (!game.MenuActive || game.MultiplayerPrototype) && !game.Ended && !game.CaptureActive && !game.IntroBusy;
             label.gameObject.SetActive(visible);icon.gameObject.SetActive(visible);
             label.text=game.Repairs+" / "+game.RepairGoal;
             // Troublemarker digits have different widths: 4 / 6 is wider than 0 / 6.

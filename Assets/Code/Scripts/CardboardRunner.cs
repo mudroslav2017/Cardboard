@@ -50,7 +50,8 @@ namespace Cardboard
             var factory=CardboardFactoryGame.Instance;
             var crane = isPlayer && factory ? factory.craneJob : null;
             var production = isPlayer && factory ? factory.production : null;
-            if ((crane && crane.HoldsPlayer) || (production && production.HoldsPlayer))
+            if ((crane && (factory.MultiplayerPrototype ? factory.CoopLocalCrane : crane.HoldsPlayer)) ||
+                (production && production.HoldsPlayer && (!factory.MultiplayerPrototype || factory.CoopLocalProduction)))
             { velocity = Vector3.zero; speed = jumpHeight = jumpVelocity = 0f; return; }
             bool hallPhysics = crane && !InSewer && crane.InHall(transform.position);
             if(factory && factory.intro && factory.intro.ControlsWorker(this))return;
@@ -71,14 +72,16 @@ namespace Cardboard
                 var keyboard=Keyboard.current;
                 if (keyboard!=null)
                 {
+                    bool handsBusy = factory && (factory.MultiplayerPrototype ? factory.CoopLocalHands : factory.HandsBusy);
                     Vector2 input=new Vector2((keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed?1:0)-(keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed?1:0),
                         (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed?1:0)-(keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed?1:0));
                     Vector3 forward=Quaternion.Euler(0,Camera.main?Camera.main.transform.eulerAngles.y:180,0)*Vector3.forward;
                     Vector3 right=Vector3.Cross(Vector3.up,forward);
-                    float moveSpeed=factory && factory.lunch && factory.lunch.Carrying?1.3f:
-                        factory && factory.HandsBusy?1.8f:factory && factory.Pretending?1.35f:keyboard.leftShiftKey.isPressed?6:3.2f;
+                    float moveSpeed=factory && factory.lunch && factory.lunch.LocalCarrying?1.3f:
+                        handsBusy?1.8f:factory && factory.Pretending?1.35f:keyboard.leftShiftKey.isPressed?6:3.2f;
                     wish=(forward*input.y+right*input.x).normalized*moveSpeed;
-                    if (keyboard.spaceKey.wasPressedThisFrame && !InSewer && jumpHeight<=.001f && (!factory || !factory.HandsBusy))
+                    if (keyboard.spaceKey.wasPressedThisFrame && !InSewer && jumpHeight<=.001f &&
+                        !handsBusy)
                     {
                         if (!hallPhysics) jumpVelocity = 5.5f;
                         else if (characterController && characterController.isGrounded) fallSpeed = 5.5f;
@@ -113,7 +116,7 @@ namespace Cardboard
                 }
                 if(IsResting && !chasing && !lunchGuided) wish=Vector3.zero;
             }
-            if(isPlayer && factory && factory.lunch && factory.lunch.Carrying)
+            if(isPlayer && factory && factory.lunch && factory.lunch.LocalCarrying)
             {
                 var heading=Quaternion.Euler(0,Camera.main?Camera.main.transform.eulerAngles.y:180,0);
                 wish+=heading*Vector3.right*factory.lunch.StaggerVelocity;
@@ -121,7 +124,7 @@ namespace Cardboard
             if(!isPlayer && Time.time<paintHoldUntil && !chasing) velocity=Vector3.zero;
             if(factory && !isPlayer)FactoryDoor.OpenForWorker(transform.position,wish);
             velocity=Vector3.Lerp(velocity,wish,1-Mathf.Exp(-9*dt)); speed=velocity.magnitude;
-            if(isPlayer && factory && factory.lunch && factory.lunch.Carrying)
+            if(isPlayer && factory && factory.lunch && factory.lunch.LocalCarrying)
             {velocity=Vector3.ClampMagnitude(velocity,1.3f);speed=velocity.magnitude;}
             if (InSewer && characterController && characterController.enabled)
             {
@@ -172,7 +175,7 @@ namespace Cardboard
                 jumpVelocity-=17*dt; jumpHeight=Mathf.Max(0,jumpHeight+jumpVelocity*dt);
                 if (jumpHeight==0 && jumpVelocity<0) jumpVelocity=0;
             }
-            if(isPlayer && factory && factory.station && previousJump>0 && jumpHeight==0)
+            if(isPlayer && factory && !factory.MultiplayerPrototype && factory.station && previousJump>0 && jumpHeight==0)
                 factory.station.TryPump(transform.position);
             float oldCycle=cycle;
             cycle+=dt*speed*3;

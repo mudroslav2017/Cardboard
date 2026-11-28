@@ -69,6 +69,19 @@ namespace Cardboard
         {
             if(!BlocksGameplay)Show();
         }
+        internal void EnterMultiplayerPrototype()
+        {
+            // Keep the solo shift in its menu state while the prototype is running.
+            enabled = false;
+            RestoreTimeScale();
+            visuals.gameObject.SetActive(false);
+            settingsPanel.gameObject.SetActive(false);
+            SetFade(0);
+            if(uiCamera)uiCamera.enabled=false;
+            lens.fieldOfView = CardboardCamera.GameplayFov;
+            SetCoopHud(true);
+        }
+        internal void SetCoopHud(bool visible) { if(shiftHud)shiftHud.alpha=visible?1:0; }
         public void Show()
         {
             if(!BlocksGameplay)

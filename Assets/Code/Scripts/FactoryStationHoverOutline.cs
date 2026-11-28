@@ -28,7 +28,7 @@ namespace Cardboard
                 if(focus && focus.action==FactoryAction.Station)
                 {
                     var candidate=focus.GetComponent<FactoryStationControl>();
-                    if(candidate && candidate.station==station && station.CanInteract(candidate.part,candidate.number))control=candidate;
+                    if(candidate && candidate.station==station && station.CanInteract(candidate.part,candidate.number,game.CoopLocalPlayer))control=candidate;
                 }
             }
             if(Target==control)return;

@@ -23,6 +23,11 @@ namespace Cardboard
         internal bool OnForklift { get; private set; }
         public bool Attached => !OnForklift && coupling && coupling.connectedBody;
         public bool Spilled { get; private set; }
+        internal void AddCoopParts(System.Collections.Generic.List<Transform> parts)
+        {
+            if (packedSlings) parts.Add(packedSlings.transform);
+            foreach (var piece in contents) parts.Add(piece.transform);
+        }
 
         void Awake()
         {

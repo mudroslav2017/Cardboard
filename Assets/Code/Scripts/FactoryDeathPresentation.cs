@@ -70,7 +70,8 @@ namespace Cardboard
         }
         void OnDestroy()
         {
-            if(lens && overlay)lens.GetUniversalAdditionalCameraData().cameraStack.Remove(overlay);
+            if(!CardboardCamera.IsQuitting && lens && overlay && RenderPipelineManager.currentPipeline != null)
+                lens.GetUniversalAdditionalCameraData().cameraStack.Remove(overlay);
             if(waveMaterial){if(Application.isPlaying)Destroy(waveMaterial);else DestroyImmediate(waveMaterial);}
         }
     }

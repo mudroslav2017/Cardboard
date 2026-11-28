@@ -42,7 +42,14 @@ namespace Cardboard
 
         public bool TryCollect(FactoryRatTarget target)
         {
-            if (!CanGrab || !target || !target.Available) return false;
+            return Collect(target, CanGrab);
+        }
+        internal bool TryCollectCoop(FactoryRatTarget target, bool underground) => Collect(target,
+            underground && game.State == FactoryState.Working && Food < Quota && Strikes < StrikeLimit);
+
+        bool Collect(FactoryRatTarget target, bool canGrab)
+        {
+            if (!canGrab || !target || !target.Available) return false;
             target.Remove();
             started = true;
             strikeTime = Time.time;
@@ -67,7 +74,13 @@ namespace Cardboard
 
         public bool Deliver()
         {
-            if (!CanDeliver) return false;
+            return Deliver(CanDeliver);
+        }
+        internal bool DeliverCoop() => Deliver(game.State == FactoryState.Working && Food == Quota && !Delivered);
+
+        bool Deliver(bool canDeliver)
+        {
+            if (!canDeliver) return false;
             Delivered = true;
             if (game.kitchen) game.kitchen.ReceiveRats(Food);
             foreach (var rat in basketContents) rat.SetActive(false);
@@ -84,7 +97,7 @@ namespace Cardboard
 
         void LateUpdate()
         {
-            Tick(Time.deltaTime);
+            if (!game.MultiplayerPrototype) Tick(Time.deltaTime);
             bool showTools = ActiveGameplay && !game.CameraOverride && !CardboardMarker.DrawingMode &&
                 !game.HandsBusy && !game.HasPart && (!game.R82C4916Item || !game.R82C4916Item.Drawn) &&
                 !Delivered && Strikes < StrikeLimit;
@@ -108,6 +121,23 @@ namespace Cardboard
             if (!ActiveGameplay || !InSewer) return;
             started = true;
             foreach (var target in targets) target.Tick(dt, CardboardRunner.Player.transform.position);
+        }
+
+        internal void TickCoop(float dt, Vector3 position)
+        {
+            if (game.State != FactoryState.Working || Delivered) return;
+            started = true;
+            foreach (var target in targets) target.Tick(dt, position);
+        }
+
+        internal void ApplyCoopProgress(int food, int strikes, bool delivered)
+        {
+            Food = food;
+            Strikes = strikes;
+            Delivered = delivered;
+            int visible = Mathf.CeilToInt(Food * basketContents.Length / (float)Quota);
+            for (int i = 0; i < basketContents.Length; i++)
+                basketContents[i].SetActive(!Delivered && i < visible);
         }
 
         void OnGUI()
