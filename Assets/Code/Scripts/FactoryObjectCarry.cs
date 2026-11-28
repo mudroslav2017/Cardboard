@@ -14,7 +14,7 @@ namespace Cardboard
         Vector3 localCenter;
         FactoryStapler stapler;
         int pickupFrame;
-        public string Prompt => stapler ? FactoryStapler.CarryPrompt :
+        public string Prompt => stapler ? string.Empty :
             Held && Held.instructionSheet ? "E - FLIP · LMB - THROW · RMB - PUT DOWN" : "LMB - THROW · RMB - PUT DOWN";
         public static float ThrowSpeed(float mass,bool instruction=false)
         {return instruction?12:Mathf.Lerp(11,8,Mathf.InverseLerp(.5f,5,mass));}

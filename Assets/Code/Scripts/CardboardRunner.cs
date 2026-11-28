@@ -67,6 +67,8 @@ namespace Cardboard
             {velocity=Vector3.zero;speed=0;diners.PoseDiner(this);return;}
             Vector3 wish=Vector3.zero;
             bool party=Time.time<PartyUntil;
+            bool carryingTray = isPlayer && factory && factory.lunch && factory.lunch.LocalCarrying;
+            float traySpeed = 1.3f;
             if (isPlayer)
             {
                 var keyboard=Keyboard.current;
@@ -77,8 +79,11 @@ namespace Cardboard
                         (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed?1:0)-(keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed?1:0));
                     Vector3 forward=Quaternion.Euler(0,Camera.main?Camera.main.transform.eulerAngles.y:180,0)*Vector3.forward;
                     Vector3 right=Vector3.Cross(Vector3.up,forward);
-                    float moveSpeed=factory && factory.lunch && factory.lunch.LocalCarrying?1.3f:
-                        handsBusy?1.8f:factory && factory.Pretending?1.35f:keyboard.leftShiftKey.isPressed?6:3.2f;
+                    bool sprint = keyboard.leftShiftKey.isPressed;
+                    bool carrySprint = sprint && factory && !factory.MultiplayerPrototype && !factory.Pretending;
+                    if (carrySprint) traySpeed = 6f;
+                    float moveSpeed = carrySprint ? 6f : carryingTray ? traySpeed :
+                        handsBusy ? 1.8f : factory && factory.Pretending ? 1.35f : sprint ? 6f : 3.2f;
                     wish=(forward*input.y+right*input.x).normalized*moveSpeed;
                     if (keyboard.spaceKey.wasPressedThisFrame && !InSewer && jumpHeight<=.001f &&
                         !handsBusy)
@@ -116,7 +121,7 @@ namespace Cardboard
                 }
                 if(IsResting && !chasing && !lunchGuided) wish=Vector3.zero;
             }
-            if(isPlayer && factory && factory.lunch && factory.lunch.LocalCarrying)
+            if(carryingTray)
             {
                 var heading=Quaternion.Euler(0,Camera.main?Camera.main.transform.eulerAngles.y:180,0);
                 wish+=heading*Vector3.right*factory.lunch.StaggerVelocity;
@@ -124,8 +129,8 @@ namespace Cardboard
             if(!isPlayer && Time.time<paintHoldUntil && !chasing) velocity=Vector3.zero;
             if(factory && !isPlayer)FactoryDoor.OpenForWorker(transform.position,wish);
             velocity=Vector3.Lerp(velocity,wish,1-Mathf.Exp(-9*dt)); speed=velocity.magnitude;
-            if(isPlayer && factory && factory.lunch && factory.lunch.LocalCarrying)
-            {velocity=Vector3.ClampMagnitude(velocity,1.3f);speed=velocity.magnitude;}
+            if(carryingTray)
+            {velocity=Vector3.ClampMagnitude(velocity,traySpeed);speed=velocity.magnitude;}
             if (InSewer && characterController && characterController.enabled)
             {
                 MoveWithGravity(velocity * dt, dt);

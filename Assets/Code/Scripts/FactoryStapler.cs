@@ -13,7 +13,6 @@ namespace Cardboard
         const float GripFollowRate = 19f;
         const float MaxGripLag = .11f;
         const float MaxGripTurnLag = 12f;
-        internal const string CarryPrompt = "LMB - FIRE  /  RMB - PUT DOWN";
         static readonly Vector3 HeldOffset = new Vector3(.32f, -.20f, .98f);
         // Bring the sole toward the view, with the free end of the lever hanging down.
         static readonly Quaternion HeldTurn = Quaternion.Euler(-90f, 0f, 0f);
@@ -118,8 +117,7 @@ namespace Cardboard
             var game = CardboardFactoryGame.Instance;
             if (!game || game.PlayerBlocked || game.CaptureActive || game.CameraOverride || CardboardMarker.DrawingMode)
                 return;
-            bool held = game.objectCarry && game.objectCarry.Held == prop;
-            if (!held && game.Focus != pickup) return;
+            if (game.Focus != pickup || prop.IsHeld) return;
             if (promptStyle == null)
             {
                 promptStyle = new GUIStyle(GUI.skin.label)
@@ -138,8 +136,8 @@ namespace Cardboard
             GUI.color = new Color(.09f, .12f, .11f, .94f);
             GUI.DrawTexture(panel, Texture2D.whiteTexture);
             GUI.color = Color.white;
-            GUI.Label(panel, held ? CarryPrompt : pickup.prompt, promptStyle);
-            if (!held) GUI.DrawTexture(new Rect(x - 1f, y - 1f, 2f, 2f), Texture2D.whiteTexture);
+            GUI.Label(panel, pickup.prompt, promptStyle);
+            GUI.DrawTexture(new Rect(x - 1f, y - 1f, 2f, 2f), Texture2D.whiteTexture);
             GUI.color = oldColor;
             GUI.matrix = oldMatrix;
         }
